@@ -1,19 +1,4 @@
 {
-<<<<<<< HEAD
-  "compilerOptions": {
-    "module": "commonjs",
-    "target": "es2020",
-    "outDir": "dist",
-    "rootDir": "..",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "sourceMap": true,
-    "lib": ["es2020"]
-  },
-  "include": ["src/**/*", "../server/src/**/*"]
-}
-=======
     "compilerOptions": {
         "module": "commonjs",
         "target": "es2020",
@@ -27,4 +12,3 @@
     },
     "include": ["src/**/*", "../server/src/**/*"]
 }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)

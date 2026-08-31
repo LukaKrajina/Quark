@@ -1,9 +1,4 @@
 import { db } from './db';
-<<<<<<< HEAD
-
-const QUARK_API_URL = 'http://localhost:9080/v1/chat/completions';
-let currentChatId: string | null = null;
-=======
 import { initI18n, setLocale, t, type Locale } from './i18n';
 
 const API_BASE = (import.meta.env.VITE_QUARK_API_BASE as string | undefined) ?? 'http://localhost:9080';
@@ -11,7 +6,6 @@ const QUARK_API_URL = `${API_BASE}/v1/chat/completions`;
 const MODELS_API_URL = `${API_BASE}/v1/models`;
 let currentChatId: string | null = null;
 let activeController: AbortController | null = null;
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 
 const elements = {
     input: document.getElementById('prompt-input') as HTMLTextAreaElement,

@@ -1,17 +1,3 @@
-<<<<<<< HEAD
-#pragma once
-#include "core/types.hpp"
-#include "core/quantum_transport.hpp"
-#include "core/node.hpp"
-#include "core/qk_lang.hpp"
-#include "bridge/brain_wave_bridge.hpp"
-#include "algorithm/tf_tree.hpp"
-#include "algorithm/behavior_tree.hpp"
-#include "algorithm/entangled_planner.hpp"
-#include "hardware/hardware_abstraction.hpp"
-#include "hardware/actuator_sensor.hpp"
-#include "quantum/qlm.hpp"
-=======
 #pragma once
 #include "core/types.hpp"
 #include "core/quantum_transport.hpp"
@@ -26,4 +12,3 @@
 #include "hardware/hardware_abstraction.hpp"
 #include "hardware/actuator_sensor.hpp"
 #include "quantum/qlm.hpp"
->>>>>>> 2f6d6f3 (	new file:   .clang-format)

@@ -1,57 +1,3 @@
-<<<<<<< HEAD
-#pragma once
-#include <memory>
-#include <vector>
-#include <iostream>
-#include "../../qhal/IQuantumBackend.hpp"
-#include "../../../src/QObject.hpp"
-
-namespace vedaros::algorithm
-{
-
-    // 用纠缠的 BellState 表示"意识态"，驱动运动规划与操作
-    class EntangledPlanner
-    {
-    private:
-        qhal::IQuantumBackend *backend_;
-
-    public:
-        explicit EntangledPlanner(qhal::IQuantumBackend *backend) : backend_(backend)
-        {
-            std::cout << "[vedaRos.plan] Fully-entangled consciousness planner online.\n";
-        }
-
-        // 生成一条"意识纠缠"的运动路径：每个决策点对应一个 BellState
-        std::vector<std::shared_ptr<quark::BellState>> entangle_consciousness(size_t num_decision_points)
-        {
-            std::vector<std::shared_ptr<quark::BellState>> consciousness;
-            consciousness.reserve(num_decision_points);
-            for (size_t i = 0; i < num_decision_points; ++i)
-            {
-                consciousness.push_back(std::make_shared<quark::BellState>(backend_));
-            }
-            return consciousness;
-        }
-
-        // 依据意识态测量结果，规划运动目标序列
-        std::vector<int> plan_motion(
-            const std::vector<std::shared_ptr<quark::BellState>> &consciousness)
-        {
-            std::vector<int> goals;
-            goals.reserve(consciousness.size());
-            for (auto &bell : consciousness)
-            {
-                auto bits = bell->measure();
-                int decision = (bits.empty() ? 0 : bits[0]);
-                goals.push_back(decision);
-            }
-            std::cout << "[vedaRos.plan] Motion planned from " << goals.size()
-                      << " entangled decisions.\n";
-            return goals;
-        }
-    };
-}
-=======
 #pragma once
 #include <memory>
 #include <vector>
@@ -170,4 +116,3 @@ namespace vedaros::algorithm
         }
     };
 }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)

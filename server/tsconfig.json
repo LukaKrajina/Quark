@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 {
   "compilerOptions": {
     "module": "commonjs",
@@ -11,18 +10,4 @@
     "skipLibCheck": true
   },
   "exclude": ["node_modules"]
-=======
-{
-  "compilerOptions": {
-    "module": "commonjs",
-    "target": "es2020",
-    "outDir": "out",
-    "lib": ["es2020"],
-    "sourceMap": true,
-    "rootDir": "src",
-    "strict": true,
-    "skipLibCheck": true
-  },
-  "exclude": ["node_modules"]
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 }

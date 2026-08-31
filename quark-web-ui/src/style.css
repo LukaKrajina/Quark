@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-@import "tailwindcss";
-=======
 @import 'tailwindcss';
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 
 @custom-variant dark (&:where(.dark, .dark *));
 

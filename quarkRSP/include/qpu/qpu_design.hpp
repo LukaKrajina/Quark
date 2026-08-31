@@ -1,56 +1,3 @@
-<<<<<<< HEAD
-#pragma once
-#include <string>
-#include <vector>
-#include <cstdint>
-#include <iostream>
-
-namespace quarkrsp::qpu
-{
-
-    enum class QubitTopology
-    {
-        Linear,
-        Grid,
-        AllToAll
-    };
-
-    struct QPUSpec
-    {
-        std::string name;
-        size_t num_qubits = 8;
-        QubitTopology topology = QubitTopology::Linear;
-        double coherence_time_us = 100.0;
-    };
-
-    // 门序列定义
-    struct QPLProgram
-    {
-        std::string name;
-        struct GateOp
-        {
-            std::string name;
-            int target = -1;
-            int control = -1;
-        };
-        std::vector<GateOp> ops;
-    };
-
-    class QPUDesigner
-    {
-    public:
-        static QPUSpec design_qpu(const std::string &name, size_t qubits)
-        {
-            QPUSpec s{name, qubits, QubitTopology::Grid, 120.0};
-            std::cout << "[quarkRSP.qpu] Designed QPU '" << name << "' (" << qubits << " qubits).\n";
-            return s;
-        }
-        static QPLProgram design_qpl(const std::string &name)
-        {
-            return QPLProgram{name, {}};
-        }
-    };
-=======
 #pragma once
 #include <string>
 #include <vector>
@@ -272,5 +219,4 @@ namespace quarkrsp::qpu
             return "Unknown";
         }
     };
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 }

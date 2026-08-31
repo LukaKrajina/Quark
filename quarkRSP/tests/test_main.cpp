@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-// 单元测试入口：注册在多个 TU 中的测试在此统一运行。
-#include "test_framework.hpp"
-
-int main() {
-    return qtest::run_all();
-}
-=======
 // 单元测试入口:注册在多个 TU 中的测试在此统一运行。
 #include "test_framework.hpp"
 #include "Kokkos_Core.hpp"
@@ -19,4 +11,3 @@ int main() {
         Kokkos::finalize();
     return rc;
 }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)

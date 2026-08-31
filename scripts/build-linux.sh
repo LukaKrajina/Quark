@@ -3,19 +3,6 @@
 # Quark Runtime — Linux 构建脚本
 # ----------------------------------------------------------------------------
 # 用法：
-<<<<<<< HEAD
-#   ./scripts/build-linux.sh [vcpkg-root] [build-dir]
-#
-# 前置依赖（系统级，需自行安装）：
-#   - cmake >= 3.20, ninja
-#   - clang / gcc（C++20）
-#   - LLVM 开发包（提供 LLVMConfig.cmake），例如 Ubuntu: apt install llvm-18-dev
-#   - Vulkan SDK（提供 find_package(Vulkan)），例如 apt install libvulkan-dev glslc
-#   - vcpkg（用于 zlib / kokkos / glfw3）
-#     git clone https://github.com/microsoft/vcpkg && ./vcpkg/bootstrap-vcpkg.sh
-#
-# 脚本会用 vcpkg 的 x64-linux 三元组安装 zlib / kokkos / glfw3，再 CMake 构建。
-=======
 #   ./scripts/build-linux.sh [--cuda] [build-dir]
 #
 #   默认        ：CPU 版（系统 Kokkos + clang++）
@@ -38,7 +25,6 @@
 #             -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE86=ON
 #       sudo cmake --build build --target install --prefix /usr/local
 #       sudo ldconfig
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 # ============================================================================
 set -euo pipefail
 

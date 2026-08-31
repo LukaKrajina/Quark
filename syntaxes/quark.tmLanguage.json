@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "Quark",
@@ -58,65 +57,4 @@
     }
   },
   "scopeName": "source.quark"
-=======
-{
-  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "Quark",
-  "patterns": [
-    {
-      "include": "#keywords"
-    },
-    {
-      "include": "#types"
-    },
-    {
-      "include": "#strings"
-    },
-    {
-      "include": "#comments"
-    }
-  ],
-  "repository": {
-    "keywords": {
-      "patterns": [
-        {
-          "name": "keyword.control.quark",
-          "match": "\\b(if|else|elseif|for|while|return|break|continue|go|select|chan)\\b"
-        },
-        {
-          "name": "keyword.other.quantum.quark",
-          "match": "\\b(measure|uncompute|alloc|apply|mind_read|mind_train|mind_feedback)\\b"
-        }
-      ]
-    },
-    "types": {
-      "patterns": [
-        {
-          "name": "support.type.classical.quark",
-          "match": "\\b(int|float|bool|string|NumQkArray)\\b"
-        },
-        {
-          "name": "support.type.quantum.quark",
-          "match": "\\b(Qubit|QRegister|Result)\\b"
-        }
-      ]
-    },
-    "strings": {
-      "name": "string.quoted.double.quark",
-      "begin": "\"",
-      "end": "\"",
-      "patterns": [
-        {
-          "name": "constant.character.escape.quark",
-          "match": "\\\\."
-        }
-      ]
-    },
-    "comments": {
-      "name": "comment.line.double-dash.quark",
-      "match": "--.*$"
-    }
-  },
-  "scopeName": "source.quark"
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 }

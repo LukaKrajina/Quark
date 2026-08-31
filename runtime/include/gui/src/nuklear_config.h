@@ -1,26 +1,3 @@
-<<<<<<< HEAD
-#pragma once
-
-// 1. Required C standard libraries for Nuklear features
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <string.h>
-#include <math.h>
-#include <assert.h>
-
-// 2. Nuklear configuration macros
-#define NK_INCLUDE_FIXED_TYPES
-#define NK_INCLUDE_STANDARD_IO
-#define NK_INCLUDE_STANDARD_VARARGS
-#define NK_INCLUDE_DEFAULT_ALLOCATOR
-#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
-#define NK_INCLUDE_FONT_BAKING
-#define NK_INCLUDE_DEFAULT_FONT
-
-// 3. Include the main header
-=======
 #pragma once
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,5 +15,4 @@
 #define NK_INCLUDE_FONT_BAKING
 #define NK_INCLUDE_DEFAULT_FONT
 
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 #include "Nuklear/nuklear.h"

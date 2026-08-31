@@ -1,52 +1,3 @@
-<<<<<<< HEAD
-#pragma once
-#include <vector>
-#include <cstdint>
-#include <iostream>
-
-namespace quarkrsp::qcdrc
-{
-
-    struct CameraIntrinsics
-    {
-        double fx = 600.0, fy = 600.0; // 焦距
-        double cx = 320.0, cy = 240.0; // 主点
-    };
-
-    struct RgbFrame
-    {
-        int width = 640;
-        int height = 480;
-        std::vector<uint8_t> pixels; // RGB 交错
-        uint64_t timestamp_us = 0;
-    };
-
-    class RgbCamera
-    {
-    private:
-        CameraIntrinsics intrinsics_;
-        uint64_t frame_counter_ = 0;
-
-    public:
-        explicit RgbCamera(CameraIntrinsics intrinsics = {}) : intrinsics_(intrinsics)
-        {
-            std::cout << "[quarkRSP.qcdrc] RGB camera online.\n";
-        }
-
-        // 采样一帧（模拟：纯色帧 + 时间戳递增）
-        RgbFrame capture()
-        {
-            RgbFrame frame;
-            frame.width = 640;
-            frame.height = 480;
-            frame.pixels.resize(static_cast<size_t>(frame.width) * frame.height * 3, 128);
-            frame.timestamp_us = frame_counter_++ * 16666; // ~60fps
-            return frame;
-        }
-
-        const CameraIntrinsics &intrinsics() const { return intrinsics_; }
-    };
-=======
 #pragma once
 #include <vector>
 #include <cstdint>
@@ -106,5 +57,4 @@ namespace quarkrsp::qcdrc
         virtual bool is_open() const = 0;
         virtual std::string name() const = 0;
     };
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 }

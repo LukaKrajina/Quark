@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 CompileFlags:
   Add:
     - -std=c++20
@@ -9,15 +8,3 @@ CompileFlags:
     - -I"C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/include"
     - -Id:/BH_Project/quark-vscode/runtime/include
     - -Id:/BH_Project/quark-vscode/vendor
-=======
-CompileFlags:
-  Add:
-    - -std=c++20
-    - -DNOMINMAX
-    - -D_CRT_SECURE_NO_WARNINGS
-    - -DNDEBUG
-    - -IC:/Libraries/kokkos/include
-    - -I"C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.9/include"
-    - -Id:/BH_Project/quark-vscode/runtime/include
-    - -Id:/BH_Project/quark-vscode/vendor
->>>>>>> 2f6d6f3 (	new file:   .clang-format)

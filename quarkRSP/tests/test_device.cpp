@@ -1,29 +1,3 @@
-<<<<<<< HEAD
-// 设备抽象单元测试
-#include "test_framework.hpp"
-#include "qcdrc/device.hpp"
-
-using namespace quarkrsp::qcdrc;
-
-QTEST(device_factory_camera) {
-    auto cam = DeviceFactory::create_camera(false);
-    QCHECK(cam != nullptr);
-    QCHECK(cam->is_open());
-    RgbFrame f = cam->capture();
-    QCHECK(f.width == 640);
-    QCHECK(cam->name() == "SimCamera");
-}
-
-QTEST(device_factory_mocap) {
-    auto mocap = DeviceFactory::create_mocap(false);
-    QCHECK(mocap != nullptr);
-    RgbFrame f;
-    f.width = 640; f.height = 480;
-    Skeleton s = mocap->estimate(f);
-    QCHECK(!s.joints.empty());
-    QCHECK(mocap->name() == "SimMocap");
-}
-=======
 // 设备抽象单元测试
 #include "test_framework.hpp"
 #include "qcdrc/device.hpp"
@@ -59,4 +33,3 @@ QTEST(device_factory_mocap) {
     QCHECK(!s.joints.empty());
     QCHECK(mocap->name() == "SimMocap");
 }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)

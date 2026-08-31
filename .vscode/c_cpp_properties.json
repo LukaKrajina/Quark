@@ -1,8 +1,6 @@
 {
     "configurations": [
         {
-<<<<<<< HEAD
-=======
             "name": "Linux",
             "compileCommands": "${workspaceFolder}/runtime/build-linux/compile_commands.json",
             "compilerPath": "/usr/bin/g++",
@@ -28,7 +26,6 @@
             ]
         },
         {
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**",

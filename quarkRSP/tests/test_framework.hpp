@@ -1,69 +1,3 @@
-<<<<<<< HEAD
-#pragma once
-//极简单元测试框架（无外部依赖）
-#include <vector>
-#include <string>
-#include <functional>
-#include <iostream>
-#include <cmath>
-
-namespace qtest {
-
-    struct TestCase {
-        std::string name;
-        std::function<void()> fn;
-    };
-
-    inline std::vector<TestCase> &registry() {
-        static std::vector<TestCase> r;
-        return r;
-    }
-
-    inline int &failures() {
-        static int f = 0;
-        return f;
-    }
-
-    struct Registrar {
-        Registrar(const std::string &name, std::function<void()> fn) {
-            registry().push_back({name, std::move(fn)});
-        }
-    };
-
-    inline int run_all() {
-        for (const auto &t : registry()) {
-            std::cerr << "[TEST] " << t.name << "\n";
-            t.fn();
-        }
-        if (failures() == 0) {
-            std::cerr << "ALL " << registry().size() << " TESTS PASSED\n";
-            return 0;
-        }
-        std::cerr << failures() << " ASSERTION(S) FAILED\n";
-        return 1;
-    }
-}
-
-#define QTEST(name) \
-    static void qtest_##name(); \
-    static ::qtest::Registrar qtest_reg_##name(#name, qtest_##name); \
-    static void qtest_##name()
-
-#define QCHECK(cond) do { \
-    if (!(cond)) { \
-        std::cerr << "  FAIL: " << #cond << "  @ " << __FILE__ << ":" << __LINE__ << "\n"; \
-        ++::qtest::failures(); \
-    } \
-} while (0)
-
-#define QCHECK_NEAR(a, b, eps) do { \
-    double _a = (a), _b = (b); \
-    if (std::fabs(_a - _b) > (eps)) { \
-        std::cerr << "  FAIL: " << #a << " (" << _a << ") != " << #b << " (" << _b << ")  @ " \
-                  << __FILE__ << ":" << __LINE__ << "\n"; \
-        ++::qtest::failures(); \
-    } \
-=======
 #pragma once
 // ─────────────────────────────────────────────────────────────
 // quarkRSP 极简单元测试框架(无外部依赖)
@@ -259,5 +193,4 @@ namespace qtest {
         if (::qtest::current()) \
             ::qtest::current()->failures.push_back(std::string(#a) + " != " + #b + " @ " + __FILE__ + ":" + std::to_string(__LINE__)); \
     } \
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 } while (0)

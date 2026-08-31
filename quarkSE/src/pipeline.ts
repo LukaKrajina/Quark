@@ -17,20 +17,11 @@ export function compileQk(source: string): PipelineResult {
         const analyzer = new SemanticAnalyzer();
         analyzer.analyze(ast);
         if (analyzer.errors.length > 0) {
-<<<<<<< HEAD
-            return { ok: false, errors: analyzer.errors.map(e => `Line ${e.line}: ${e.message}`) };
-        }
-        const ir = new IRGenerator();
-        return { ok: true, llvmIR: ir.generate(ast), errors: [] };
-    } catch (e: any) {
-        return { ok: false, errors: [e.message] };
-=======
             return { ok: false, errors: analyzer.errors.map((e) => `Line ${e.line}: ${e.message}`) };
         }
         const ir = new IRGenerator();
         return { ok: true, llvmIR: ir.generate(ast), errors: [] };
     } catch (e) {
         return { ok: false, errors: [e instanceof Error ? e.message : String(e)] };
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     }
 }

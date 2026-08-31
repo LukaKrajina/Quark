@@ -3,24 +3,6 @@ import { VitePWA } from 'vite-plugin-pwa';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-<<<<<<< HEAD
-  plugins: [
-    tailwindcss(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      devOptions: { enabled: true },
-      manifest: {
-        name: 'Quark Quantum AI',
-        short_name: 'Quark',
-        description: 'Local Interface for QKM Inference',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
-        display: 'standalone',
-      }
-    })
-  ]
-});
-=======
     plugins: [
         tailwindcss(),
         VitePWA({
@@ -39,4 +21,3 @@ export default defineConfig({
         }),
     ],
 });
->>>>>>> 2f6d6f3 (	new file:   .clang-format)

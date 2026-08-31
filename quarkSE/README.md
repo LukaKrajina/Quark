@@ -14,17 +14,10 @@ npm start
 
 ## 结构
 
-<<<<<<< HEAD
-- `src/main.ts`        Electron 主进程
-- `src/pipeline.ts`    复用 server 编译管线
-- `src/runner.ts`      连接 daemon 执行
-- `renderer/app.ts`    CodeMirror 编辑器 + 输出 Shell
-=======
 - `src/main.ts` Electron 主进程
 - `src/pipeline.ts` 复用 server 编译管线
 - `src/runner.ts` 连接 daemon 执行
 - `renderer/app.ts` CodeMirror 编辑器 + 输出 Shell
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 
 ## 技术栈
 

@@ -1,31 +1,3 @@
-<<<<<<< HEAD
-#pragma once
-#include <memory>
-#include <string>
-#include <iostream>
-#include "vedaRos/vedaRos.hpp"
-
-namespace quarkrsp::bridge
-{
-
-    // VedaRos 桥：将仿真世界接入 VedaROS 节点网络
-    class VedaRosBridge
-    {
-    private:
-        std::shared_ptr<vedaros::QDDPTransport> transport_;
-
-    public:
-        VedaRosBridge()
-        {
-            transport_ = std::make_shared<vedaros::QDDPTransport>();
-            std::cout << "[quarkRSP.bridge] VedaROS bridge online.\n";
-        }
-        vedaros::Endpoint register_robot(const std::string &ns, const std::string &name)
-        {
-            return transport_->register_node(ns, name, true);
-        }
-    };
-=======
 #pragma once
 #include <memory>
 #include <string>
@@ -145,5 +117,4 @@ namespace quarkrsp::bridge
         std::vector<vedaros::QMessage> drain_messages() { return transport_->drain_messages(); }
         const std::shared_ptr<vedaros::QDDPTransport> &transport() const { return transport_; }
     };
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 }

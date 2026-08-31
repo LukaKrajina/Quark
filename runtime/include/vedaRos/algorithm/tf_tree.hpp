@@ -1,72 +1,3 @@
-<<<<<<< HEAD
-#pragma once
-#include <string>
-#include <vector>
-#include <unordered_map>
-#include <array>
-#include <stdexcept>
-#include <iostream>
-
-namespace vedaros::algorithm
-{
-
-    // 三维坐标变换（平移 + 单位四元数旋转）
-    struct Transform
-    {
-        std::string parent_frame;
-        std::string child_frame;
-        std::array<double, 3> translation{0.0, 0.0, 0.0};
-        std::array<double, 4> rotation{0.0, 0.0, 0.0, 1.0}; // x,y,z,w
-    };
-
-    // 坐标变换树：维护帧间关系并提供查找
-    class TfTree
-    {
-    private:
-        std::unordered_map<std::string, Transform> edges_; // child -> transform
-
-    public:
-        void set_transform(const Transform &t)
-        {
-            edges_[t.child_frame] = t;
-            std::cout << "[vedaRos.tf] Set transform '" << t.parent_frame
-                      << "' -> '" << t.child_frame << "'.\n";
-        }
-
-        const Transform &lookup(const std::string &child) const
-        {
-            auto it = edges_.find(child);
-            if (it == edges_.end())
-                throw std::runtime_error("[vedaRos.tf] Unknown frame '" + child + "'.");
-            return it->second;
-        }
-
-        // 沿父链复合，得到 child 相对 world 的累计平移
-        Transform compose_to_root(const std::string &child) const
-        {
-            Transform acc;
-            acc.child_frame = child;
-            std::string cur = child;
-            while (true)
-            {
-                auto it = edges_.find(cur);
-                if (it == edges_.end())
-                    break;
-                const Transform &t = it->second;
-                for (int i = 0; i < 3; ++i)
-                    acc.translation[i] += t.translation[i];
-                cur = t.parent_frame;
-                acc.parent_frame = cur;
-                if (cur == "world")
-                    break;
-            }
-            return acc;
-        }
-
-        size_t frame_count() const { return edges_.size(); }
-    };
-}
-=======
 #pragma once
 #include <string>
 #include <vector>
@@ -191,4 +122,3 @@ namespace vedaros::algorithm
         size_t frame_count() const { return edges_.size(); }
     };
 }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)

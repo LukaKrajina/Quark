@@ -1,15 +1,9 @@
-<<<<<<< HEAD
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
-=======
 import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 import * as path from 'path';
 import * as fs from 'fs';
 
 let win: BrowserWindow | null = null;
 
-<<<<<<< HEAD
-=======
 // ── 主进程文案（窗口标题 / 对话框标题）──
 type Locale = 'en' | 'zh' | 'ru' | 'fr' | 'de';
 const MAIN_STRINGS: Record<
@@ -273,25 +267,10 @@ function buildMenu() {
     );
 }
 
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 function createWindow() {
     win = new BrowserWindow({
         width: 1100,
         height: 760,
-<<<<<<< HEAD
-        title: 'QuarkSE — qk 编辑器',
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            contextIsolation: true,
-            nodeIntegration: false
-        }
-    });
-    win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html'));
-    win.on('closed', () => { win = null; });
-}
-
-ipcMain.handle('quarkSE:run', async (_event: any, code: string) => {
-=======
         title: MAIN_STRINGS[currentLocale].windowTitle,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -328,7 +307,6 @@ ipcMain.handle('quarkSE:run', async (_event: any, code: string) => {
 }
 
 ipcMain.handle('quarkSE:run', async (_event, code: string) => {
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     const { compileQk } = await import('./pipeline');
     const { runOnDaemon } = await import('./runner');
     const res = compileQk(code);
@@ -336,28 +314,14 @@ ipcMain.handle('quarkSE:run', async (_event, code: string) => {
     try {
         const out = await runOnDaemon(res.llvmIR!);
         return { ok: true, output: out };
-<<<<<<< HEAD
-    } catch (e: any) {
-        return { ok: false, output: `Daemon connection failed: ${e.message}\nIs 'runtime --daemon' running?` };
-=======
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         return { ok: false, output: MAIN_STRINGS[currentLocale].daemonError.replace('{message}', msg) };
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     }
 });
 
 ipcMain.handle('quarkSE:open', async () => {
     if (!win) return null;
-<<<<<<< HEAD
-    const result = await dialog.showOpenDialog(win, {
-        title: '打开 qk 文件',
-        filters: [
-            { name: 'Quark Script', extensions: ['qk'] },
-            { name: 'All Files', extensions: ['*'] }
-        ],
-        properties: ['openFile']
-=======
     const s = MAIN_STRINGS[currentLocale];
     const result = await dialog.showOpenDialog(win, {
         title: s.openTitle,
@@ -366,28 +330,12 @@ ipcMain.handle('quarkSE:open', async () => {
             { name: s.allFilter, extensions: ['*'] },
         ],
         properties: ['openFile'],
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     });
     if (result.canceled || result.filePaths.length === 0) return null;
     const filePath = result.filePaths[0];
     try {
         const content = fs.readFileSync(filePath, 'utf-8');
         return { path: filePath, content };
-<<<<<<< HEAD
-    } catch (e: any) {
-        return null;
-    }
-});
-
-ipcMain.handle('quarkSE:save', async (_event: any, currentPath: string | null, content: string) => {
-    if (!win) return null;
-    let filePath = currentPath;
-    if (!filePath) {
-        const result = await dialog.showSaveDialog(win, {
-            title: '保存 qk 文件',
-            defaultPath: 'untitled.qk',
-            filters: [{ name: 'Quark Script', extensions: ['qk'] }]
-=======
     } catch (e) {
         return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -402,7 +350,6 @@ ipcMain.handle('quarkSE:save', async (_event, currentPath: string | null, conten
             title: s.saveTitle,
             defaultPath: 'untitled.qk',
             filters: [{ name: s.qkFilter, extensions: ['qk'] }],
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         });
         if (result.canceled || !result.filePath) return null;
         filePath = result.filePath;
@@ -410,20 +357,6 @@ ipcMain.handle('quarkSE:save', async (_event, currentPath: string | null, conten
     try {
         fs.writeFileSync(filePath, content, 'utf-8');
         return filePath;
-<<<<<<< HEAD
-    } catch (e: any) {
-        return null;
-    }
-});
-
-ipcMain.on('quarkSE:setDirty', (_event: any, dirty: boolean) => {
-    if (win) {
-        win.setTitle(dirty ? 'QuarkSE — qk 编辑器 (未保存)' : 'QuarkSE — qk 编辑器');
-    }
-});
-
-app.whenReady().then(() => {
-=======
     } catch (e) {
         return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -465,7 +398,6 @@ ipcMain.handle('quarkSE:confirmDiscard', async () => {
 app.whenReady().then(() => {
     currentLocale = detectLocale();
     buildMenu();
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     createWindow();
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -474,8 +406,4 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
-<<<<<<< HEAD
 });
-=======
-});
->>>>>>> 2f6d6f3 (	new file:   .clang-format)

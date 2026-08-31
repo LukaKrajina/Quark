@@ -2,20 +2,12 @@ import { EditorView, basicSetup } from 'codemirror';
 import { EditorState } from '@codemirror/state';
 import { javascript } from '@codemirror/lang-javascript';
 import { oneDark } from '@codemirror/theme-one-dark';
-<<<<<<< HEAD
-=======
 import { initI18n, setLocale, t, type Locale } from './i18n';
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 
 declare global {
     interface Window {
         quarkSE: {
             runScript(code: string): Promise<{ ok: boolean; output: string }>;
-<<<<<<< HEAD
-            openFileDialog(): Promise<{ path: string; content: string } | null>;
-            saveFileDialog(path: string | null, content: string): Promise<string | null>;
-            setDirty(dirty: boolean): void;
-=======
             openFileDialog(): Promise<{ path: string; content: string } | { error: string } | null>;
             saveFileDialog(path: string | null, content: string): Promise<string | { error: string } | null>;
             setDirty(dirty: boolean): void;
@@ -24,7 +16,6 @@ declare global {
             onRequestSave(callback: () => void): void;
             notifySaveDone(): void;
             confirmDiscard(): Promise<'save' | 'discard' | 'cancel'>;
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         };
     }
 }

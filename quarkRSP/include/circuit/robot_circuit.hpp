@@ -1,42 +1,3 @@
-<<<<<<< HEAD
-#pragma once
-#include <string>
-#include <vector>
-#include <iostream>
-
-namespace quarkrsp::circuit
-{
-
-    struct Wire
-    {
-        int from_pin = 0;
-        int to_pin = 0;
-    };
-    struct ComponentNode
-    {
-        std::string type;
-        int pin_count = 0;
-    };
-
-    // 机器人电路设计
-    class RobotCircuit
-    {
-    private:
-        std::vector<ComponentNode> nodes_;
-        std::vector<Wire> wires_;
-
-    public:
-        void add_component(const std::string &type, int pins)
-        {
-            nodes_.push_back({type, pins});
-            std::cout << "[quarkRSP.circuit] Added component '" << type << "'.\n";
-        }
-        void connect(int a, int b) { wires_.push_back({a, b}); }
-        size_t node_count() const { return nodes_.size(); }
-        size_t wire_count() const { return wires_.size(); }
-    };
-}
-=======
 #pragma once
 #include <string>
 #include <vector>
@@ -235,4 +196,3 @@ namespace quarkrsp::circuit
         const std::vector<Wire> &wires() const { return wires_; }
     };
 }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
