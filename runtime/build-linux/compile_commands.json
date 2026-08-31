@@ -1,0 +1,548 @@
+[
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIC -Wall -Wextra -fPIC -o CMakeFiles/quark_rt_host.dir/src/ThermalSimulation.cpp.o -c /mnt/sdd/Quark/runtime/src/ThermalSimulation.cpp",
+  "file": "/mnt/sdd/Quark/runtime/src/ThermalSimulation.cpp",
+  "output": "CMakeFiles/quark_rt_host.dir/src/ThermalSimulation.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIC -Wall -Wextra -fPIC -o CMakeFiles/quark_rt_host.dir/src/ThermalController.cpp.o -c /mnt/sdd/Quark/runtime/src/ThermalController.cpp",
+  "file": "/mnt/sdd/Quark/runtime/src/ThermalController.cpp",
+  "output": "CMakeFiles/quark_rt_host.dir/src/ThermalController.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -DQUARK_RT_BUILD -D_USE_MATH_DEFINES -Dquark_rt_EXPORTS -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIC -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quark_rt.dir/src/runtime_api.cpp.o -c /mnt/sdd/Quark/runtime/src/runtime_api.cpp",
+  "file": "/mnt/sdd/Quark/runtime/src/runtime_api.cpp",
+  "output": "CMakeFiles/quark_rt.dir/src/runtime_api.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -DQUARK_RT_BUILD -D_USE_MATH_DEFINES -Dquark_rt_EXPORTS -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIC -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quark_rt.dir/src/AtomicVaporORAM.cpp.o -c /mnt/sdd/Quark/runtime/src/AtomicVaporORAM.cpp",
+  "file": "/mnt/sdd/Quark/runtime/src/AtomicVaporORAM.cpp",
+  "output": "CMakeFiles/quark_rt.dir/src/AtomicVaporORAM.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -o CMakeFiles/runtime.dir/src/main.cpp.o -c /mnt/sdd/Quark/runtime/src/main.cpp",
+  "file": "/mnt/sdd/Quark/runtime/src/main.cpp",
+  "output": "CMakeFiles/runtime.dir/src/main.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/transmitter.dir/include/qml/Transmitter.cpp.o -c /mnt/sdd/Quark/runtime/include/qml/Transmitter.cpp",
+  "file": "/mnt/sdd/Quark/runtime/include/qml/Transmitter.cpp",
+  "output": "CMakeFiles/transmitter.dir/include/qml/Transmitter.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/transmitter.dir/include/gui/i18n.cpp.o -c /mnt/sdd/Quark/runtime/include/gui/i18n.cpp",
+  "file": "/mnt/sdd/Quark/runtime/include/gui/i18n.cpp",
+  "output": "CMakeFiles/transmitter.dir/include/gui/i18n.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/transmitter.dir/include/gui/src/font_loader.cpp.o -c /mnt/sdd/Quark/runtime/include/gui/src/font_loader.cpp",
+  "file": "/mnt/sdd/Quark/runtime/include/gui/src/font_loader.cpp",
+  "output": "CMakeFiles/transmitter.dir/include/gui/src/font_loader.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -o CMakeFiles/qvm_visualizer.dir/include/gui/src/main_gui.cpp.o -c /mnt/sdd/Quark/runtime/include/gui/src/main_gui.cpp",
+  "file": "/mnt/sdd/Quark/runtime/include/gui/src/main_gui.cpp",
+  "output": "CMakeFiles/qvm_visualizer.dir/include/gui/src/main_gui.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -o CMakeFiles/qvm_visualizer.dir/include/gui/src/render_context.cpp.o -c /mnt/sdd/Quark/runtime/include/gui/src/render_context.cpp",
+  "file": "/mnt/sdd/Quark/runtime/include/gui/src/render_context.cpp",
+  "output": "CMakeFiles/qvm_visualizer.dir/include/gui/src/render_context.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -o CMakeFiles/qvm_visualizer.dir/include/gui/src/app.cpp.o -c /mnt/sdd/Quark/runtime/include/gui/src/app.cpp",
+  "file": "/mnt/sdd/Quark/runtime/include/gui/src/app.cpp",
+  "output": "CMakeFiles/qvm_visualizer.dir/include/gui/src/app.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -o CMakeFiles/qvm_visualizer.dir/include/gui/src/daemon_client.cpp.o -c /mnt/sdd/Quark/runtime/include/gui/src/daemon_client.cpp",
+  "file": "/mnt/sdd/Quark/runtime/include/gui/src/daemon_client.cpp",
+  "output": "CMakeFiles/qvm_visualizer.dir/include/gui/src/daemon_client.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -o CMakeFiles/qvm_visualizer.dir/include/gui/src/font_loader.cpp.o -c /mnt/sdd/Quark/runtime/include/gui/src/font_loader.cpp",
+  "file": "/mnt/sdd/Quark/runtime/include/gui/src/font_loader.cpp",
+  "output": "CMakeFiles/qvm_visualizer.dir/include/gui/src/font_loader.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -o CMakeFiles/qvm_visualizer.dir/include/gui/components/circuit_grid.cpp.o -c /mnt/sdd/Quark/runtime/include/gui/components/circuit_grid.cpp",
+  "file": "/mnt/sdd/Quark/runtime/include/gui/components/circuit_grid.cpp",
+  "output": "CMakeFiles/qvm_visualizer.dir/include/gui/components/circuit_grid.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -o CMakeFiles/qvm_visualizer.dir/include/gui/i18n.cpp.o -c /mnt/sdd/Quark/runtime/include/gui/i18n.cpp",
+  "file": "/mnt/sdd/Quark/runtime/include/gui/i18n.cpp",
+  "output": "CMakeFiles/qvm_visualizer.dir/include/gui/i18n.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -O2 -o CMakeFiles/spacetime_demo.dir/src/spacetime_demo.cpp.o -c /mnt/sdd/Quark/runtime/src/spacetime_demo.cpp",
+  "file": "/mnt/sdd/Quark/runtime/src/spacetime_demo.cpp",
+  "output": "CMakeFiles/spacetime_demo.dir/src/spacetime_demo.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -O2 -o CMakeFiles/spacetime_demo2.dir/src/spacetime_demo2.cpp.o -c /mnt/sdd/Quark/runtime/src/spacetime_demo2.cpp",
+  "file": "/mnt/sdd/Quark/runtime/src/spacetime_demo2.cpp",
+  "output": "CMakeFiles/spacetime_demo2.dir/src/spacetime_demo2.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -O2 -o CMakeFiles/nucleation_demo.dir/src/nucleation_demo.cpp.o -c /mnt/sdd/Quark/runtime/src/nucleation_demo.cpp",
+  "file": "/mnt/sdd/Quark/runtime/src/nucleation_demo.cpp",
+  "output": "CMakeFiles/nucleation_demo.dir/src/nucleation_demo.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -std=c++20 -fPIE -Wall -Wextra -fPIC -O2 -o CMakeFiles/spacetime_demo3.dir/src/spacetime_demo3.cpp.o -c /mnt/sdd/Quark/runtime/src/spacetime_demo3.cpp",
+  "file": "/mnt/sdd/Quark/runtime/src/spacetime_demo3.cpp",
+  "output": "CMakeFiles/spacetime_demo3.dir/src/spacetime_demo3.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -DQUARKRSP_USE_STB_IMAGE -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/../vendor/stb -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP.dir/src/main.cpp.o -c /mnt/sdd/Quark/quarkRSP/src/main.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/src/main.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP.dir/src/main.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -DQUARKRSP_USE_STB_IMAGE -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/../vendor/stb -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP.dir/src/vulkan_context.cpp.o -c /mnt/sdd/Quark/quarkRSP/src/vulkan_context.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/src/vulkan_context.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP.dir/src/vulkan_context.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -DQUARKRSP_USE_STB_IMAGE -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/../vendor/stb -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP.dir/src/qk_jit_host.cpp.o -c /mnt/sdd/Quark/quarkRSP/src/qk_jit_host.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/src/qk_jit_host.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP.dir/src/qk_jit_host.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -DQUARKRSP_USE_STB_IMAGE -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/../vendor/stb -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP.dir/src/stb_image_impl.cpp.o -c /mnt/sdd/Quark/quarkRSP/src/stb_image_impl.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/src/stb_image_impl.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP.dir/src/stb_image_impl.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_main.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_main.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_main.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_main.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_math.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_math.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_math.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_math.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_physics.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_physics.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_physics.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_physics.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_cylinder_collision.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_cylinder_collision.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_cylinder_collision.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_cylinder_collision.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_joints.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_joints.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_joints.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_joints.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_skeleton_bind.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_skeleton_bind.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_skeleton_bind.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_skeleton_bind.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_robot_json.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_robot_json.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_robot_json.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_robot_json.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_chaos_mesh.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_chaos_mesh.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_chaos_mesh.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_chaos_mesh.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_mesh_generator.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_mesh_generator.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_mesh_generator.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_mesh_generator.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_gate_commutation.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_gate_commutation.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_gate_commutation.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_gate_commutation.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_graph.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_graph.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_graph.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_graph.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_pcg.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_pcg.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_pcg.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_pcg.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_qcdrc.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_qcdrc.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_qcdrc.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_qcdrc.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_qpu_circuit.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_qpu_circuit.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_qpu_circuit.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_qpu_circuit.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_json.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_json.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_json.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_json.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_rl.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_rl.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_rl.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_rl.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_device.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_device.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_device.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_device.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_glb.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_glb.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_glb.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_glb.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_bridge.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_bridge.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_bridge.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_bridge.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_consciousness.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_consciousness.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_consciousness.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_consciousness.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_rl_pipeline.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_rl_pipeline.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_rl_pipeline.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_rl_pipeline.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_mocap_device.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_mocap_device.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_mocap_device.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_mocap_device.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_gltf_material.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_gltf_material.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_gltf_material.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_gltf_material.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_texture_decoder.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_texture_decoder.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_texture_decoder.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_texture_decoder.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_brain_bridge.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_brain_bridge.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_brain_bridge.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_brain_bridge.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_gltf_uv.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_gltf_uv.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_gltf_uv.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_gltf_uv.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_jpeg_decoder.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_jpeg_decoder.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_jpeg_decoder.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_jpeg_decoder.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_field_mesh.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_field_mesh.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_field_mesh.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_field_mesh.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_prosthetic.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_prosthetic.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_prosthetic.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_prosthetic.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_prosthetic_driver.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_prosthetic_driver.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_prosthetic_driver.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_prosthetic_driver.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_hardware.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_hardware.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_hardware.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_hardware.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_safety.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_safety.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_safety.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_safety.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_tests.dir/tests/test_hil.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_hil.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_hil.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_tests.dir/tests/test_hil.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_rl_demo.dir/src/rl_demo.cpp.o -c /mnt/sdd/Quark/quarkRSP/src/rl_demo.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/src/rl_demo.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_rl_demo.dir/src/rl_demo.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIE -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_benchmark.dir/src/benchmark.cpp.o -c /mnt/sdd/Quark/quarkRSP/src/benchmark.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/src/benchmark.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_benchmark.dir/src/benchmark.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -DQUARKRSP_TEST_GLB_PATH=\\\"/mnt/sdd/Quark/quarkRSP/../_tmp_test.glb\\\" -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_sim_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIC -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_sim.dir/quarkRSP_sim_autogen/mocs_compilation.cpp.o -c /mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_sim_autogen/mocs_compilation.cpp",
+  "file": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_sim_autogen/mocs_compilation.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_sim.dir/quarkRSP_sim_autogen/mocs_compilation.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DKOKKOS_DEPENDENCE -DNDEBUG -DNOMINMAX -DQUARKRSP_TEST_GLB_PATH=\\\"/mnt/sdd/Quark/quarkRSP/../_tmp_test.glb\\\" -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_sim_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -isystem /opt/cuda/targets/x86_64-linux/include -isystem /opt/cuda/targets/x86_64-linux/include/cccl -std=c++20 -fPIC -Wall -Wextra -fPIC -extended-lambda -Wext-lambda-captures-this -arch=sm_86 -o CMakeFiles/quarkRSP_sim.dir/gui/src/simulation_host.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/src/simulation_host.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/src/simulation_host.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_sim.dir/gui/src/simulation_host.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/quarkRSP_gui_autogen/mocs_compilation.cpp.o -c /mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/mocs_compilation.cpp",
+  "file": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/mocs_compilation.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/quarkRSP_gui_autogen/mocs_compilation.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/main.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/main.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/main.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/main.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/main_window.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/main_window.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/main_window.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/main_window.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/vulkan_viewport.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/vulkan_viewport.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/vulkan_viewport.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/vulkan_viewport.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/panels.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/panels.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/panels.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/panels.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/project_browser.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/project_browser.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/project_browser.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/project_browser.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/loading_screen.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/loading_screen.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/loading_screen.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/loading_screen.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/project_store.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/project_store.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/project_store.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/project_store.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/content_browser.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/content_browser.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/content_browser.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/content_browser.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/script_editor.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/script_editor.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/script_editor.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/script_editor.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/asset_viewers.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/asset_viewers.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/asset_viewers.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/asset_viewers.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/asset_types.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/asset_types.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/asset_types.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/asset_types.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/theme_manager.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/theme_manager.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/theme_manager.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/theme_manager.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/log_manager.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/log_manager.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/log_manager.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/log_manager.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/crash_handler.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/crash_handler.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/crash_handler.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/crash_handler.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/settings_dialog.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/settings_dialog.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/settings_dialog.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/settings_dialog.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/find_replace_dialog.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/find_replace_dialog.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/find_replace_dialog.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/find_replace_dialog.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/gui/qt/i18n/i18n.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/i18n/i18n.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/i18n/i18n.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/gui/qt/i18n/i18n.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/src/qk_jit_host.cpp.o -c /mnt/sdd/Quark/quarkRSP/src/qk_jit_host.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/src/qk_jit_host.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/src/qk_jit_host.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CONCURRENT_LIB -DQT_CORE_LIB -DQT_GUI_LIB -DQT_MULTIMEDIA_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQUARKRSP_SHADER_DIR=/mnt/sdd/Quark/runtime/build-linux/quarkRSP/shaders -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/gui/src -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6 -isystem /usr/include/qt6/QtCore -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtMultimedia -isystem /usr/include/qt6/QtNetwork -isystem /usr/include/qt6/QtConcurrent -std=c++20 -fPIE -Wall -Wextra -fPIC --host-only -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui.dir/quarkRSP_gui_autogen/EWIEGA46WW/qrc_resources.cpp.o -c /mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/EWIEGA46WW/qrc_resources.cpp",
+  "file": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_autogen/EWIEGA46WW/qrc_resources.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui.dir/quarkRSP_gui_autogen/EWIEGA46WW/qrc_resources.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/quarkRSP_gui_tests_autogen/mocs_compilation.cpp.o -c /mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/mocs_compilation.cpp",
+  "file": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/mocs_compilation.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/quarkRSP_gui_tests_autogen/mocs_compilation.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/tests/gui_test_main.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/gui_test_main.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/gui_test_main.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/tests/gui_test_main.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/tests/test_log_manager.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_log_manager.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_log_manager.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/tests/test_log_manager.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/tests/test_project_store.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_project_store.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_project_store.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/tests/test_project_store.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/tests/test_asset_types.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_asset_types.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_asset_types.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/tests/test_asset_types.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/tests/test_theme_manager.cpp.o -c /mnt/sdd/Quark/quarkRSP/tests/test_theme_manager.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/tests/test_theme_manager.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/tests/test_theme_manager.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/gui/qt/log_manager.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/log_manager.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/log_manager.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/gui/qt/log_manager.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/gui/qt/project_store.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/project_store.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/project_store.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/gui/qt/project_store.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/gui/qt/theme_manager.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/theme_manager.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/theme_manager.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/gui/qt/theme_manager.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/gui/qt/asset_types.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/asset_types.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/asset_types.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/gui/qt/asset_types.cpp.o"
+},
+{
+  "directory": "/mnt/sdd/Quark/runtime/build-linux/quarkRSP",
+  "command": "/usr/bin/c++ -DNDEBUG -DNOMINMAX -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NO_DEBUG -DQT_TESTCASE_BUILDDIR=\\\"/mnt/sdd/Quark/runtime/build-linux/quarkRSP\\\" -DQT_TESTCASE_SOURCEDIR=\\\"/mnt/sdd/Quark/quarkRSP\\\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -D_USE_MATH_DEFINES -I/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_gui_tests_autogen/include -I/mnt/sdd/Quark/runtime/../vendor -I/mnt/sdd/Quark/runtime/../vendor/GLFW -I/mnt/sdd/Quark/runtime/../vendor/Nuklear -I/mnt/sdd/Quark/runtime/include -I/mnt/sdd/Quark/quarkRSP/include -I/mnt/sdd/Quark/quarkRSP/../runtime/include -I/mnt/sdd/Quark/quarkRSP/gui/qt -I/mnt/sdd/Quark/quarkRSP/tests -isystem /usr/include/qt6/QtCore -isystem /usr/include/qt6 -isystem /usr/lib/qt6/mkspecs/linux-g++ -isystem /usr/include/qt6/QtWidgets -isystem /usr/include/qt6/QtGui -isystem /usr/include/qt6/QtTest -std=c++20 -fPIE -Wall -Wextra -fPIC -mno-direct-extern-access -o CMakeFiles/quarkRSP_gui_tests.dir/gui/qt/i18n/i18n.cpp.o -c /mnt/sdd/Quark/quarkRSP/gui/qt/i18n/i18n.cpp",
+  "file": "/mnt/sdd/Quark/quarkRSP/gui/qt/i18n/i18n.cpp",
+  "output": "quarkRSP/CMakeFiles/quarkRSP_gui_tests.dir/gui/qt/i18n/i18n.cpp.o"
+}
+]

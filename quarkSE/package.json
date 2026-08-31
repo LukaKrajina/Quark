@@ -1,0 +1,51 @@
+{
+<<<<<<< HEAD
+  "name": "quarkse",
+  "version": "0.1.0",
+  "description": "QuarkSE — 轻量级 qk 语言编辑器（类似 Python IDLE）",
+  "main": "dist/quarkSE/src/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && esbuild renderer/app.ts --bundle --outfile=dist/renderer/bundle.js --format=iife",
+    "start": "npm run build && electron ."
+  },
+  "dependencies": {
+    "codemirror": "^6.0.1",
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/theme-one-dark": "^6.1.2"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.20.0"
+  }
+=======
+    "name": "quarkse",
+    "version": "0.1.0",
+    "description": "QuarkSE — 轻量级 qk 语言编辑器",
+    "main": "dist/quarkSE/src/main.js",
+    "scripts": {
+        "build": "tsc -p tsconfig.json && esbuild renderer/app.ts --bundle --outfile=dist/renderer/bundle.js --format=iife",
+        "start": "npm run build && electron .",
+        "test": "npm run build && node --test \"test/**/*.test.js\"",
+        "lint": "eslint .",
+        "format": "prettier --write ."
+    },
+    "dependencies": {
+        "@codemirror/lang-javascript": "^6.2.2",
+        "@codemirror/theme-one-dark": "^6.1.2",
+        "codemirror": "^6.0.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "electron": "^44.0.0",
+        "esbuild": "^0.28.2",
+        "eslint": "^10.9.1",
+        "eslint-config-prettier": "^10.1.8",
+        "globals": "^17.11.0",
+        "prettier": "^3.9.6",
+        "typescript": "^5.4.0",
+        "typescript-eslint": "^8.68.0"
+    }
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)
+}

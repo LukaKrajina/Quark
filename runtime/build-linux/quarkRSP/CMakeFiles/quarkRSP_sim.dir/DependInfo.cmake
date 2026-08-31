@@ -1,0 +1,25 @@
+
+# Consider dependencies only in project.
+set(CMAKE_DEPENDS_IN_PROJECT_ONLY OFF)
+
+# The set of languages for which implicit dependencies are needed:
+set(CMAKE_DEPENDS_LANGUAGES
+  )
+
+# The set of dependency files which are needed:
+set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "" "quarkRSP/quarkRSP_sim_autogen/timestamp" "custom" "quarkRSP/quarkRSP_sim_autogen/deps"
+  "/mnt/sdd/Quark/quarkRSP/gui/src/simulation_host.cpp" "quarkRSP/CMakeFiles/quarkRSP_sim.dir/gui/src/simulation_host.cpp.o" "gcc" "quarkRSP/CMakeFiles/quarkRSP_sim.dir/gui/src/simulation_host.cpp.o.d"
+  "/mnt/sdd/Quark/runtime/build-linux/quarkRSP/quarkRSP_sim_autogen/mocs_compilation.cpp" "quarkRSP/CMakeFiles/quarkRSP_sim.dir/quarkRSP_sim_autogen/mocs_compilation.cpp.o" "gcc" "quarkRSP/CMakeFiles/quarkRSP_sim.dir/quarkRSP_sim_autogen/mocs_compilation.cpp.o.d"
+  )
+
+# Targets to which this target links which contain Fortran sources.
+set(CMAKE_Fortran_TARGET_LINKED_INFO_FILES
+  )
+
+# Targets to which this target links which contain Fortran sources.
+set(CMAKE_Fortran_TARGET_FORWARD_LINKED_INFO_FILES
+  )
+
+# Fortran module output directory.
+set(CMAKE_Fortran_TARGET_MODULE_DIR "")

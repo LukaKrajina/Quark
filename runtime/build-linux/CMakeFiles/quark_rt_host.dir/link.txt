@@ -1,0 +1,2 @@
+/usr/bin/ar qc libquark_rt_host.a CMakeFiles/quark_rt_host.dir/src/ThermalSimulation.cpp.o CMakeFiles/quark_rt_host.dir/src/ThermalController.cpp.o
+/usr/bin/ranlib libquark_rt_host.a

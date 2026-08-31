@@ -1,0 +1,512 @@
+<<<<<<< HEAD
+#pragma once
+#include <vector>
+#include <numeric>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <cmath>
+#include <complex>
+#include <unordered_set>
+
+namespace numqk {
+
+    template <typename T>
+    class Tensor;
+
+    template <typename T>
+    class AutogradNode {
+    protected:
+        std::vector<std::shared_ptr<AutogradNode<T>>> next_edges;
+    public:
+        virtual ~AutogradNode() = default;
+        
+        const std::vector<std::shared_ptr<AutogradNode<T>>>& get_next_edges() const {
+            return next_edges;
+        }
+
+        virtual void apply_backward(const Tensor<T>& grad_output) = 0;
+    };
+
+    template <typename T>
+    class Tensor {
+    private:
+        std::shared_ptr<std::vector<T>> data_buffer;
+        std::vector<size_t> shape;
+        std::vector<size_t> strides;
+
+        bool requires_grad;
+        std::shared_ptr<Tensor<T>> grad; 
+        std::shared_ptr<AutogradNode<T>> grad_fn;
+
+        void compute_strides() {
+            strides.resize(shape.size());
+            size_t stride = 1;
+            for (int i = shape.size() - 1; i >= 0; --i) {
+                strides[i] = stride;
+                stride *= shape[i];
+            }
+        }
+
+        
+    private:
+        Tensor(std::vector<size_t> target_shape, bool requires_grad, bool init_grad_buffer) 
+            : shape(target_shape), requires_grad(requires_grad), grad_fn(nullptr) {
+            size_t total_size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+            data_buffer = std::make_shared<std::vector<T>>(total_size, T(0));
+            compute_strides();
+        }
+
+    public:
+        Tensor(std::vector<size_t> target_shape, bool requires_grad = false) 
+            : shape(target_shape), requires_grad(requires_grad), grad_fn(nullptr) {
+            size_t total_size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+            data_buffer = std::make_shared<std::vector<T>>(total_size, T(0));
+            compute_strides();
+            if (requires_grad) {
+                grad = std::shared_ptr<Tensor<T>>(new Tensor<T>(shape, false, false));
+            }
+        }
+
+        T* data() { return data_buffer->data(); }
+        const T* data() const { return data_buffer->data(); }
+        size_t size() const { return data_buffer->size(); }
+        const std::vector<size_t>& get_shape() const { return shape; }
+        
+        bool gets_gradients() const { return requires_grad; }
+        std::shared_ptr<Tensor<T>> get_grad() const { return grad; }
+        std::shared_ptr<AutogradNode<T>> get_grad_fn() const { return grad_fn; }
+        
+        void set_grad_fn(std::shared_ptr<AutogradNode<T>> fn) { grad_fn = fn; }
+
+        void accumulate_grad(const Tensor<T>& downstream_grad) {
+            if (!requires_grad) return;
+            if (this->shape != downstream_grad.get_shape()) {
+                throw std::invalid_argument("Gradient shape mismatch during accumulation.");
+            }
+            T* current_grad = this->grad->data();
+            const T* incoming_grad = downstream_grad.data();
+            for (size_t i = 0; i < this->size(); ++i) {
+                current_grad[i] += incoming_grad[i];
+            }
+        }
+
+        // --- Basic Operations needed for Chain Rule ---
+        Tensor<T> transpose() const {
+            if (shape.size() != 2) throw std::invalid_argument("Transpose only supports 2D tensors currently.");
+            Tensor<T> result({shape[1], shape[0]}, false);
+            const T* src = this->data();
+            T* dst = result.data();
+            for (size_t i = 0; i < shape[0]; ++i) {
+                for (size_t j = 0; j < shape[1]; ++j) {
+                    dst[j * shape[0] + i] = src[i * shape[1] + j];
+                }
+            }
+            return result;
+        }
+
+        // Element-wise multiplication (Hadamard product)
+        Tensor<T> operator*(const Tensor<T>& other) const {
+            Tensor<T> result(this->shape, false);
+            const T* a = this->data();
+            const T* b = other.data();
+            T* c = result.data();
+            for(size_t i = 0; i < this->size(); ++i) {
+                c[i] = a[i] * b[i];
+            }
+            return result;
+        }
+
+        
+        Tensor<T> matmul(const Tensor<T>& other);
+        Tensor<T> sigmoid();
+
+        
+        void backward() {
+            if (!requires_grad) throw std::runtime_error("Cannot call backward on a tensor that does not require gradients.");
+
+            for (size_t i = 0; i < this->size(); ++i) {
+                this->grad->data()[i] = T(1.0);
+            }
+
+            std::vector<std::shared_ptr<AutogradNode<T>>> topo_order;
+            std::unordered_set<AutogradNode<T>*> visited;
+
+            auto build_topo = [&](auto& self, std::shared_ptr<AutogradNode<T>> node) -> void {
+                if (!node || visited.count(node.get())) return;
+                visited.insert(node.get());
+
+                for (const auto& child : node->get_next_edges()) {
+                    self(self, child);
+                }
+                
+                topo_order.push_back(node);
+            };
+
+            build_topo(build_topo, this->grad_fn);
+
+            if (this->grad_fn) {
+                this->grad_fn->apply_backward(*(this->grad));
+            }
+        }
+    };
+
+    template <typename T>
+    class SigmoidBackward : public AutogradNode<T> {
+    private:
+        Tensor<T> input;
+        Tensor<T> output;
+    public:
+        SigmoidBackward(Tensor<T> in, Tensor<T> out) : input(in), output(out) {}
+
+        void apply_backward(const Tensor<T>& grad_output) override {
+            if (!input.gets_gradients()) return;
+            Tensor<T> local_grad(output.get_shape(), false);
+            const T* y = output.data();
+            const T* g_out = grad_output.data();
+            T* l_grad = local_grad.data();
+
+            for (size_t i = 0; i < output.size(); ++i) {
+                l_grad[i] = g_out[i] * y[i] * (T(1.0) - y[i]);
+            }
+
+            input.accumulate_grad(local_grad);
+
+            if (input.get_grad_fn()) {
+                input.get_grad_fn()->apply_backward(*(input.get_grad()));
+            }
+        }
+    };
+
+    template <typename T>
+    class MatmulBackward : public AutogradNode<T> {
+    private:
+        Tensor<T> A;
+        Tensor<T> B;
+    public:
+        MatmulBackward(Tensor<T> a, Tensor<T> b) : A(a), B(b) {}
+
+        void apply_backward(const Tensor<T>& grad_output) override {
+
+            if (A.gets_gradients()) {
+                Tensor<T> b_t = B.transpose();
+                Tensor<T> grad_a = grad_output.matmul(b_t); 
+                A.accumulate_grad(grad_a);
+
+                if (A.get_grad_fn()) {
+                    A.get_grad_fn()->apply_backward(*(A.get_grad()));
+                }
+            }
+
+            if (B.gets_gradients()) {
+                Tensor<T> a_t = A.transpose();
+                Tensor<T> grad_b = a_t.matmul(grad_output);
+                B.accumulate_grad(grad_b);
+
+                if (B.get_grad_fn()) {
+                    B.get_grad_fn()->apply_backward(*(B.get_grad()));
+                }
+            }
+        }
+    };
+
+    template <typename T>
+    Tensor<T> Tensor<T>::sigmoid() {
+        bool track_grad = this->requires_grad;
+        Tensor<T> result(this->shape, track_grad);
+        
+        for (size_t i = 0; i < data_buffer->size(); ++i) {
+            result.data()[i] = T(1.0) / (T(1.0) + std::exp(-(*data_buffer)[i]));
+        }
+
+        if (track_grad) {
+            auto backward_node = std::make_shared<SigmoidBackward<T>>(*this, result);
+            result.set_grad_fn(backward_node);
+        }
+        return result;
+    }
+
+    template <typename T>
+    Tensor<T> Tensor<T>::matmul(const Tensor<T>& other) {
+        size_t M = this->shape[0];
+        size_t K = this->shape[1];
+        size_t N = other.shape[1];
+
+        bool track_grad = this->requires_grad || other.gets_gradients();
+        Tensor<T> result({M, N}, track_grad);
+
+        const T* a_ptr = this->data();
+        const T* b_ptr = other.data();
+        T* c_ptr = result.data();
+
+        for (size_t i = 0; i < M; ++i) {
+            for (size_t k = 0; k < K; ++k) {
+                T a_ik = a_ptr[i * K + k];
+                for (size_t j = 0; j < N; ++j) {
+                    c_ptr[i * N + j] += a_ik * b_ptr[k * N + j];
+                }
+            }
+        }
+
+        if (track_grad) {
+            auto backward_node = std::make_shared<MatmulBackward<T>>(*this, other);
+            result.set_grad_fn(backward_node);
+        }
+        return result;
+    }
+=======
+#pragma once
+#include <vector>
+#include <numeric>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <cmath>
+#include <complex>
+#include <unordered_set>
+
+namespace numqk {
+
+    template <typename T>
+    class Tensor;
+
+    template <typename T>
+    class AutogradNode {
+    protected:
+        std::vector<std::shared_ptr<AutogradNode<T>>> next_edges;
+    public:
+        virtual ~AutogradNode() = default;
+        
+        const std::vector<std::shared_ptr<AutogradNode<T>>>& get_next_edges() const {
+            return next_edges;
+        }
+
+        virtual void apply_backward(const Tensor<T>& grad_output) = 0;
+    };
+
+    template <typename T>
+    class Tensor {
+    private:
+        std::shared_ptr<std::vector<T>> data_buffer;
+        std::vector<size_t> shape;
+        std::vector<size_t> strides;
+
+        bool requires_grad;
+        std::shared_ptr<Tensor<T>> grad; 
+        std::shared_ptr<AutogradNode<T>> grad_fn;
+
+        void compute_strides() {
+            strides.resize(shape.size());
+            size_t stride = 1;
+            for (int i = shape.size() - 1; i >= 0; --i) {
+                strides[i] = stride;
+                stride *= shape[i];
+            }
+        }
+
+        
+    private:
+        Tensor(std::vector<size_t> target_shape, bool requires_grad, bool init_grad_buffer) 
+            : shape(target_shape), requires_grad(requires_grad), grad_fn(nullptr) {
+            size_t total_size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+            data_buffer = std::make_shared<std::vector<T>>(total_size, T(0));
+            compute_strides();
+        }
+
+    public:
+        Tensor(std::vector<size_t> target_shape, bool requires_grad = false) 
+            : shape(target_shape), requires_grad(requires_grad), grad_fn(nullptr) {
+            size_t total_size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+            data_buffer = std::make_shared<std::vector<T>>(total_size, T(0));
+            compute_strides();
+            if (requires_grad) {
+                grad = std::shared_ptr<Tensor<T>>(new Tensor<T>(shape, false, false));
+            }
+        }
+
+        T* data() { return data_buffer->data(); }
+        const T* data() const { return data_buffer->data(); }
+        size_t size() const { return data_buffer->size(); }
+        const std::vector<size_t>& get_shape() const { return shape; }
+        
+        bool gets_gradients() const { return requires_grad; }
+        std::shared_ptr<Tensor<T>> get_grad() const { return grad; }
+        std::shared_ptr<AutogradNode<T>> get_grad_fn() const { return grad_fn; }
+        
+        void set_grad_fn(std::shared_ptr<AutogradNode<T>> fn) { grad_fn = fn; }
+
+        void accumulate_grad(const Tensor<T>& downstream_grad) {
+            if (!requires_grad) return;
+            if (this->shape != downstream_grad.get_shape()) {
+                throw std::invalid_argument("Gradient shape mismatch during accumulation.");
+            }
+            T* current_grad = this->grad->data();
+            const T* incoming_grad = downstream_grad.data();
+            for (size_t i = 0; i < this->size(); ++i) {
+                current_grad[i] += incoming_grad[i];
+            }
+        }
+
+        Tensor<T> transpose() const {
+            if (shape.size() != 2) throw std::invalid_argument("Transpose only supports 2D tensors currently.");
+            Tensor<T> result({shape[1], shape[0]}, false);
+            const T* src = this->data();
+            T* dst = result.data();
+            for (size_t i = 0; i < shape[0]; ++i) {
+                for (size_t j = 0; j < shape[1]; ++j) {
+                    dst[j * shape[0] + i] = src[i * shape[1] + j];
+                }
+            }
+            return result;
+        }
+        
+        Tensor<T> operator*(const Tensor<T>& other) const {
+            Tensor<T> result(this->shape, false);
+            const T* a = this->data();
+            const T* b = other.data();
+            T* c = result.data();
+            for(size_t i = 0; i < this->size(); ++i) {
+                c[i] = a[i] * b[i];
+            }
+            return result;
+        }
+
+        
+        Tensor<T> matmul(const Tensor<T>& other);
+        Tensor<T> sigmoid();
+
+        
+        void backward() {
+            if (!requires_grad) throw std::runtime_error("Cannot call backward on a tensor that does not require gradients.");
+
+            for (size_t i = 0; i < this->size(); ++i) {
+                this->grad->data()[i] = T(1.0);
+            }
+
+            std::vector<std::shared_ptr<AutogradNode<T>>> topo_order;
+            std::unordered_set<AutogradNode<T>*> visited;
+
+            auto build_topo = [&](auto& self, std::shared_ptr<AutogradNode<T>> node) -> void {
+                if (!node || visited.count(node.get())) return;
+                visited.insert(node.get());
+
+                for (const auto& child : node->get_next_edges()) {
+                    self(self, child);
+                }
+                
+                topo_order.push_back(node);
+            };
+
+            build_topo(build_topo, this->grad_fn);
+
+            if (this->grad_fn) {
+                this->grad_fn->apply_backward(*(this->grad));
+            }
+        }
+    };
+
+    template <typename T>
+    class SigmoidBackward : public AutogradNode<T> {
+    private:
+        Tensor<T> input;
+        Tensor<T> output;
+    public:
+        SigmoidBackward(Tensor<T> in, Tensor<T> out) : input(in), output(out) {}
+
+        void apply_backward(const Tensor<T>& grad_output) override {
+            if (!input.gets_gradients()) return;
+            Tensor<T> local_grad(output.get_shape(), false);
+            const T* y = output.data();
+            const T* g_out = grad_output.data();
+            T* l_grad = local_grad.data();
+
+            for (size_t i = 0; i < output.size(); ++i) {
+                l_grad[i] = g_out[i] * y[i] * (T(1.0) - y[i]);
+            }
+
+            input.accumulate_grad(local_grad);
+
+            if (input.get_grad_fn()) {
+                input.get_grad_fn()->apply_backward(*(input.get_grad()));
+            }
+        }
+    };
+
+    template <typename T>
+    class MatmulBackward : public AutogradNode<T> {
+    private:
+        Tensor<T> A;
+        Tensor<T> B;
+    public:
+        MatmulBackward(Tensor<T> a, Tensor<T> b) : A(a), B(b) {}
+
+        void apply_backward(const Tensor<T>& grad_output) override {
+
+            if (A.gets_gradients()) {
+                Tensor<T> b_t = B.transpose();
+                Tensor<T> grad_a = grad_output.matmul(b_t); 
+                A.accumulate_grad(grad_a);
+
+                if (A.get_grad_fn()) {
+                    A.get_grad_fn()->apply_backward(*(A.get_grad()));
+                }
+            }
+
+            if (B.gets_gradients()) {
+                Tensor<T> a_t = A.transpose();
+                Tensor<T> grad_b = a_t.matmul(grad_output);
+                B.accumulate_grad(grad_b);
+
+                if (B.get_grad_fn()) {
+                    B.get_grad_fn()->apply_backward(*(B.get_grad()));
+                }
+            }
+        }
+    };
+
+    template <typename T>
+    Tensor<T> Tensor<T>::sigmoid() {
+        bool track_grad = this->requires_grad;
+        Tensor<T> result(this->shape, track_grad);
+        
+        for (size_t i = 0; i < data_buffer->size(); ++i) {
+            result.data()[i] = T(1.0) / (T(1.0) + std::exp(-(*data_buffer)[i]));
+        }
+
+        if (track_grad) {
+            auto backward_node = std::make_shared<SigmoidBackward<T>>(*this, result);
+            result.set_grad_fn(backward_node);
+        }
+        return result;
+    }
+
+    template <typename T>
+    Tensor<T> Tensor<T>::matmul(const Tensor<T>& other) {
+        size_t M = this->shape[0];
+        size_t K = this->shape[1];
+        size_t N = other.shape[1];
+
+        bool track_grad = this->requires_grad || other.gets_gradients();
+        Tensor<T> result({M, N}, track_grad);
+
+        const T* a_ptr = this->data();
+        const T* b_ptr = other.data();
+        T* c_ptr = result.data();
+
+        for (size_t i = 0; i < M; ++i) {
+            for (size_t k = 0; k < K; ++k) {
+                T a_ik = a_ptr[i * K + k];
+                for (size_t j = 0; j < N; ++j) {
+                    c_ptr[i * N + j] += a_ik * b_ptr[k * N + j];
+                }
+            }
+        }
+
+        if (track_grad) {
+            auto backward_node = std::make_shared<MatmulBackward<T>>(*this, other);
+            result.set_grad_fn(backward_node);
+        }
+        return result;
+    }
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)
+}

@@ -1,0 +1,13 @@
+{
+<<<<<<< HEAD
+    "editor.fontFamily": "'SF Mono', Menlo, Monaco, 'Courier New', monospace",
+    "cmake.sourceDirectory": "D:/BH_Project/quark-vscode/runtime"
+}
+=======
+    "editor.fontFamily": "'SF Mono', Menlo, Monaco, 'Courier New', 'DejaVu Sans Mono', monospace",
+    "cmake.sourceDirectory": "${workspaceFolder}/runtime",
+    "cmake.buildDirectory": "${workspaceFolder}/runtime/build-linux",
+    "cmake.generator": "Ninja",
+    "cmake.ignoreCMakeListsMissing": true
+}
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)

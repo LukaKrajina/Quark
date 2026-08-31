@@ -1,0 +1,63 @@
+<<<<<<< HEAD
+@import "tailwindcss";
+=======
+@import 'tailwindcss';
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.3);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(156, 163, 175, 0.5);
+}
+
+textarea {
+    field-sizing: content;
+    min-height: 56px;
+    max-height: 200px;
+}
+
+@keyframes fadeIn {
+<<<<<<< HEAD
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+#sidebar > * {
+    transition: opacity .3s ease;
+=======
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#sidebar > * {
+    transition: opacity 0.3s ease;
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)
+}
+@media (min-width: 768px) {
+    #sidebar.collapsed {
+        width: 0;
+        overflow: hidden;
+        border-right-width: 0;
+    }
+    #sidebar.collapsed > * {
+        opacity: 0;
+        pointer-events: none;
+        white-space: nowrap;
+    }
+}

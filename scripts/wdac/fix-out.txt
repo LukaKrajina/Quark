@@ -1,0 +1,8 @@
+<<<<<<< HEAD
+操作成功
+按 Enter 继续
+=======
+操作成功
+按 Enter 继续
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)
+^C

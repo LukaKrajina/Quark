@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/run/media/lukakarajina/0b30dc8e-6c51-4d74-a656-601561091d59/Quark/runtime/build-cuda/cmake_install.cmake",
+		"/run/media/lukakarajina/0b30dc8e-6c51-4d74-a656-601561091d59/Quark/runtime/build-cuda/quarkRSP/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

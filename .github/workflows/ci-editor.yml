@@ -1,0 +1,63 @@
+name: CI - Editor & Web UI
+
+# quarkSE (Electron 编辑器) 与 quark-web-ui (Vite 聊天界面) 的构建 + 测试流水线。
+# 与 ci.yml (C++ runtime/quarkRSP)、ci-lang.yml (server/client/installer) 互补。
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  quarkse-build-test:
+    name: QuarkSE (Electron editor)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # --ignore-scripts 跳过 electron 二进制下载，纯编译与 node:test 不需要它
+      - name: Install dependencies
+        working-directory: quarkSE
+        run: npm install --ignore-scripts
+
+      - name: Lint
+        working-directory: quarkSE
+        run: npm run lint
+
+      - name: Build
+        working-directory: quarkSE
+        run: npm run build
+
+      - name: Test
+        working-directory: quarkSE
+        run: node --test "test/**/*.test.js"
+
+  quark-web-ui-build-test:
+    name: Quark Web UI (Vite)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: quark-web-ui
+        run: npm install
+
+      - name: Lint
+        working-directory: quark-web-ui
+        run: npm run lint
+
+      - name: Build
+        working-directory: quark-web-ui
+        run: npm run build
+
+      - name: Test
+        working-directory: quark-web-ui
+        run: npm test

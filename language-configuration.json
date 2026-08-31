@@ -1,0 +1,34 @@
+<<<<<<< HEAD
+{
+    "comments": {
+        "lineComment": "--"
+    },
+    "brackets": [
+        ["{", "}"],
+        ["[", "]"],
+        ["(", ")"]
+    ],
+    "autoClosingPairs": [
+        {"open": "{", "close": "}"},
+        {"open": "[", "close": "]"},
+        {"open": "(", "close": ")"},
+        {"open": "\"", "close": "\""}
+    ]
+=======
+{
+    "comments": {
+        "lineComment": "--"
+    },
+    "brackets": [
+        ["{", "}"],
+        ["[", "]"],
+        ["(", ")"]
+    ],
+    "autoClosingPairs": [
+        {"open": "{", "close": "}"},
+        {"open": "[", "close": "]"},
+        {"open": "(", "close": ")"},
+        {"open": "\"", "close": "\""}
+    ]
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)
+}

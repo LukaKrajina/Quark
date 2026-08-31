@@ -1,0 +1,2 @@
+/usr/bin/ar qc libquarkRSP_sim.a CMakeFiles/quarkRSP_sim.dir/quarkRSP_sim_autogen/mocs_compilation.cpp.o CMakeFiles/quarkRSP_sim.dir/gui/src/simulation_host.cpp.o
+/usr/bin/ranlib libquarkRSP_sim.a

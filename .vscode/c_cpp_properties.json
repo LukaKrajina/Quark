@@ -1,0 +1,65 @@
+{
+    "configurations": [
+        {
+<<<<<<< HEAD
+=======
+            "name": "Linux",
+            "compileCommands": "${workspaceFolder}/runtime/build-linux/compile_commands.json",
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "linux-gcc-x64",
+            "defines": [
+                "NOMINMAX",
+                "NDEBUG",
+                "_USE_MATH_DEFINES"
+            ],
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include",
+                "/usr/include/x86_64-linux-gnu",
+                "/usr/local/include",
+                "/usr/include/llvm",
+                "/usr/include/qt6",
+                "/usr/include/qt6/QtCore",
+                "/usr/include/qt6/QtGui",
+                "/usr/include/qt6/QtWidgets",
+                "/usr/include/qt6/QtMultimedia"
+            ]
+        },
+        {
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${env:VULKAN_SDK}/Include",
+                "${workspaceFolder}/vcpkg/packages/llvm_x64-windows/include",
+                "C:/Libraries/kokkos/include",
+                "${env:CUDA_PATH}/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "NOMINMAX"
+            ],
+            "compilerPath": "C:\\Program Files\\LLVM\\bin\\clang.exe",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "windows-clang-x64"
+<<<<<<< HEAD
+            /*
+            "compileCommands": [
+                "${workspaceFolder}/runtime/build/compile_commands.json"
+            ]
+            */
+        }
+    ],
+    "version": 4
+}
+=======
+        }
+    ],
+    "version": 4
+}
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)

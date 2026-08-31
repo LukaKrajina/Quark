@@ -1,0 +1,8 @@
+{
+	"InstallScripts" : 
+	[
+		"/mnt/sdd/Quark/runtime/build-linux/cmake_install.cmake",
+		"/mnt/sdd/Quark/runtime/build-linux/quarkRSP/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

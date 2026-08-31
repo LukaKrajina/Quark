@@ -1,0 +1,5 @@
+quarkRSP_tests 0 0
+quarkRSP_gui_tests 0 0
+---
+quarkRSP_tests
+quarkRSP_gui_tests

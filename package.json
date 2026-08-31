@@ -1,0 +1,172 @@
+<<<<<<< HEAD
+{
+  "name": "quark-lang",
+  "displayName": "Quark Language Support",
+  "description": "Language support for the Quark Quantum Programming Language (.qk)",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./client/out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "quark",
+        "aliases": [
+          "Quark",
+          "quark"
+        ],
+        "extensions": [
+          ".qk"
+        ],
+        "icon": {
+          "light": "./icons/quark-light.svg",
+          "dark": "./icons/quark-dark.svg"
+        },
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "quark",
+        "scopeName": "source.quark",
+        "path": "./syntaxes/quark.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "quark.runScript",
+        "title": "Run Quark Script",
+        "icon": "$(play)"
+      }
+    ],
+    "menus": {
+      "editor/title/run": [
+        {
+          "command": "quark.runScript",
+          "when": "resourceLangId == quark",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "quark.runScript",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n",
+        "when": "editorTextFocus && editorLangId == quark"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -b client/tsconfig.json server/tsconfig.json",
+    "watch": "tsc -b client/tsconfig.json server/tsconfig.json -w",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "QuarkProject",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/vscode": "~1.80.0",
+    "typescript": "^6.0.2"
+  }
+=======
+{
+  "name": "quark-lang",
+  "displayName": "Quark Language Support",
+  "description": "Language support for the Quark Quantum Programming Language (.qk)",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./client/out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "quark",
+        "aliases": [
+          "Quark",
+          "quark"
+        ],
+        "extensions": [
+          ".qk"
+        ],
+        "icon": {
+          "light": "./icons/quark-light.svg",
+          "dark": "./icons/quark-dark.svg"
+        },
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "quark",
+        "scopeName": "source.quark",
+        "path": "./syntaxes/quark.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "quark.runScript",
+        "title": "Run Quark Script",
+        "icon": "$(play)"
+      }
+    ],
+    "menus": {
+      "editor/title/run": [
+        {
+          "command": "quark.runScript",
+          "when": "resourceLangId == quark",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "quark.runScript",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n",
+        "when": "editorTextFocus && editorLangId == quark"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -b client/tsconfig.json server/tsconfig.json",
+    "watch": "tsc -b client/tsconfig.json server/tsconfig.json -w",
+    "test": "tsc -b server/tsconfig.json && node --test \"server/out/*.test.js\"",
+    "test:integration": "tsc -b client/tsconfig.json server/tsconfig.json && node client/out/test/runTest.js"
+  },
+  "keywords": [],
+  "author": "QuarkProject",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/mocha": "^10.0.6",
+    "@types/vscode": "~1.80.0",
+    "@vscode/test-electron": "^2.4.0",
+    "mocha": "^10.4.0",
+    "typescript": "^6.0.2"
+  }
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)
+}

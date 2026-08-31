@@ -1,0 +1,42 @@
+<<<<<<< HEAD
+int32 quark_main() {
+    // Define the training hyperparameters
+    int32 epochs = 10;
+    double learning_rate = 0.1;
+
+    // 1. Encode natural language directly into a basis state QObject
+    auto encoded_prompt = encode_text("A");
+
+    // 2. Train the QLM variational quantum circuit
+    auto trained_model = qlm_invoke(encoded_prompt, epochs, learning_rate);
+
+    // 3. Export the trained parameters and topological metadata to disk
+    trained_model.export("chaos_fluid_predictor.qkm");
+
+    // 4. Collapse the quantum object to a classical integer
+    int32 final_value = encoded_prompt.measure();
+
+    // The Quark JIT runtime will print this final value upon exiting
+    return final_value;
+=======
+int32 quark_main() {
+    // Define the training hyperparameters
+    int32 epochs = 10;
+    double learning_rate = 0.1;
+
+    // 1. Encode natural language directly into a basis state QObject
+    auto encoded_prompt = encode_text("A");
+
+    // 2. Train the QLM variational quantum circuit
+    auto trained_model = qlm_invoke(encoded_prompt, epochs, learning_rate);
+
+    // 3. Export the trained parameters and topological metadata to disk
+    trained_model.export("chaos_fluid_predictor.qkm");
+
+    // 4. Collapse the quantum object to a classical integer
+    int32 final_value = encoded_prompt.measure();
+
+    // The Quark JIT runtime will print this final value upon exiting
+    return final_value;
+>>>>>>> 2f6d6f3 (	new file:   .clang-format)
+}
