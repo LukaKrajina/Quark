@@ -4,11 +4,8 @@ exports.SemanticAnalyzer = void 0;
 function isTopLevelItem(node) {
     return ['ModuleDecl', 'UseDecl', 'FormDecl', 'ImplDecl', 'TraitDecl', 'TemplateDecl', 'ImportDecl', 'RequiresDecl'].includes(node.type);
 }
-<<<<<<< HEAD
-=======
 // 量子门名（我已将它们从 lexer 关键字移除，但是仍作为门调用使用）
 const GATE_NAMES = new Set(['h', 'x', 'rz', 'cnot', 'toffoli', 'swap', 'qft', 'braid', 'measure_x', 'measure_y']);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 class SemanticAnalyzer {
     constructor() {
         this.symbolMap = new Map();
@@ -20,14 +17,11 @@ class SemanticAnalyzer {
         this.templates = [];
         this.parentOf = new Map();
         this.childOf = new Map();
-<<<<<<< HEAD
-=======
         this.loopDepth = 0;
         this.currentReturnType = 'void';
         this.measuredQubits = new Set();
         this.declaredGateVars = new Set();
         this.usedGates = new Set();
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     }
     resetDeclarations() {
         this.forms.clear();
@@ -131,11 +125,6 @@ class SemanticAnalyzer {
         }
         return methods;
     }
-<<<<<<< HEAD
-    analyze(program) {
-        this.symbolMap.clear();
-        this.errors = [];
-=======
     findFieldType(formName, fieldName) {
         const form = this.forms.get(formName);
         if (!form)
@@ -159,7 +148,6 @@ class SemanticAnalyzer {
         this.measuredQubits.clear();
         this.declaredGateVars.clear();
         this.usedGates.clear();
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         this.resetDeclarations();
         this.collectDeclarations(program.body, '');
         this.checkInheritance();
@@ -194,8 +182,6 @@ class SemanticAnalyzer {
                 }
             }
             this.symbolMap.set(stmt.identifier, inferredType);
-<<<<<<< HEAD
-=======
             if (GATE_NAMES.has(stmt.identifier)) {
                 this.declaredGateVars.add(stmt.identifier);
                 if (this.usedGates.has(stmt.identifier)) {
@@ -207,14 +193,11 @@ class SemanticAnalyzer {
                     });
                 }
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         }
         else if (stmt.type === 'ExpressionStatement') {
             this.visitExpression(stmt.expression);
         }
         else if (stmt.type === 'AssignmentStatement') {
-<<<<<<< HEAD
-=======
             if (stmt.target) {
                 const objType = this.visitExpression(stmt.target.object);
                 this.visitExpression(stmt.value);
@@ -228,7 +211,6 @@ class SemanticAnalyzer {
                 }
                 return;
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             const exprType = this.visitExpression(stmt.value);
             const targetType = this.symbolMap.get(stmt.name);
             if (!targetType) {
@@ -258,9 +240,6 @@ class SemanticAnalyzer {
                     length: stmt.condition.length
                 });
             }
-<<<<<<< HEAD
-            stmt.body.forEach(s => this.visitStatement(s));
-=======
             if (stmt.invariant) {
                 for (const inv of stmt.invariant) {
                     const t = this.visitExpression(inv);
@@ -320,15 +299,12 @@ class SemanticAnalyzer {
                     length: stmt.length
                 });
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         }
         else if (stmt.type === 'FunctionDeclaration') {
             this.symbolMap.clear();
             for (const p of stmt.params) {
                 this.symbolMap.set(p.name, p.type);
             }
-<<<<<<< HEAD
-=======
             this.currentReturnType = stmt.returnType;
             for (const req of stmt.requires) {
                 const t = this.visitExpression(req);
@@ -352,7 +328,6 @@ class SemanticAnalyzer {
                     });
                 }
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             stmt.body.forEach(s => this.visitStatement(s));
         }
         else if (stmt.type === 'ReturnStatement') {
@@ -378,8 +353,6 @@ class SemanticAnalyzer {
         }
     }
     visitExpression(expr) {
-<<<<<<< HEAD
-=======
         if (expr.type === 'ResultExpr') {
             return this.currentReturnType;
         }
@@ -406,7 +379,6 @@ class SemanticAnalyzer {
             this.currentReturnType = savedReturnType;
             return '(' + expr.params.map(p => p.type).join(',') + ')->' + retType;
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         if (expr.type === 'NumberLiteral') {
             return expr.value % 1 !== 0 ? 'double' : 'int32';
         }
@@ -415,8 +387,6 @@ class SemanticAnalyzer {
         if (expr.type === 'CharLiteral')
             return 'char';
         if (expr.type === 'Identifier') {
-<<<<<<< HEAD
-=======
             if (this.measuredQubits.has(expr.name)) {
                 this.errors.push({
                     message: `Quantum Violation: Qubit '${expr.name}' used after measurement. Measurement collapses and consumes the qubit.`,
@@ -426,7 +396,6 @@ class SemanticAnalyzer {
                 });
                 return 'unknown';
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             if (!this.symbolMap.has(expr.name)) {
                 this.errors.push({
                     message: `Reference Error: Undefined variable '${expr.name}'.`,
@@ -439,8 +408,6 @@ class SemanticAnalyzer {
             return this.symbolMap.get(expr.name);
         }
         if (expr.type === 'FunctionCall') {
-<<<<<<< HEAD
-=======
             if (GATE_NAMES.has(expr.name)) {
                 this.usedGates.add(expr.name);
                 if (this.declaredGateVars.has(expr.name)) {
@@ -452,7 +419,6 @@ class SemanticAnalyzer {
                     });
                 }
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             if (expr.name === 'alloc')
                 return 'Qubit';
             if (expr.name === 'h' || expr.name === 'x') {
@@ -503,13 +469,9 @@ class SemanticAnalyzer {
                     });
                 }
                 if (expr.arguments[0].type === 'Identifier') {
-<<<<<<< HEAD
-                    this.symbolMap.delete(expr.arguments[0].name);
-=======
                     const qname = expr.arguments[0].name;
                     this.symbolMap.delete(qname);
                     this.measuredQubits.add(qname);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
                 }
                 return 'int32';
             }
@@ -533,13 +495,9 @@ class SemanticAnalyzer {
                     });
                 }
                 if (expr.arguments[0].type === 'Identifier') {
-<<<<<<< HEAD
-                    this.symbolMap.delete(expr.arguments[0].name);
-=======
                     const qname = expr.arguments[0].name;
                     this.symbolMap.delete(qname);
                     this.measuredQubits.add(qname);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
                 }
                 return 'int32';
             }
@@ -701,8 +659,6 @@ class SemanticAnalyzer {
                 }
                 return 'void';
             }
-<<<<<<< HEAD
-=======
             // QCOS syscall ABI（通用 syscall 入口 + 控制台）
             if (expr.name === 'qk_sys_call') {
                 expr.arguments.forEach(a => this.visitExpression(a));
@@ -720,7 +676,6 @@ class SemanticAnalyzer {
                 expr.arguments.forEach(a => this.visitExpression(a));
                 return 'int32';
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             const scalarMathFns = {
                 surrogate: { argc: 3, args: ['double', 'double', 'double'] },
                 tanh_quantize: { argc: 3, args: ['double', 'double', 'int32'] },
@@ -745,8 +700,6 @@ class SemanticAnalyzer {
                 expr.arguments.forEach(a => this.visitExpression(a));
                 return 'double';
             }
-<<<<<<< HEAD
-=======
             // 函数变量调用（lambda / 高阶函数）
             const fnType = this.symbolMap.get(expr.name);
             if (fnType && fnType.startsWith('(') && fnType.includes(')->')) {
@@ -755,7 +708,6 @@ class SemanticAnalyzer {
                 expr.arguments.forEach(a => this.visitExpression(a));
                 return retType;
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         }
         if (expr.type === 'MemberExpression') {
             const objType = this.visitExpression(expr.object);
@@ -783,26 +735,19 @@ class SemanticAnalyzer {
             }
             if (objType === 'QObject' && expr.property === 'measure')
                 return 'int32';
-<<<<<<< HEAD
-=======
             // QCOS: form 字段读取（含继承字段）
             if (!expr.isMethodCall) {
                 const ft = this.findFieldType(objType, expr.property);
                 if (ft)
                     return ft;
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         }
         if (expr.type === 'BinaryExpression') {
             const l = this.visitExpression(expr.left);
             const r = this.visitExpression(expr.right);
-<<<<<<< HEAD
-            if (expr.operator === '<' || expr.operator === '==')
-=======
             if (expr.operator === '<' || expr.operator === '==' ||
                 expr.operator === '>' || expr.operator === '<=' ||
                 expr.operator === '>=' || expr.operator === '!=')
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
                 return 'bool';
             if (l !== r && l !== 'unknown' && r !== 'unknown') {
                 this.errors.push({
@@ -814,8 +759,6 @@ class SemanticAnalyzer {
             }
             return l === 'unknown' ? r : l;
         }
-<<<<<<< HEAD
-=======
         if (expr.type === 'LogicalExpression') {
             const l = this.visitExpression(expr.left);
             const r = this.visitExpression(expr.right);
@@ -852,13 +795,10 @@ class SemanticAnalyzer {
             }
             return t;
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         if (expr.type === 'NewExpression') {
             if (expr.className === 'BellState' || expr.className === 'DiracState' || expr.className === 'QuantumRegister') {
                 return 'QObject';
             }
-<<<<<<< HEAD
-=======
             const base = expr.className.split('<')[0];
             if (this.forms.has(base)) {
                 return base;
@@ -869,7 +809,6 @@ class SemanticAnalyzer {
                 column: expr.column,
                 length: expr.length
             });
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             return 'unknown';
         }
         return 'unknown';

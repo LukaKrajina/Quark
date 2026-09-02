@@ -40,11 +40,8 @@ const lexer_1 = require("./lexer");
 const parser_1 = require("./parser");
 const semantic_1 = require("./semantic");
 const ir_1 = require("./ir");
-<<<<<<< HEAD
-=======
 const resilience_1 = require("./resilience");
 const protocol_1 = require("./protocol");
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 const DAEMON_PORT = 50052;
 class QuarkApiRouter {
     constructor(modelPath) {
@@ -91,15 +88,10 @@ class QuarkApiRouter {
     handleCompletions(body, res) {
         let prompt = '';
         if (Array.isArray(body.messages)) {
-<<<<<<< HEAD
-            const lastMessage = body.messages[body.messages.length - 1];
-            prompt = lastMessage ? lastMessage.content : '';
-=======
             // 拼接多轮对话上下文，保留历史消息
             prompt = body.messages
                 .map((m) => `${m.role}: ${m.content}`)
                 .join('\n');
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         }
         else if (typeof body.prompt === 'string') {
             prompt = body.prompt;
@@ -108,15 +100,6 @@ class QuarkApiRouter {
             prompt = JSON.stringify(body);
         }
         const isStream = body.stream === true;
-<<<<<<< HEAD
-        const escapedModelPath = this.modelPath.replace(/\\/g, '/');
-        const escapedPrompt = prompt.replace(/"/g, '\\"').replace(/\n/g, ' ');
-        const qkScript = `
-            let model = qlm_load("${escapedModelPath}");
-            let input = qk_encode_string("${escapedPrompt}");
-            qlm_forward(model, input);
-            let result = qk_decode_string(input);
-=======
         // 用 JSON.stringify 生成带转义的字符串字面量,避免用户输入注入 .qk 代码。
         // 配合 lexer 的转义序列支持,任意字符(含引号/反斜杠/换行)都能安全编码。
         const qkScript = `
@@ -124,7 +107,6 @@ class QuarkApiRouter {
             let input = qk_encode_string(${JSON.stringify(prompt)});
             qlm_forward(model, input);
             let result = qk_decode_string(input);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         `;
         this.executeQkScript(qkScript, (err, daemonOutput) => {
             if (err) {
@@ -167,16 +149,9 @@ class QuarkApiRouter {
     }
     handleEmbeddings(body, res) {
         const input = typeof body.input === 'string' ? body.input : JSON.stringify(body.input || '');
-<<<<<<< HEAD
-        const escapedInput = input.replace(/"/g, '\\"').replace(/\n/g, ' ');
-        const qkScript = `
-            let input_tensor = qk_encode_string("${escapedInput}");
-            let result = qk_decode_string(input_tensor);
-=======
         const qkScript = `
             let input_tensor = qk_encode_string(${JSON.stringify(input)});
             let result = qk_decode_string(input_tensor);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         `;
         this.executeQkScript(qkScript, (err, daemonOutput) => {
             if (err) {
@@ -192,38 +167,6 @@ class QuarkApiRouter {
             }));
         });
     }
-<<<<<<< HEAD
-    executeQkScript(sourceCode, callback) {
-        try {
-            const lexer = new lexer_1.Lexer(sourceCode);
-            const parser = new parser_1.Parser(lexer);
-            const ast = parser.parse();
-            const analyzer = new semantic_1.SemanticAnalyzer();
-            analyzer.analyze(ast);
-            if (analyzer.errors.length > 0) {
-                return callback(analyzer.errors.map(e => e.message).join('; '), '');
-            }
-            const irGen = new ir_1.IRGenerator();
-            const llvmIR = irGen.generate(ast);
-            const client = net.createConnection({ port: DAEMON_PORT }, () => {
-                client.write("COMPILE\n");
-                client.write(llvmIR + "\n");
-                client.write("END_COMPILE\n");
-                client.write("EXECUTE int32 quark_main\n");
-                client.write("EXIT\n");
-            });
-            let responseData = '';
-            client.on('data', (data) => { responseData += data.toString(); });
-            client.on('end', () => {
-                let cleanOutput = responseData.replace(/RESPONSE: SUCCESS[^\n]*\n/g, '');
-                callback(null, cleanOutput.trim());
-            });
-            client.on('error', (err) => callback(`Daemon Connection Error: ${err.message}`, ''));
-        }
-        catch (e) {
-            callback(`Pipeline Compilation Error: ${e.message}`, '');
-        }
-=======
     executeQkScriptAsync(sourceCode) {
         return new Promise((resolve, reject) => {
             try {
@@ -267,7 +210,6 @@ class QuarkApiRouter {
     executeQkScript(sourceCode, callback) {
         const robustExecute = (0, resilience_1.withRetry)(3, { delayMs: 500, backoff: 'exponential' })((0, resilience_1.withTimeout)(10000)((src) => this.executeQkScriptAsync(src)));
         robustExecute(sourceCode).then((output) => callback(null, output), (err) => callback(err instanceof Error ? err.message : String(err), ''));
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     }
     parseJsonBody(req, res, onParsed) {
         let body = '';

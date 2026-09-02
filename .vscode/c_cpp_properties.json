@@ -44,19 +44,7 @@
             "cStandard": "c17",
             "cppStandard": "c++20",
             "intelliSenseMode": "windows-clang-x64"
-<<<<<<< HEAD
-            /*
-            "compileCommands": [
-                "${workspaceFolder}/runtime/build/compile_commands.json"
-            ]
-            */
         }
     ],
     "version": 4
 }
-=======
-        }
-    ],
-    "version": 4
-}
->>>>>>> 2f6d6f3 (	new file:   .clang-format)

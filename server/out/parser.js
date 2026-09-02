@@ -13,20 +13,11 @@ const BUILTIN_FUNCTIONS = [
     'qlm_load', 'qk_encode_string', 'qlm_forward', 'qk_decode_string',
     'mind_read', 'mind_train', 'mind_feedback',
     'veda_qlm_train',
-<<<<<<< HEAD
-    'h', 'x', 'rz', 'cnot', 'toffoli', 'swap', 'qft', 'braid',
-    'measure_x', 'measure_y',
-    'surrogate', 'tanh_quantize', 'lif_step',
-    'mellowmax2', 'logsumexp2', 'boltzmann2',
-    'tnorm_luk', 'tnorm_prod', 'tnorm_godel',
-    'polymer_weight', 'polymer_mix_bound'
-=======
     'surrogate', 'tanh_quantize', 'lif_step',
     'mellowmax2', 'logsumexp2', 'boltzmann2',
     'tnorm_luk', 'tnorm_prod', 'tnorm_godel',
     'polymer_weight', 'polymer_mix_bound',
     'qk_sys_call', 'qk_sys_calld', 'qk_sys_log', 'qk_sys_logi'
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 ];
 class Parser {
     constructor(lexer) {
@@ -174,8 +165,6 @@ class Parser {
         if (tokenType === lexer_1.TokenType.Keyword && tokenValue === 'while') {
             return this.parseWhileStatement();
         }
-<<<<<<< HEAD
-=======
         if (tokenType === lexer_1.TokenType.Keyword && tokenValue === 'for') {
             return this.parseForStatement();
         }
@@ -199,7 +188,6 @@ class Parser {
                 length: contToken.length
             };
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         if (tokenType === lexer_1.TokenType.Keyword && tokenValue === 'return') {
             return this.parseReturnStatement();
         }
@@ -212,12 +200,8 @@ class Parser {
                 this.consumeOptionalSemicolon();
                 return {
                     type: 'AssignmentStatement',
-<<<<<<< HEAD
-                    name: expr.name,
-=======
                     name: expr.type === 'MemberExpression' ? '' : expr.name,
                     target: expr.type === 'MemberExpression' ? expr : undefined,
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
                     value: value,
                     line: expr.line,
                     column: expr.column,
@@ -244,8 +228,6 @@ class Parser {
         const identifier = idToken.value;
         if (this.currentToken.type === lexer_1.TokenType.OpenParen) {
             const { receiver, params } = this.parseFunctionParams();
-<<<<<<< HEAD
-=======
             const requires = [];
             const ensures = [];
             while (this.isKeyword('requires') || this.isKeyword('ensures')) {
@@ -258,7 +240,6 @@ class Parser {
                 else
                     requires.push(cond);
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             this.eat(lexer_1.TokenType.OpenBrace);
             const body = this.parseBlock();
             return {
@@ -269,11 +250,8 @@ class Parser {
                 receiver: receiver,
                 isPub: isPub,
                 isExport: isExport,
-<<<<<<< HEAD
-=======
                 requires: requires,
                 ensures: ensures,
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
                 body: body,
                 line: typeToken.line,
                 column: typeToken.column,
@@ -310,11 +288,6 @@ class Parser {
         this.eat(lexer_1.TokenType.OpenParen);
         const condition = this.parseExpression();
         this.eat(lexer_1.TokenType.CloseParen);
-<<<<<<< HEAD
-        this.eat(lexer_1.TokenType.OpenBrace);
-        const body = this.parseBlock();
-        const closeBrace = this.currentToken;
-=======
         const invariant = [];
         while (this.isKeyword('invariant')) {
             this.eat(lexer_1.TokenType.Keyword);
@@ -330,23 +303,17 @@ class Parser {
             this.eat(lexer_1.TokenType.OpenBrace);
             elseBody = this.parseBlock();
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         return {
             type: 'WhileStatement',
             condition: condition,
             body: body,
-<<<<<<< HEAD
-=======
             elseBody: elseBody,
             invariant: invariant,
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             line: whileToken.line,
             column: whileToken.column,
             length: closeBrace.column - whileToken.column
         };
     }
-<<<<<<< HEAD
-=======
     parseForStatement() {
         const forToken = this.eat(lexer_1.TokenType.Keyword);
         this.eat(lexer_1.TokenType.OpenParen);
@@ -410,7 +377,6 @@ class Parser {
             length: value.column + value.length - expr.column
         };
     }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     parseBlock() {
         const body = [];
         while (this.currentToken.type !== lexer_1.TokenType.CloseBrace && this.currentToken.type !== lexer_1.TokenType.EOF) {
@@ -420,9 +386,6 @@ class Parser {
         return body;
     }
     parseExpression() {
-<<<<<<< HEAD
-        return this.parseAdditive();
-=======
         return this.parseLogical();
     }
     parseLogical() {
@@ -442,23 +405,17 @@ class Parser {
             };
         }
         return left;
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     }
     parseAdditive() {
         let left = this.parseMultiplicative();
         while (this.currentToken.type === lexer_1.TokenType.Plus ||
             this.currentToken.type === lexer_1.TokenType.Minus ||
             this.currentToken.type === lexer_1.TokenType.LessThan ||
-<<<<<<< HEAD
-            this.currentToken.type === lexer_1.TokenType.GreaterThan ||
-            this.currentToken.type === lexer_1.TokenType.EqualsEquals) {
-=======
             this.currentToken.type === lexer_1.TokenType.LessEqual ||
             this.currentToken.type === lexer_1.TokenType.GreaterThan ||
             this.currentToken.type === lexer_1.TokenType.GreaterEqual ||
             this.currentToken.type === lexer_1.TokenType.EqualsEquals ||
             this.currentToken.type === lexer_1.TokenType.NotEqual) {
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             const opToken = this.advance();
             const right = this.parseMultiplicative();
             left = {
@@ -474,19 +431,11 @@ class Parser {
         return left;
     }
     parseMultiplicative() {
-<<<<<<< HEAD
-        let left = this.parsePrimary();
-        while (this.currentToken.type === lexer_1.TokenType.Star ||
-            this.currentToken.type === lexer_1.TokenType.Slash) {
-            const opToken = this.advance();
-            const right = this.parsePrimary();
-=======
         let left = this.parseUnary();
         while (this.currentToken.type === lexer_1.TokenType.Star ||
             this.currentToken.type === lexer_1.TokenType.Slash) {
             const opToken = this.advance();
             const right = this.parseUnary();
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             left = {
                 type: 'BinaryExpression',
                 operator: opToken.value,
@@ -499,11 +448,6 @@ class Parser {
         }
         return left;
     }
-<<<<<<< HEAD
-    parsePrimary() {
-        const token = this.currentToken;
-        let left;
-=======
     parseUnary() {
         if (this.currentToken.type === lexer_1.TokenType.Bang ||
             this.currentToken.type === lexer_1.TokenType.Minus) {
@@ -529,7 +473,6 @@ class Parser {
             this.eat(lexer_1.TokenType.CloseParen);
             return inner;
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         if (token.type === lexer_1.TokenType.Number) {
             const numToken = this.eat(lexer_1.TokenType.Number);
             left = {
@@ -574,8 +517,6 @@ class Parser {
                 length: closeParen.column - newToken.column
             };
         }
-<<<<<<< HEAD
-=======
         else if (token.type === lexer_1.TokenType.Keyword && token.value === 'make') {
             const mkToken = this.eat(lexer_1.TokenType.Keyword);
             let className = this.eatIdentifierOrKeyword().value;
@@ -630,7 +571,6 @@ class Parser {
                 length: this.currentToken.column - fnToken.column
             };
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         else if (token.type === lexer_1.TokenType.Keyword && BUILTIN_FUNCTIONS.includes(token.value)) {
             const funcToken = this.eat(lexer_1.TokenType.Keyword);
             const funcName = funcToken.value;
@@ -655,8 +595,6 @@ class Parser {
                 length: idToken.length
             };
         }
-<<<<<<< HEAD
-=======
         else if (token.type === lexer_1.TokenType.Keyword && token.value === 'result') {
             const resultToken = this.eat(lexer_1.TokenType.Keyword);
             left = {
@@ -666,7 +604,6 @@ class Parser {
                 length: resultToken.length
             };
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         else if (token.type === lexer_1.TokenType.Identifier) {
             const idToken = this.eat(lexer_1.TokenType.Identifier);
             if (this.currentToken.type === lexer_1.TokenType.ColonColon) {

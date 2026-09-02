@@ -59,12 +59,8 @@ function quarkToLLVM(quarkType) {
         case 'Qubit': return '%Qubit*';
         case 'QObject': return '%QObject*';
         case 'QModel': return '%QModel*';
-<<<<<<< HEAD
-        default: return 'i32';
-=======
         default:
             throw new Error(`MMI Error: Unknown type '${quarkType}'`);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     }
 }
 function packMMI(header, ir) {

@@ -7,10 +7,7 @@ const lexer_1 = require("./lexer");
 const parser_1 = require("./parser");
 const semantic_1 = require("./semantic");
 const ir_1 = require("./ir");
-<<<<<<< HEAD
-=======
 const vcgen_1 = require("./vcgen");
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
 const connection = (0, node_1.createConnection)(node_1.ProposedFeatures.all);
 const documents = new node_1.TextDocuments(vscode_languageserver_textdocument_1.TextDocument);
 connection.onInitialize((params) => {
@@ -111,8 +108,6 @@ async function validateTextDocument(textDocument) {
                 source: 'Quark Semantic Analyzer'
             });
         }
-<<<<<<< HEAD
-=======
         if (analyzer.errors.length === 0) {
             const vcGen = new vcgen_1.VCGenerator();
             const obligations = vcGen.generate(ast);
@@ -128,7 +123,6 @@ async function validateTextDocument(textDocument) {
                 });
             }
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     }
     catch (error) {
         let line = 0;
@@ -174,13 +168,10 @@ async function compileAndExecute(textDocument) {
         connection.sendNotification('quark/printConsole', `[Quark JIT] Booting Quantum Hardware Abstraction Layer...\n`);
         connection.sendNotification('quark/printConsole', `--------------------------------------------------------\n`);
         const backend = (0, child_process_1.spawn)('quark', []);
-<<<<<<< HEAD
-=======
         backend.on('error', (err) => {
             connection.sendNotification('quark/printConsole', `[Quark JIT] Failed to spawn runtime: ${err.message}\n`);
             connection.sendNotification('quark/printConsole', `[Quark JIT] Ensure 'quark' (Quark Runtime) is installed and on PATH.\n`);
         });
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         backend.stdout.on('data', (data) => {
             connection.sendNotification('quark/printConsole', data.toString());
         });
@@ -191,14 +182,6 @@ async function compileAndExecute(textDocument) {
             connection.sendNotification('quark/printConsole', `--------------------------------------------------------\n`);
             connection.sendNotification('quark/printConsole', `[Quark JIT] Process terminated with exit code ${code}\n`);
         });
-<<<<<<< HEAD
-        backend.stdin.write("COMPILE\n");
-        backend.stdin.write(llvmIR + "\n");
-        backend.stdin.write("END_COMPILE\n");
-        backend.stdin.write("EXECUTE int32 quark_main\n");
-        backend.stdin.write("EXIT\n");
-        backend.stdin.end();
-=======
         if (backend.stdin) {
             backend.stdin.write("COMPILE\n");
             backend.stdin.write(llvmIR + "\n");
@@ -207,7 +190,6 @@ async function compileAndExecute(textDocument) {
             backend.stdin.write("EXIT\n");
             backend.stdin.end();
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     }
     catch (error) {
         connection.sendNotification('quark/showConsole');

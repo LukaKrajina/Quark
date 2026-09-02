@@ -22,12 +22,9 @@ var TokenType;
     TokenType["CloseParen"] = "CloseParen";
     TokenType["CloseBracket"] = "CloseBracket";
     TokenType["LessThan"] = "LessThan";
-<<<<<<< HEAD
-=======
     TokenType["LessEqual"] = "LessEqual";
     TokenType["GreaterThan"] = "GreaterThan";
     TokenType["GreaterEqual"] = "GreaterEqual";
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     TokenType["Plus"] = "Plus";
     TokenType["Minus"] = "Minus";
     TokenType["Star"] = "Star";
@@ -37,17 +34,12 @@ var TokenType;
     TokenType["Semicolon"] = "Semicolon";
     TokenType["Colon"] = "Colon";
     TokenType["ColonColon"] = "ColonColon";
-<<<<<<< HEAD
-    TokenType["GreaterThan"] = "GreaterThan";
-    TokenType["Ampersand"] = "Ampersand";
-=======
     TokenType["Ampersand"] = "Ampersand";
     TokenType["AndAnd"] = "AndAnd";
     TokenType["OrOr"] = "OrOr";
     TokenType["NotEqual"] = "NotEqual";
     TokenType["Bang"] = "Bang";
     TokenType["Arrow"] = "Arrow";
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     TokenType["EOF"] = "EOF";
 })(TokenType || (exports.TokenType = TokenType = {}));
 class Lexer {
@@ -103,8 +95,6 @@ class Lexer {
             }
             return { type: TokenType.Equals, value: '=', line: startLine, column: startCol, length: 1 };
         }
-<<<<<<< HEAD
-=======
         if (char === '!') {
             this.advance();
             if (this.currentChar() === '=') {
@@ -113,7 +103,6 @@ class Lexer {
             }
             return { type: TokenType.Bang, value: '!', line: startLine, column: startCol, length: 1 };
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         if (char === '(') {
             this.advance();
             return { type: TokenType.OpenParen, value: '(', line: startLine, column: startCol, length: 1 };
@@ -152,13 +141,10 @@ class Lexer {
         }
         if (char === '<') {
             this.advance();
-<<<<<<< HEAD
-=======
             if (this.currentChar() === '=') {
                 this.advance();
                 return { type: TokenType.LessEqual, value: '<=', line: startLine, column: startCol, length: 2 };
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             return { type: TokenType.LessThan, value: '<', line: startLine, column: startCol, length: 1 };
         }
         if (char === '+') {
@@ -167,13 +153,10 @@ class Lexer {
         }
         if (char === '-') {
             this.advance();
-<<<<<<< HEAD
-=======
             if (this.currentChar() === '>') {
                 this.advance();
                 return { type: TokenType.Arrow, value: '->', line: startLine, column: startCol, length: 2 };
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             return { type: TokenType.Minus, value: '-', line: startLine, column: startCol, length: 1 };
         }
         if (char === '*') {
@@ -186,12 +169,6 @@ class Lexer {
         }
         if (char === '&') {
             this.advance();
-<<<<<<< HEAD
-            return { type: TokenType.Ampersand, value: '&', line: startLine, column: startCol, length: 1 };
-        }
-        if (char === '>') {
-            this.advance();
-=======
             if (this.currentChar() === '&') {
                 this.advance();
                 return { type: TokenType.AndAnd, value: '&&', line: startLine, column: startCol, length: 2 };
@@ -212,7 +189,6 @@ class Lexer {
                 this.advance();
                 return { type: TokenType.GreaterEqual, value: '>=', line: startLine, column: startCol, length: 2 };
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             return { type: TokenType.GreaterThan, value: '>', line: startLine, column: startCol, length: 1 };
         }
         if (char === ':') {
@@ -228,10 +204,6 @@ class Lexer {
             let strVal = '';
             this.advance();
             while (this.currentChar() !== quoteType && this.currentChar() !== '\0') {
-<<<<<<< HEAD
-                strVal += this.currentChar();
-                this.advance();
-=======
                 if (this.currentChar() === '\\') {
                     // 转义序列:支持常见转义,使字符串字面量能安全容纳任意字符
                     this.advance();
@@ -258,7 +230,6 @@ class Lexer {
                     strVal += this.currentChar();
                     this.advance();
                 }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             }
             this.advance();
             return {
@@ -299,16 +270,6 @@ class Lexer {
                 'DiracState', 'BellState', 'QuantumRegister',
                 'mind_read', 'mind_train', 'mind_feedback',
                 'veda_qlm_train',
-<<<<<<< HEAD
-                'h', 'x', 'rz', 'cnot', 'toffoli', 'swap', 'qft', 'braid',
-                'measure_x', 'measure_y',
-                'mod', 'use', 'pub', 'form', 'impl', 'trait', 'template', 'rank', 'self', 'for',
-                'export', 'import', 'requires', 'from',
-                'surrogate', 'tanh_quantize', 'lif_step',
-                'mellowmax2', 'logsumexp2', 'boltzmann2',
-                'tnorm_luk', 'tnorm_prod', 'tnorm_godel',
-                'polymer_weight', 'polymer_mix_bound'
-=======
                 // 量子门（h/x/rz/cnot/toffoli/swap/qft/braid/measure_x/measure_y）
                 // 已从关键字表移除：它们在语句位置（h(q)）由 parser 的 Identifier
                 // 分支识别为函数调用，在表达式位置（x * x）识别为普通标识符。
@@ -322,7 +283,6 @@ class Lexer {
                 'polymer_weight', 'polymer_mix_bound',
                 // QCOS syscall ABI + 堆分配
                 'make', 'qk_sys_call', 'qk_sys_calld', 'qk_sys_log', 'qk_sys_logi'
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             ];
             if (keywords.includes(idStr)) {
                 return { type: TokenType.Keyword, value: idStr, line: startLine, column: startCol, length: idStr.length };

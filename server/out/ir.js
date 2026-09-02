@@ -13,12 +13,9 @@ class IRGenerator {
         this.regCount = 1;
         this.scopes = [{ symbols: new Map(), temporaries: [] }];
         this.labelCount = 1;
-<<<<<<< HEAD
-=======
         this.loopStack = [];
         this.lambdaCount = 1;
         this.lambdaIRs = [];
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         this.allocas = [];
         this.isBlockTerminated = false;
         this.forms = new Map();
@@ -40,8 +37,6 @@ class IRGenerator {
     nextLabel(prefix) {
         return prefix + (this.labelCount++);
     }
-<<<<<<< HEAD
-=======
     toI1(val) {
         if (val.type === 'i1')
             return val.val;
@@ -49,7 +44,6 @@ class IRGenerator {
         this.emit(`${resReg} = icmp ne ${val.type} ${val.val}, 0`);
         return resReg;
     }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     enterScope() {
         this.scopes.push({ symbols: new Map(), temporaries: [] });
     }
@@ -222,11 +216,7 @@ class IRGenerator {
             `; --- VedaROS QLM Trampolines ---`,
             `declare void @qk_veda_qlm_train(%QObject*, i32, double)`,
             ``,
-<<<<<<< HEAD
-            `; --- 新增公式算法内置（论文6/2/1/5）---`,
-=======
             `; --- Other ---`,
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             `declare double @qk_surrogate(double, double, double)`,
             `declare double @qk_tanh_quantize(double, double, i32)`,
             `declare double @qk_lif_step(double, double, double, double)`,
@@ -238,8 +228,6 @@ class IRGenerator {
             `declare double @qk_tnorm_godel(double, double)`,
             `declare double @qk_polymer_weight(double, double, double)`,
             `declare double @qk_polymer_mix_bound(double, double)`,
-<<<<<<< HEAD
-=======
             `declare i8* @malloc(i64)`,
             ``,
             `; --- QCOS Syscall ABI + Heap ---`,
@@ -248,7 +236,6 @@ class IRGenerator {
             `declare void @qk_sys_log(i32, i8*)`,
             `declare i32 @qk_sys_logi(i32, i32)`,
             `declare i8* @qk_gc_alloc(i64)`,
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             ``
         ];
         const hasExplicitFunctions = ast.body.some(node => node.type === 'FunctionDeclaration');
@@ -292,10 +279,7 @@ class IRGenerator {
             ...this.buildImportDecls(),
             ...this.vtableConsts,
             ...this.methodIRs,
-<<<<<<< HEAD
-=======
             ...this.lambdaIRs,
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             ...this.output
         ].join('\n');
     }
@@ -321,10 +305,7 @@ class IRGenerator {
         this.typeDefs = [];
         this.methodIRs = [];
         this.vtableConsts = [];
-<<<<<<< HEAD
-=======
         this.lambdaIRs = [];
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         this.userFunctions.clear();
         this.importAliases.clear();
     }
@@ -548,11 +529,6 @@ class IRGenerator {
         this.isBlockTerminated = savedTerminated;
         this.labelCount = savedLabel;
     }
-<<<<<<< HEAD
-    getLLVMFieldType(quarkType) {
-        return this.getLLVMType(quarkType);
-    }
-=======
     generateLambdaFunction(lambdaName, params, returnType, body, captured, capTypes) {
         const llvmRetType = this.getLLVMType(returnType);
         const paramTypes = params.map(p => this.getLLVMType(p.type));
@@ -719,7 +695,6 @@ class IRGenerator {
                 return 8;
         }
     }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     visitStatement(stmt) {
         if (this.isBlockTerminated)
             return;
@@ -733,8 +708,6 @@ class IRGenerator {
             this.setSymbol(stmt.identifier, { ptr: ptrReg, type: llvmType });
         }
         else if (stmt.type === 'AssignmentStatement') {
-<<<<<<< HEAD
-=======
             if (stmt.target) {
                 const obj = this.visitExpression(stmt.target.object);
                 const bareType = obj.type.replace(/^%/, '').replace(/\*$/, '');
@@ -752,7 +725,6 @@ class IRGenerator {
                 this.emit(`store ${field.llvmType} ${rhs.val}, ${field.llvmType}* ${gep}`);
                 return;
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             const rhs = this.visitExpression(stmt.value);
             this.untrackTemporary(rhs.val);
             const sym = this.getSymbol(stmt.name);
@@ -770,26 +742,18 @@ class IRGenerator {
         else if (stmt.type === 'WhileStatement') {
             const condLabel = this.nextLabel('while_cond_');
             const bodyLabel = this.nextLabel('while_body_');
-<<<<<<< HEAD
-            const endLabel = this.nextLabel('while_end_');
-=======
             const afterLabel = this.nextLabel('while_after_');
             const hasElse = !!stmt.elseBody && stmt.elseBody.length > 0;
             const elseLabel = hasElse ? this.nextLabel('while_else_') : afterLabel;
             this.loopStack.push({ breakLabel: afterLabel, continueLabel: condLabel });
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             if (!this.isBlockTerminated) {
                 this.emit(`br label %${condLabel}`);
             }
             this.output.push(`\n${condLabel}:`);
             this.isBlockTerminated = false;
             const cond = this.visitExpression(stmt.condition);
-<<<<<<< HEAD
-            this.emit(`br i1 ${cond.val}, label %${bodyLabel}, label %${endLabel}`);
-=======
             const condVal = this.toI1(cond);
             this.emit(`br i1 ${condVal}, label %${bodyLabel}, label %${elseLabel}`);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             this.isBlockTerminated = true;
             this.output.push(`\n${bodyLabel}:`);
             this.isBlockTerminated = false;
@@ -802,11 +766,6 @@ class IRGenerator {
                 this.emit(`br label %${condLabel}`);
                 this.isBlockTerminated = true;
             }
-<<<<<<< HEAD
-            this.output.push(`\n${endLabel}:`);
-            this.isBlockTerminated = false;
-        }
-=======
             this.loopStack.pop();
             if (hasElse) {
                 this.output.push(`\n${elseLabel}:`);
@@ -887,7 +846,6 @@ class IRGenerator {
             this.emit(`br label %${target}`);
             this.isBlockTerminated = true;
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         else if (stmt.type === 'ExpressionStatement') {
             this.visitExpression(stmt.expression);
         }
@@ -897,30 +855,6 @@ class IRGenerator {
             const left = this.visitExpression(expr.left);
             const right = this.visitExpression(expr.right);
             const resReg = this.nextReg();
-<<<<<<< HEAD
-            if (expr.operator === '+') {
-                this.emit(`${resReg} = ${left.type === 'double' ? 'fadd' : 'add'} ${left.type} ${left.val}, ${right.val}`);
-                return { val: resReg, type: left.type };
-            }
-            else if (expr.operator === '-') {
-                this.emit(`${resReg} = ${left.type === 'double' ? 'fsub' : 'sub'} ${left.type} ${left.val}, ${right.val}`);
-                return { val: resReg, type: left.type };
-            }
-            else if (expr.operator === '*') {
-                this.emit(`${resReg} = ${left.type === 'double' ? 'fmul' : 'mul'} ${left.type} ${left.val}, ${right.val}`);
-                return { val: resReg, type: left.type };
-            }
-            else if (expr.operator === '/') {
-                this.emit(`${resReg} = ${left.type === 'double' ? 'fdiv' : 'sdiv'} ${left.type} ${left.val}, ${right.val}`);
-                return { val: resReg, type: left.type };
-            }
-            else if (expr.operator === '<') {
-                this.emit(`${resReg} = icmp slt ${left.type} ${left.val}, ${right.val}`);
-                return { val: resReg, type: 'i1' };
-            }
-            else if (expr.operator === '==') {
-                this.emit(`${resReg} = icmp eq ${left.type} ${left.val}, ${right.val}`);
-=======
             const isFloat = left.type === 'double' || left.type === 'float';
             if (expr.operator === '+') {
                 this.emit(`${resReg} = ${isFloat ? 'fadd' : 'add'} ${left.type} ${left.val}, ${right.val}`);
@@ -946,13 +880,10 @@ class IRGenerator {
                     : { '<': 'slt', '>': 'sgt', '<=': 'sle', '>=': 'sge', '==': 'eq', '!=': 'ne' };
                 const instr = isFloat ? 'fcmp' : 'icmp';
                 this.emit(`${resReg} = ${instr} ${cmpMap[expr.operator]} ${left.type} ${left.val}, ${right.val}`);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
                 return { val: resReg, type: 'i1' };
             }
             throw new Error(`IR Error: Unsupported operator '${expr.operator}'`);
         }
-<<<<<<< HEAD
-=======
         if (expr.type === 'LogicalExpression') {
             const resPtr = this.nextReg();
             this.allocas.push(` ${resPtr} = alloca i1`);
@@ -1041,7 +972,6 @@ class IRGenerator {
             this.emit(`${resultPtr} = bitcast %${closureTypeName}* ${closurePtr} to i8*`);
             return { val: resultPtr, type: 'i8*' };
         }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         if (expr.type === 'NumberLiteral') {
             if (expr.value % 1 !== 0) {
                 return { val: expr.value.toString(), type: 'double' };
@@ -1091,9 +1021,6 @@ class IRGenerator {
             if (this.forms.has(actualName)) {
                 const formType = '%' + this.mangleForm(actualName);
                 const objReg = '%form_obj_' + (this.regCount++);
-<<<<<<< HEAD
-                this.allocas.push(` ${objReg} = alloca ${formType}`);
-=======
                 if (expr.heapAlloc) {
                     const sizeBytes = this.formSizeBytes(actualName);
                     const raw = this.nextReg();
@@ -1103,7 +1030,6 @@ class IRGenerator {
                 else {
                     this.allocas.push(` ${objReg} = alloca ${formType}`);
                 }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
                 let vtType = null;
                 for (const [traitName, impls] of this.traitImpls) {
                     if (impls.has(actualName)) {
@@ -1126,8 +1052,6 @@ class IRGenerator {
                 this.trackTemporary(resReg, '%Qubit*');
                 return { val: resReg, type: '%Qubit*' };
             }
-<<<<<<< HEAD
-=======
             if (expr.name === 'qk_sys_call') {
                 const args = expr.arguments.map(a => this.visitExpression(a));
                 const resReg = this.nextReg();
@@ -1153,7 +1077,6 @@ class IRGenerator {
                 this.emit(`${resReg} = call i32 @qk_sys_logi(i32 ${level.val}, i32 ${v.val})`);
                 return { val: resReg, type: 'i32' };
             }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             if (expr.name === 'measure') {
                 const arg = this.visitExpression(expr.arguments[0]);
                 const resReg = this.nextReg();
@@ -1329,8 +1252,6 @@ class IRGenerator {
                 this.emit(`${res} = call ${retType} @${expr.name}(${callArgs})`);
                 return { val: res, type: retType };
             }
-<<<<<<< HEAD
-=======
             // 函数变量间接调用（lambda / 闭包）
             const fnSym = this.getSymbol(expr.name);
             if (fnSym && fnSym.type === 'i8*') {
@@ -1351,7 +1272,6 @@ class IRGenerator {
                 return { val: res, type: 'i32' };
             }
             throw new Error(`IR Error: Unknown function '${expr.name}'`);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         }
         if (expr.type === 'MemberExpression') {
             const obj = this.visitExpression(expr.object);
@@ -1435,11 +1355,7 @@ class IRGenerator {
                 return { val: resReg, type: 'i32' };
             }
         }
-<<<<<<< HEAD
-        throw new Error(`IR Error: Unknown expression type`);
-=======
         throw new Error(`IR Error: Unknown expression type '${expr.type}'`);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     }
     visitFunctionDeclaration(func) {
         const llvmRetType = this.getLLVMType(func.returnType);
@@ -1494,13 +1410,9 @@ class IRGenerator {
             default:
                 if (this.forms.has(quarkType))
                     return '%' + this.mangleForm(quarkType) + '*';
-<<<<<<< HEAD
-                return 'i32';
-=======
                 if (quarkType.startsWith('(') && quarkType.includes(')->'))
                     return 'i8*'; // 函数类型
                 throw new Error(`IR Error: Unknown type '${quarkType}'`);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         }
     }
 }

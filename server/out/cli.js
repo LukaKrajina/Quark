@@ -43,15 +43,6 @@ const parser_1 = require("./parser");
 const semantic_1 = require("./semantic");
 const ir_1 = require("./ir");
 const apiRouter_1 = require("./apiRouter");
-<<<<<<< HEAD
-const DAEMON_PORT = 50052;
-function main() {
-    const args = process.argv.slice(2);
-    if (args.length === 0) {
-        console.error("Usage:\n  qk run <script.qk>\n  qk compile <arch> <mode> <script.qk>");
-        console.error("  qk compile <arch> <mode> <script.qk>   Compile to native binary (arch: x32|x64|arm64, mode: -e|-m)");
-        console.error("  qk serve <model.qkm> [--port <port>]   Launch an HTTP/WebSocket server for model inference");
-=======
 const vcgen_1 = require("./vcgen");
 const protocol_1 = require("./protocol");
 const DAEMON_PORT = 50052;
@@ -85,7 +76,6 @@ function main() {
         console.error("  qk compile <arch> <mode> <script.qk>   Compile to native binary (arch: x32|x64|arm64, mode: -e|-m)");
         console.error("  qk serve <model.qkm> [--port <port>]   Launch an HTTP/WebSocket server for model inference");
         console.error("  qk ir <script.qk>                      Emit LLVM IR to stdout (no daemon connection)");
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         process.exit(1);
     }
     const command = args[0];
@@ -93,11 +83,8 @@ function main() {
     let arch = "";
     let mode = "";
     let outputName = "";
-<<<<<<< HEAD
-=======
     let smtMode = false;
     let smtOutput = "";
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     if (command === 'run') {
         if (args.length < 2) {
             console.error("Usage: qk run <script.qk>");
@@ -105,8 +92,6 @@ function main() {
         }
         filePath = path.resolve(args[1]);
     }
-<<<<<<< HEAD
-=======
     else if (command === 'ir') {
         if (args.length < 2) {
             console.error("Usage: qk ir <script.qk>");
@@ -114,7 +99,6 @@ function main() {
         }
         filePath = path.resolve(args[1]);
     }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     else if (command === 'compile') {
         if (args.length < 4) {
             console.error("Usage: qk compile <x32|x64|arm64> <-e|-m> <script.qk>");
@@ -133,8 +117,6 @@ function main() {
         }
         outputName = path.parse(filePath).name;
     }
-<<<<<<< HEAD
-=======
     else if (command === 'verify') {
         if (args.length < 2) {
             console.error("Usage: qk verify <script.qk> [--smt [output.smt2]]");
@@ -150,7 +132,6 @@ function main() {
             }
         }
     }
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
     else if (command === 'serve') {
         if (args.length < 2) {
             console.error("Usage: qk serve <model.qkm> [--port <port>]");
@@ -187,14 +168,9 @@ function main() {
         console.error(`[Quark CLI] Error: File not found -> ${filePath}`);
         process.exit(1);
     }
-<<<<<<< HEAD
-    const sourceCode = fs.readFileSync(filePath, 'utf-8');
-    try {
-=======
     let sourceCode = fs.readFileSync(filePath, 'utf-8');
     try {
         sourceCode = expandIncludes(sourceCode, path.dirname(filePath), new Set([filePath]));
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
         const lexer = new lexer_1.Lexer(sourceCode);
         const parser = new parser_1.Parser(lexer);
         const ast = parser.parse();
@@ -206,29 +182,6 @@ function main() {
         }
         const irGen = new ir_1.IRGenerator();
         const llvmIR = irGen.generate(ast);
-<<<<<<< HEAD
-        const client = net.createConnection({ port: DAEMON_PORT }, () => {
-            if (command === 'run') {
-                client.write("COMPILE\n");
-                client.write(llvmIR + "\n");
-                client.write("END_COMPILE\n");
-                client.write("EXECUTE int32 quark_main\n");
-            }
-            else if (command === 'compile') {
-                client.write(`AOT_COMPILE ${arch} ${mode} ${outputName}\n`);
-                client.write(llvmIR + "\n");
-                client.write("END_COMPILE\n");
-            }
-            client.write("EXIT\n");
-        });
-        client.on('data', (data) => {
-            process.stdout.write(data.toString());
-        });
-        client.on('end', () => {
-            process.exit(0);
-        });
-        client.on('error', (err) => {
-=======
         // IR 导出模式：只输出 LLVM IR 到 stdout，不连接 daemon（供 C++ embedded JIT 消费）
         if (command === 'ir') {
             process.stdout.write(llvmIR);
@@ -304,7 +257,6 @@ function main() {
         client.on('error', (err) => {
             if (timeout)
                 clearTimeout(timeout);
->>>>>>> 2f6d6f3 (	new file:   .clang-format)
             console.error(`[Quark CLI] Failed to connect to Quark Daemon on port ${DAEMON_PORT}. Is 'runtime --daemon' running?`);
             process.exit(1);
         });
