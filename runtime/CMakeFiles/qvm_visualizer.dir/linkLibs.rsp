@@ -1,0 +1,1 @@
+  -L"D:/BH_Project/quark-vscode/runtime/../vendor/GLFW/lib-mingw-w64"  "C:/VulkanSDK/1.4.350.0/Lib/vulkan-1.lib" -lglfw3 -lws2_32 -lgdi32 -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32 

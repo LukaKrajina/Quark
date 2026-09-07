@@ -1,0 +1,1 @@
+-IC:/VulkanSDK/1.4.350.0/include -I"D:/BH_Project/quark-vscode/runtime/../vendor" -I"D:/BH_Project/quark-vscode/runtime/../vendor/GLFW" -I"D:/BH_Project/quark-vscode/runtime/../vendor/Nuklear" -I"D:/BH_Project/quark-vscode/runtime/include"
