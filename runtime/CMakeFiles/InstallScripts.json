@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"D:/BH_Project/quark-vscode/runtime/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

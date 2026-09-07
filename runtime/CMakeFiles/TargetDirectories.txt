@@ -1,0 +1,10 @@
+D:/BH_Project/quark-vscode/runtime/CMakeFiles/intrinsics_gen.dir
+D:/BH_Project/quark-vscode/runtime/CMakeFiles/vt_gen.dir
+D:/BH_Project/quark-vscode/runtime/CMakeFiles/omp_gen.dir
+D:/BH_Project/quark-vscode/runtime/CMakeFiles/acc_gen.dir
+D:/BH_Project/quark-vscode/runtime/CMakeFiles/target_parser_gen.dir
+D:/BH_Project/quark-vscode/runtime/CMakeFiles/runtime.dir
+D:/BH_Project/quark-vscode/runtime/CMakeFiles/transmitter.dir
+D:/BH_Project/quark-vscode/runtime/CMakeFiles/qvm_visualizer.dir
+D:/BH_Project/quark-vscode/runtime/CMakeFiles/edit_cache.dir
+D:/BH_Project/quark-vscode/runtime/CMakeFiles/rebuild_cache.dir
