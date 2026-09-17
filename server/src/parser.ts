@@ -36,6 +36,7 @@ import {
     MemberExpression,
     StringLiteral,
     NewExpression,
+    IndexExpression,
     ModuleDecl,
     UseDecl,
     FormDecl,
@@ -50,6 +51,7 @@ import {
     InheritClause,
     ImportDecl,
     RequiresDecl,
+    ExternDecl,
     SpawnStatement,
     EntangleStatement
 } from './ast';
@@ -60,6 +62,7 @@ const ALLOWED_TYPES = [
     'float', 'double', 'string', 'char', 'Qubit', 'QObject', 'QModel',
     'DiracState', 'BellState', 'QuantumRegister',
     'cap',
+    'lattice',
     'fixed'
 ];
 
@@ -75,6 +78,13 @@ const BUILTIN_FUNCTIONS = [
     'qk_sys_call', 'qk_sys_calld', 'qk_sys_log', 'qk_sys_logi',
     'qk_sys_callp', 'qk_gc_free',
     'qk_qms_gap', 'qk_mix_bound', 'qk_qms_conc',
+    'qchain_wallet', 'qchain_mint', 'qchain_transfer', 'qchain_balance',
+    'qchain_mine', 'qchain_height', 'qchain_verify',
+    'qchain_qkd', 'qchain_qdba', 'qchain_coin_mint', 'qchain_coin_verify',
+    'qchain_sha3', 'qchain_hmac', 'qchain_hash_unicode',
+    'qchain_sign', 'qchain_sign_verify', 'qchain_sign_pubkey',
+    'qchain_mlkem_encaps', 'qchain_mlkem_decaps',
+    'qchain_causal_verify', 'qchain_cipher_encrypt', 'qchain_cipher_decrypt',
     'sync_load', 'sync_store', 'sync_add', 'sync_cas',
     'native', 'outb', 'inb', 'qk_gc_alloc', 'addr'
 ];
@@ -193,6 +203,7 @@ export class Parser {
         if (this.isKeyword('trait')) return this.parseTrait(false, false);
         if (this.isKeyword('template')) return this.parseTemplate();
         if (this.isKeyword('import')) return this.parseImport();
+        if (this.isKeyword('extern')) return this.parseExtern();
         if (this.isKeyword('requires')) return this.parseRequires();
         if (this.isKeyword('export')) {
             this.eatKeyword('export');
@@ -224,6 +235,24 @@ export class Parser {
             column: importToken.column,
             length: pathToken.value.length + 2
         } as ImportDecl;
+    }
+
+    // extern <ret> <name>(<params>); —— 外部 C 符号声明（FFI）
+    private parseExtern(): ExternDecl {
+        const externToken = this.eatKeyword('extern');
+        const returnType = this.parseTypeRef();
+        const name = this.eatIdentifierOrKeyword().value;
+        const { params } = this.parseFunctionParams();
+        this.consumeOptionalSemicolon();
+        return {
+            type: 'ExternDecl',
+            returnType: returnType,
+            name: name,
+            params: params,
+            line: externToken.line,
+            column: externToken.column,
+            length: this.currentToken.column - externToken.column
+        } as ExternDecl;
     }
 
     private parseRequires(): RequiresDecl {
@@ -352,8 +381,8 @@ export class Parser {
 
                 return {
                     type: 'AssignmentStatement',
-                    name: expr.type === 'MemberExpression' ? '' : (expr as Identifier).name,
-                    target: expr.type === 'MemberExpression' ? expr : undefined,
+                    name: (expr.type === 'MemberExpression' || expr.type === 'IndexExpression') ? '' : (expr as Identifier).name,
+                    target: (expr.type === 'MemberExpression' || expr.type === 'IndexExpression') ? expr : undefined,
                     value: value,
                     line: expr.line,
                     column: expr.column,
@@ -384,12 +413,9 @@ export class Parser {
         }
         if (varType === 'let' || varType === 'auto') varType = 'auto';
 
-        // 能力泛型类型：cap<T>（CHERI 式能力：地址 + 边界 + 权限 + 有效性）
-        if (varType === 'cap' && this.currentToken.type === TokenType.LessThan) {
-            this.eat(TokenType.LessThan);
-            const inner = this.parseTypeRef();
-            varType = 'cap<' + inner + '>';
-            this.eat(TokenType.GreaterThan);
+        // 泛型类型：cap<T>（能力）/ lattice<T, B>（晶格数组）
+        if ((varType === 'cap' || varType === 'lattice') && this.currentToken.type === TokenType.LessThan) {
+            varType = this.parseGenericTypeRef(varType);
         }
 
         const idToken = this.eatIdentifierOrKeyword();
@@ -447,6 +473,24 @@ export class Parser {
 
     private parseReturnStatement(): ReturnStatement {
         const retToken = this.eat(TokenType.Keyword);
+        // void 空返回：return;
+        if (this.currentToken.type === TokenType.Semicolon) {
+            this.eat(TokenType.Semicolon);
+            return {
+                type: 'ReturnStatement',
+                argument: {
+                    type: 'NumberLiteral',
+                    value: 0,
+                    line: retToken.line,
+                    column: retToken.column,
+                    length: 0
+                } as any,
+                isVoid: true,
+                line: retToken.line,
+                column: retToken.column,
+                length: 7
+            } as ReturnStatement;
+        }
         const value = this.parseExpression();
         this.consumeOptionalSemicolon();
 
@@ -751,14 +795,14 @@ export class Parser {
     }
 
     private parseLogical(): Expression {
-        let left = this.parseAdditive();
+        let left = this.parseComparison();
 
         while (
             this.currentToken.type === TokenType.AndAnd ||
             this.currentToken.type === TokenType.OrOr
         ) {
             const opToken = this.advance();
-            const right = this.parseAdditive();
+            const right = this.parseComparison();
             left = {
                 type: 'LogicalExpression',
                 operator: opToken.value,
@@ -772,18 +816,40 @@ export class Parser {
         return left;
     }
 
-    private parseAdditive(): Expression {
-        let left = this.parseMultiplicative();
+    // 比较层：< <= > >= == !=（优先级低于算术，高于逻辑）
+    private parseComparison(): Expression {
+        let left = this.parseAdditive();
 
         while (
-            this.currentToken.type === TokenType.Plus ||
-            this.currentToken.type === TokenType.Minus ||
             this.currentToken.type === TokenType.LessThan ||
             this.currentToken.type === TokenType.LessEqual ||
             this.currentToken.type === TokenType.GreaterThan ||
             this.currentToken.type === TokenType.GreaterEqual ||
             this.currentToken.type === TokenType.EqualsEquals ||
             this.currentToken.type === TokenType.NotEqual
+        ) {
+            const opToken = this.advance();
+            const right = this.parseAdditive();
+            left = {
+                type: 'BinaryExpression',
+                operator: opToken.value,
+                left: left,
+                right: right,
+                line: left.line,
+                column: left.column,
+                length: right.column + right.length - left.column
+            } as BinaryExpression;
+        }
+        return left;
+    }
+
+    // 加减层：+ -（优先级低于乘除，高于比较）
+    private parseAdditive(): Expression {
+        let left = this.parseMultiplicative();
+
+        while (
+            this.currentToken.type === TokenType.Plus ||
+            this.currentToken.type === TokenType.Minus
         ) {
             const opToken = this.advance();
             const right = this.parseMultiplicative();
@@ -806,6 +872,7 @@ export class Parser {
         while (
             this.currentToken.type === TokenType.Star ||
             this.currentToken.type === TokenType.Slash ||
+            this.currentToken.type === TokenType.Percent ||
             this.currentToken.type === TokenType.Ampersand ||
             this.currentToken.type === TokenType.Pipe ||
             this.currentToken.type === TokenType.Caret ||
@@ -883,7 +950,7 @@ export class Parser {
             left = {
                 type: 'NumberLiteral',
                 value: Number(numToken.value),
-                isFloat: numToken.value.includes('.') || /[eE]/.test(numToken.value),
+                isFloat: (!/^0[xX]/.test(numToken.value)) && (numToken.value.includes('.') || /[eE]/.test(numToken.value)),
                 line: numToken.line,
                 column: numToken.column,
                 length: numToken.length
@@ -963,10 +1030,7 @@ export class Parser {
                 className += '::' + this.eatIdentifierOrKeyword().value;
             }
             if (this.currentToken.type === TokenType.LessThan) {
-                this.eat(TokenType.LessThan);
-                const typeArg = this.parseTypeRef();
-                className += '<' + typeArg + '>';
-                this.eat(TokenType.GreaterThan);
+                className += this.parseGenericTypeSuffix();
             }
 
             const args = this.parseArgs();
@@ -989,10 +1053,7 @@ export class Parser {
                 className += '::' + this.eatIdentifierOrKeyword().value;
             }
             if (this.currentToken.type === TokenType.LessThan) {
-                this.eat(TokenType.LessThan);
-                const typeArg = this.parseTypeRef();
-                className += '<' + typeArg + '>';
-                this.eat(TokenType.GreaterThan);
+                className += this.parseGenericTypeSuffix();
             }
 
             const args = this.parseArgs();
@@ -1157,7 +1218,33 @@ export class Parser {
                 length: endCol - left.column
             } as MemberExpression;
         }
+
+        // 晶格索引：board[x, y]（多维下标访问）
+        while (this.currentToken.type === TokenType.OpenBracket) {
+            const indices = this.parseIndexList();
+            const col = this.currentToken.column;
+            left = {
+                type: 'IndexExpression',
+                object: left,
+                indices: indices,
+                line: left.line,
+                column: left.column,
+                length: col - left.column
+            } as IndexExpression;
+        }
         return left;
+    }
+
+    // 解析 [i0, i1, ...] 下标表（含方括号，消费到 ']' 为止）
+    private parseIndexList(): Expression[] {
+        this.eat(TokenType.OpenBracket);
+        const indices: Expression[] = [];
+        while (this.currentToken.type !== TokenType.CloseBracket && this.currentToken.type !== TokenType.EOF) {
+            indices.push(this.parseExpression());
+            if (this.currentToken.type === TokenType.Comma) this.eat(TokenType.Comma);
+        }
+        this.eat(TokenType.CloseBracket);
+        return indices;
     }
 
     private parseArgs(): Expression[] {
@@ -1177,7 +1264,31 @@ export class Parser {
             this.eat(TokenType.ColonColon);
             result += '::' + this.eatIdentifierOrKeyword().value;
         }
+        // 泛型类型：cap<T> 与 lattice<T, B>
+        if ((result === 'cap' || result === 'lattice') && this.currentToken.type === TokenType.LessThan) {
+            result = this.parseGenericTypeRef(result);
+        }
         return result;
+    }
+
+    /**
+     * 解析 `<T1, T2, ...>` 泛型参数表（含尖括号，支持逗号分隔多参数）。
+     * 前置条件：当前 token 为 '<'；消费到 '>' 为止。
+     */
+    private parseGenericTypeSuffix(): string {
+        this.eat(TokenType.LessThan);
+        const parts: string[] = [];
+        do {
+            parts.push(this.parseTypeRef());
+            if (this.currentToken.type === TokenType.Comma) this.eat(TokenType.Comma);
+        } while (this.currentToken.type !== TokenType.GreaterThan && this.currentToken.type !== TokenType.EOF);
+        this.eat(TokenType.GreaterThan);
+        return '<' + parts.join(', ') + '>';
+    }
+
+    /** 解析 base<T...> 并返回完整类型字符串（如 cap<int32>、lattice<int32, open>）。 */
+    private parseGenericTypeRef(base: string): string {
+        return base + this.parseGenericTypeSuffix();
     }
 
     private parsePath(): string[] {

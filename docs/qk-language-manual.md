@@ -609,9 +609,33 @@ let result = math.add(1, 2);
 | `export` | 导出 |
 | `requires` | 权限声明 |
 
-### 13.4 `.mmi` 格式（QKMM）
+### 13.4 `.mmi` 格式（QOBF v2，加密二进制）
 
-`.mmi` 文件头（`name` / `version` / `exports` / `permissions` / `imports`）由语言服务器打包，运行时通过 C ABI 的 `quark_runtime_*_mmi` 动态加载与调用。
+`.mmi` 模块采用 **QOBF v2**（Quantum Obfuscated Binary Format）加密封装，文本编辑器强制打开为
+乱码（与加密 DLL 同理），杜绝明文 JSON / LLVM IR 泄露：
+
+```
+[magic "QKMM" 4B][version=2 u32][flags u32][name_len u16][name(明文)][nonce 12B]
+[kdf_salt 16B][ciphertext_len u32][ciphertext][tag 32B]
+```
+
+**三层防护**：
+
+| 层 | 技术 | 作用 |
+| --- | --- | --- |
+| ① 二进制序列化 | 类型标签（u8）+ 长度前缀，取代 JSON | 去除可读文本结构 |
+| ② 流加密 | ChaCha20（RFC 8439，IETF 96-bit nonce） | 去除明文 |
+| ③ 完整性 | HMAC-SHA256（防篡改，常量时间比较） | 篡改即拒载 |
+
+**密钥派生**（自包含混淆，与加密 DLL 同定位）：`K(64B) = HKDF-SHA256(内嵌盐 ‖ 模块名, kdf_salt, "qk-mmi-obf-v2")`，
+前 32B 加密、后 32B MAC；`nonce` / `kdf_salt` 打包时真随机，每模块独立密钥。
+
+**实现位置**：C++ `qhal/Qcrypt.hpp`（SHA-256 / HMAC / HKDF / ChaCha20）+ `qhal/MMI.hpp`（解密 + 二进制解析），
+TS `server/src/mmi.ts`（`packMMI` 加密 / `unpackMMI` 解密）。运行时通过 C ABI `quark_runtime_*_mmi` 动态加载：
+验 HMAC → ChaCha20 解密 → 二进制 header 解析 → SandboxJIT 加载 IR。
+
+> 安全边界：`.mmi` 是自包含模块（加载时无用户密钥输入），密钥内嵌属**混淆/白盒**防护——目标是
+> 「打开是乱码 + 防篡改 + 防轻易提取」，而非理论不可破（与加密 DLL 同定位）。
 
 ---
 

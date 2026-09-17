@@ -1,5 +1,6 @@
 #pragma once
 #include "IQuantumBackend.hpp"
+#include "IdealStateCore.hpp"
 #include "../utils/FastPhaseRetrieval.hpp"
 #include <iostream>
 #include <vector>
@@ -107,8 +108,7 @@ namespace qhal
         std::vector<SpatialCoordinate> atom_array;
         std::vector<bool> is_qubit_allocated;
         std::vector<bool> is_qubit_locked;
-        std::vector<int> qubit_state_;
-        std::mt19937 rng_{12345u};
+        IdealStateCore ideal_;  // 理想态矢量参考（Born 规则坍缩语义）
         const size_t SLM_WIDTH = 1024;
         const size_t SLM_HEIGHT = 1024;
 
@@ -170,6 +170,32 @@ namespace qhal
             rydberg_laser.pulse(duration, intensity);
         }
 
+        // ─── 脉冲层：仅产生物理副作用（激光 / 光镊），不更新理想态。
+        //     供 apply_cnot/apply_toffoli 等复合门在持锁时调用，避免嵌套加锁死锁。
+        void pulse_x(size_t qubit_id)
+        {
+            raman_laser.target(atom_array[qubit_id].x, atom_array[qubit_id].y);
+            raman_laser.pulse(duration, intensity);
+            std::cout << "[QHAL] X Gate applied -> Raman Pi-pulse delivered to Qubit "
+                      << qubit_id << " at (" << atom_array[qubit_id].x << ", "
+                      << atom_array[qubit_id].y << ").\n";
+        }
+
+        void pulse_rz(size_t qubit_id, double angle)
+        {
+            stark_laser.target(atom_array[qubit_id].x, atom_array[qubit_id].y);
+            double phase_duration = (std::abs(angle) / M_PI) * duration;
+            stark_laser.pulse(phase_duration, intensity);
+            std::cout << "[QHAL] Rz(" << angle << ") applied to Qubit " << qubit_id << ".\n";
+        }
+
+        // ─── 硬件噪声注入（测量前）───────────
+        // 里德堡态有限寿命 → 振幅阻尼（弛豫到基态）。
+        void inject_measurement_noise(size_t qubit_id)
+        {
+            ideal_.apply_amplitude_damping(qubit_id, 0.01);
+        }
+
     public:
         void allocate_qubits(size_t num_qubits) override
         {
@@ -177,10 +203,10 @@ namespace qhal
             atom_array.resize(num_qubits);
             is_qubit_allocated.resize(num_qubits, true);
             is_qubit_locked.resize(num_qubits, false);
-            qubit_state_.resize(num_qubits, 0);
             for (size_t i = 0; i < num_qubits; ++i)
                 atom_array[i] = {static_cast<double>(i % 10) * 5.0, static_cast<double>(i / 10) * 5.0};
             update_tweezer_slm();
+            ideal_.allocate(num_qubits);
         }
 
         void increase_tweezer_depth(size_t qubit_id) override
@@ -196,8 +222,7 @@ namespace qhal
         void apply_h(size_t qubit_id) override
         {
             std::lock_guard<std::mutex> lock(slm_mutex);
-            if (qubit_id < qubit_state_.size())
-                qubit_state_[qubit_id] = static_cast<int>(rng_() & 1u);
+            ideal_.apply_h(qubit_id);
         }
 
         int measure(size_t qubit_id) override
@@ -205,31 +230,22 @@ namespace qhal
             std::lock_guard<std::mutex> lock(slm_mutex);
             increase_tweezer_depth(qubit_id);
             fluorescence_camera.expose();
-            int state = (qubit_id < qubit_state_.size()) ? qubit_state_[qubit_id] : 0;
-            image_processing_pipeline.set_brightness(qubit_id, state ? 255 : 0);
-            int counts = image_processing_pipeline.get_brightness_at(qubit_id);
-            return (counts > CALIBRATED_THRESHOLD) ? 1 : 0;
+            inject_measurement_noise(qubit_id);
+            return ideal_.measure(qubit_id);
         }
 
         void apply_x(size_t qubit_id) override
         {
             std::lock_guard<std::mutex> lock(slm_mutex);
-            raman_laser.target(atom_array[qubit_id].x, atom_array[qubit_id].y);
-            raman_laser.pulse(duration, intensity);
-            if (qubit_id < qubit_state_.size())
-                qubit_state_[qubit_id] ^= 1;
-            std::cout << "[QHAL] X Gate applied -> Raman Pi-pulse delivered to Qubit "
-                      << qubit_id << " at (" << atom_array[qubit_id].x << ", "
-                      << atom_array[qubit_id].y << ").\n";
+            pulse_x(qubit_id);
+            ideal_.apply_x(qubit_id);
         }
 
         void apply_rz(size_t qubit_id, double angle) override
         {
             std::lock_guard<std::mutex> lock(slm_mutex);
-            stark_laser.target(atom_array[qubit_id].x, atom_array[qubit_id].y);
-            double phase_duration = (std::abs(angle) / M_PI) * duration;
-            stark_laser.pulse(phase_duration, intensity);
-            std::cout << "[QHAL] Rz(" << angle << ") applied to Qubit " << qubit_id << ".\n";
+            pulse_rz(qubit_id, angle);
+            ideal_.apply_rz(qubit_id, angle);
         }
 
         void apply_cnot(size_t control, size_t target) override
@@ -238,11 +254,10 @@ namespace qhal
             atom_array[target].x = atom_array[control].x + 4.0;
             atom_array[target].y = atom_array[control].y;
             update_tweezer_slm();
-            apply_rz(target, M_PI / 2);
+            pulse_rz(target, M_PI / 2);
             fire_rydberg_laser({control, target});
-            apply_rz(target, -M_PI / 2);
-            if (control < qubit_state_.size() && target < qubit_state_.size() && qubit_state_[control])
-                qubit_state_[target] ^= 1;
+            pulse_rz(target, -M_PI / 2);
+            ideal_.apply_cnot(control, target);
         }
 
         void apply_toffoli(size_t control1, size_t control2, size_t target) override
@@ -251,12 +266,10 @@ namespace qhal
             atom_array[control2].x = atom_array[control1].x + 3.0;
             atom_array[target].x = atom_array[control1].x + 6.0;
             update_tweezer_slm();
-            apply_rz(target, M_PI / 2);
+            pulse_rz(target, M_PI / 2);
             fire_rydberg_laser({control1, control2, target});
-            apply_rz(target, -M_PI / 2);
-            if (control1 < qubit_state_.size() && control2 < qubit_state_.size() &&
-                target < qubit_state_.size() && qubit_state_[control1] && qubit_state_[control2])
-                qubit_state_[target] ^= 1;
+            pulse_rz(target, -M_PI / 2);
+            ideal_.apply_toffoli(control1, control2, target);
         }
 
         void release_qubit(size_t qubit_id) override {

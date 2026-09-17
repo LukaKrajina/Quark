@@ -1,5 +1,6 @@
 #pragma once
 #include "IQuantumBackend.hpp"
+#include "IdealStateCore.hpp"
 #include <cstddef>
 #include <iostream>
 #include <vector>
@@ -9,6 +10,7 @@
 #include <algorithm>
 #include <queue>
 #include <unordered_map>
+#include <random>
 
 namespace qhal
 {
@@ -58,23 +60,41 @@ namespace qhal
 
     struct DDSController
     {
-        void set_frequency(double freq) {}
-        void set_amplitude(double amp) {}
-        void execute_pulse(double duration) {}
+        double frequency_mhz = 0.0;
+        double amplitude = 0.0;
+        double last_duration_us = 0.0;
+        size_t pulse_count = 0;
+
+        void set_frequency(double freq) { frequency_mhz = freq; }
+        void set_amplitude(double amp) { amplitude = amp; }
+        void execute_pulse(double duration) { last_duration_us = duration; ++pulse_count; }
     };
 
     struct EMCCDCamera
     {
-        int get_pixel_count_for_ion(size_t node_id) { return 20; }
+        std::mt19937 rng{std::random_device{}()};
+        // 荧光读出：亮态光子计数高，暗态接近暗计数。
+        int get_pixel_count_for_ion(size_t node_id)
+        {
+            (void)node_id;
+            std::poisson_distribution<int> dist(20.0);
+            return dist(rng);
+        }
     };
 
     struct DACController
     {
+        std::unordered_map<size_t, double> electrodes;
+        bool waveform_dirty = false;
+
         void update_electrode_voltage(size_t electrode_id, double voltage_v)
         {
+            electrodes[electrode_id] = voltage_v;
+            waveform_dirty = true;
         }
         void trigger_waveform_update()
         {
+            waveform_dirty = false;
         }
     };
 
@@ -97,6 +117,7 @@ namespace qhal
         DACController dac_controller;
         EMCCDCamera emccd_camera;
         PoissonStateDiscriminator psd;
+        IdealStateCore ideal_;  // 理想态矢量参考（Born 规则坍缩语义）
 
         std::unordered_map<size_t, QCCDNode> trap_topology;
         std::vector<size_t> ion_positions;
@@ -206,6 +227,36 @@ namespace qhal
             fire_aom(ms_pulse);
         }
 
+        // ─── 脉冲层：仅产生物理副作用（激光 / 电极波形），不更新理想态。
+        //     供 apply_cnot/apply_toffoli 等复合门在持锁时调用，避免嵌套加锁死锁。
+        void pulse_x(size_t qubit_id)
+        {
+            (void)qubit_id;
+            LaserPulse raman_pulse = {0.0, 10.0, 1.0};
+            fire_aom(raman_pulse);
+        }
+
+        void pulse_h(size_t qubit_id)
+        {
+            (void)qubit_id;
+            LaserPulse hadamard_pulse = {0.0, 10.0, 0.5};
+            fire_aom(hadamard_pulse);
+        }
+
+        void pulse_rz(size_t qubit_id, double angle)
+        {
+            (void)qubit_id;
+            LaserPulse stark_pulse = {0.0, 5.0, std::abs(angle)};
+            fire_aom(stark_pulse);
+        }
+
+        // ─── 硬件噪声注入（测量前）───────────
+        // 离子阱加热 / 集体声子模去相干 → 去极化。
+        void inject_measurement_noise(size_t qubit_id)
+        {
+            ideal_.apply_depolarizing(qubit_id, 0.01);
+        }
+
     public:
         TrappedIonBackend()
         {
@@ -219,74 +270,75 @@ namespace qhal
             ion_positions.resize(num_qubits, 0);
             is_qubit_allocated.resize(num_qubits, true);
             is_qubit_locked.resize(num_qubits, false);
+            ideal_.allocate(num_qubits);
         }
 
         int measure(size_t qubit_id) override
         {
             std::lock_guard<std::mutex> lock(trap_mutex);
 
-            // Trigger the detection laser
+            // Trigger the detection laser (hardware side effect kept).
             LaserPulse readout_laser = {369.5, 100.0, 1.0};
             fire_aom(readout_laser);
 
-            // Interfaces with an EMCCD camera. Reads photon counts over the integration window
-            // Uses Poissonian thresholding
-            int photon_count = emccd_camera.get_pixel_count_for_ion(ion_positions[qubit_id]);
-            int collapsed = psd.discriminate(photon_count);
-            return collapsed;
+            inject_measurement_noise(qubit_id);
+            return ideal_.measure(qubit_id);
         }
 
         void apply_x(size_t qubit_id) override
         {
             std::lock_guard<std::mutex> lock(trap_mutex);
-            // Single-qubit Raman transition driving population between clock states
-            LaserPulse raman_pulse = {0.0, 10.0, 1.0};
-            fire_aom(raman_pulse);
+            pulse_x(qubit_id);
+            ideal_.apply_x(qubit_id);
+        }
+
+        void apply_h(size_t qubit_id) override
+        {
+            std::lock_guard<std::mutex> lock(trap_mutex);
+            pulse_h(qubit_id);
+            ideal_.apply_h(qubit_id);
         }
 
         void apply_rz(size_t qubit_id, double angle) override
         {
             std::lock_guard<std::mutex> lock(trap_mutex);
-            // Off-resonant AC Stark shift to induce a geometric phase
-            LaserPulse stark_pulse = {0.0, 5.0, std::abs(angle)};
-            fire_aom(stark_pulse);
+            pulse_rz(qubit_id, angle);
+            ideal_.apply_rz(qubit_id, angle);
         }
 
         void apply_cnot(size_t control, size_t target) override
         {
             std::lock_guard<std::mutex> lock(trap_mutex);
-            // Local rotations mapping the MS gate to a standard CNOT
-            apply_rz(control, M_PI / 2);
-            apply_x(target);
+            // Local rotations mapping the MS gate to a standard CNOT (hardware only).
+            pulse_rz(control, M_PI / 2);
+            pulse_x(target);
             apply_molmer_sorensen(control, target);
-            apply_x(target);
+            pulse_x(target);
+            ideal_.apply_cnot(control, target);
         }
 
         void apply_toffoli(size_t control1, size_t control2, size_t target) override
         {
             std::lock_guard<std::mutex> lock(trap_mutex);
-            // Production Toffoli Decomposition using Mølmer-Sørensen gates
-            // Replaces the 15+ standard 2-qubit gate cascade with highly efficient collective
-            // equatorial rotations (MS gates) and addressed Z rotations, preserving fidelity.
-
-            // Shuttle all three ions to the same processing zone
+            // Production Toffoli Decomposition using Mølmer-Sørensen gates (hardware only).
             shuttle_ions(control1, control2);
             shuttle_ions(control2, target);
 
             apply_molmer_sorensen(control2, target);
-            apply_rz(target, M_PI / 4);
+            pulse_rz(target, M_PI / 4);
             apply_molmer_sorensen(control1, target);
-            apply_rz(target, -M_PI / 4);
+            pulse_rz(target, -M_PI / 4);
             apply_molmer_sorensen(control2, target);
-            apply_rz(target, M_PI / 4);
+            pulse_rz(target, M_PI / 4);
             apply_molmer_sorensen(control1, target);
 
-            // Final local compensation and control-basis entanglement
-            apply_rz(control2, M_PI / 4);
+            pulse_rz(control2, M_PI / 4);
             apply_molmer_sorensen(control1, control2);
-            apply_rz(control1, M_PI / 4);
-            apply_rz(control2, -M_PI / 4);
+            pulse_rz(control1, M_PI / 4);
+            pulse_rz(control2, -M_PI / 4);
             apply_molmer_sorensen(control1, control2);
+
+            ideal_.apply_toffoli(control1, control2, target);
         }
 
         void release_qubit(size_t qubit_id) override

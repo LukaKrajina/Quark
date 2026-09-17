@@ -111,18 +111,30 @@ export class VCGenerator {
     }
 
     private wpBlock(stmts: Statement[], q: SExpr): { formula: SExpr; obligations: Obligation[] } {
+        // 顶层函数体不含合法 break/continue（语义层已拦截），二者退化为 q。
+        return this.wpBlockWithExits(stmts, q, q, q);
+    }
+
+    /**
+     * 带 break/continue 出口的 WP 演算：
+     *   qNormal   —— 顺序执行到块末尾的后置条件
+     *   qBreak    —— break 跳转目标的后置条件
+     *   qContinue —— continue 跳转目标的后置条件
+     * 循环体内：break → 循环后置 q；continue → 循环不变量 I。
+     */
+    private wpBlockWithExits(stmts: Statement[], qNormal: SExpr, qBreak: SExpr, qContinue: SExpr): { formula: SExpr; obligations: Obligation[] } {
         const obligations: Obligation[] = [];
-        let cur = q;
+        let cur = qNormal;
         // WP 演算从后往前
         for (let i = stmts.length - 1; i >= 0; i--) {
-            const r = this.wp(stmts[i], cur);
+            const r = this.wpStmt(stmts[i], cur, qBreak, qContinue);
             cur = r.formula;
             obligations.push(...r.obligations);
         }
         return { formula: cur, obligations };
     }
 
-    private wp(stmt: Statement, q: SExpr): { formula: SExpr; obligations: Obligation[] } {
+    private wpStmt(stmt: Statement, q: SExpr, qBreak: SExpr, qContinue: SExpr): { formula: SExpr; obligations: Obligation[] } {
         switch (stmt.type) {
             case 'VariableDeclaration': {
                 const e = this.exprToS(stmt.value);
@@ -147,7 +159,7 @@ export class VCGenerator {
                 const b = this.exprToS(stmt.condition);
                 const notB: SExpr = { kind: 'app', op: '!', args: [b] };
 
-                const body = this.wpBlock(stmt.body, I);
+                const body = this.wpBlockWithExits(stmt.body, I, q, I);
                 const obligations: Obligation[] = [];
                 const n = this.obligationCounter++;
                 obligations.push({
@@ -176,7 +188,7 @@ export class VCGenerator {
                 //   init; while(cond) inv I { body; update }
                 const loopBody = [...stmt.body];
                 if (stmt.update) loopBody.push(stmt.update);
-                const bodyWp = this.wpBlock(loopBody, I);
+                const bodyWp = this.wpBlockWithExits(loopBody, I, q, I);
 
                 const obligations: Obligation[] = [];
                 const n = this.obligationCounter++;
@@ -195,16 +207,18 @@ export class VCGenerator {
                 // wp(for, Q) = wp(init, I)
                 let formula: SExpr = I;
                 if (stmt.init) {
-                    const initWp = this.wp(stmt.init, I);
+                    const initWp = this.wpStmt(stmt.init, I, q, q);
                     formula = initWp.formula;
                     obligations.push(...initWp.obligations);
                 }
                 return { formula, obligations };
             }
             case 'BreakStatement':
+                // break 跳转到循环出口：其后置条件 = 循环的后置 q。
+                return { formula: qBreak, obligations: [] };
             case 'ContinueStatement':
-                // 控制流跳转暂不参与 WP 演算，保守跳过
-                return { formula: q, obligations: [] };
+                // continue 跳转到循环条件判断：需循环不变量 I 成立（qContinue = I）。
+                return { formula: qContinue, obligations: [] };
             case 'FunctionDeclaration':
                 return { formula: q, obligations: [] };
             default:

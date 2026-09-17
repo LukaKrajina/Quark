@@ -30,6 +30,9 @@ export interface Access {
     digest: Digest;
     /** 本次访问会破坏性触及的量子比特（测量/释放，会坍缩态） */
     destructiveQubits: ReadonlySet<string>;
+    /** 访问点在源码中的位置（用于诊断定位） */
+    line: number;
+    column: number;
 }
 
 export interface Race {
@@ -38,6 +41,9 @@ export interface Race {
     threadB: string;
     quantum: boolean;
     reason: string;
+    /** 竞争发生的位置（取两个访问中较靠前者） */
+    line: number;
+    column: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +138,8 @@ export function detectRaces(accesses: Access[]): Race[] {
                 threadB: b.digest.tid,
                 quantum: false,
                 reason: 'may happen in parallel and at least one is a write',
+                line: a.line,
+                column: a.column,
             });
         }
     }
@@ -159,6 +167,8 @@ export function detectQuantumRaces(accesses: Access[]): Race[] {
                 threadB: b.digest.tid,
                 quantum: true,
                 reason: 'destructive qubit operation may collide on an entangled closure without a common lock',
+                line: a.line,
+                column: a.column,
             });
         }
     }

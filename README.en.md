@@ -11,7 +11,7 @@ Quark (`.qk`) is an experimental programming language targeting **quantum comput
 | Feature | Description |
 | --- | --- |
 | Quantum programming | Qubit allocation, quantum objects, measurement, Bell states, quantum registers (`Qubit` / `QObject` / `measure` / `DiracState` / `BellState` / `QuantumRegister`) |
-| Quantum HAL | Auto-detect real quantum machines (FPGA superconducting / trapped-ion / neutral-atom backends), otherwise fall back to the local QVM simulator |
+| Quantum HAL | Auto-detect real quantum machines (FPGA superconducting / trapped-ion / neutral-atom / photonic backends), otherwise fall back to the local QVM simulator; offline physical backends are bridged by an ideal state vector (`IdealStateCore`) + hardware noise channels (amplitude damping / phase flip / depolarizing) for correct Born-rule collapse |
 | Quantum Language Model (QLM) | Variational quantum circuit training, model export (`.qkm`), text ↔ quantum-state encoding/decoding |
 | Brain-Computer Interface (BCI) | `mind_read` / `mind_train` / `mind_feedback` — encode neural signals into quantum states via the QbNS Transducer |
 | QbNS Quantum Brain Network | `Transducer` (neural→quantum encoding), `Rmx` (distributed hybrid network), `qbw` (brain quantum waves / quantum streams / distribution links) |
@@ -46,7 +46,7 @@ quark-vscode/
 │   ├── qcos/                  Bootable QCOS kernel boot sources (boot_x86_32.S / boot_x86_64.S / kernel_main.cpp / qk_shim.cpp / qcos_syscall.hpp / linker_x86_64.ld / grub config)
 │   └── include/
 │       ├── qcos/              Kernel core (freestanding): DragonPmm buddy-system PMM (buddy/free-list/TLSF/per-CPU cache) + BitmapPmm (v1 bitmap), Vmm, Spinlock/TicketSpinlock, Sched, Serial, Qms quantum numerics
-│       ├── qhal/              Quantum HAL (QM / QVM / JIT / SandboxJIT / MMI / VisualizationService / physical backends)
+│       ├── qhal/              Quantum HAL (QM / QVM / JIT / SandboxJIT / MMI / VisualizationService / IdealStateCore ideal-state + noise bridge / physical backends: superconducting / trapped-ion / neutral-atom / photonic / Karma QVPU / KarmaBus QVPL)
 │       ├── qbNs/              Quantum Brain Network QbNS (Transducer / Rmx / qbw brain waves / qbNSBridge)
 │       ├── vedaRos/           Quantum Robotics OS VedaROS (core / bridge / algorithm / hardware / quantum)
 │       ├── gui/               Real-time quantum visualizer (protocol / components / windows / src)

@@ -111,6 +111,6 @@ namespace qcos
         }
     };
 
-} // namespace qcos
+}
 
-#endif // QCOS_ARCH_X86_64
+#endif

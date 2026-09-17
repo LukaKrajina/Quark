@@ -26,6 +26,7 @@ export enum TokenType {
     Minus = 'Minus',
     Star = 'Star',
     Slash = 'Slash',
+    Percent = 'Percent',
     Dot = 'Dot',
     Comma = 'Comma',
     Semicolon = 'Semicolon',
@@ -153,6 +154,7 @@ export class Lexer {
         }
         if (char === '*') { this.advance(); return { type: TokenType.Star, value: '*', line: startLine, column: startCol, length: 1 }; }
         if (char === '/') { this.advance(); return { type: TokenType.Slash, value: '/', line: startLine, column: startCol, length: 1 }; }
+        if (char === '%') { this.advance(); return { type: TokenType.Percent, value: '%', line: startLine, column: startCol, length: 1 }; }
         if (char === '&') {
             this.advance();
             if (this.currentChar() === '&') {
@@ -227,6 +229,23 @@ export class Lexer {
         }
 
         if (/[0-9]/.test(char)) {
+            // 十六进制字面量：0xRRGGBB（用于颜色等）
+            if (char === '0' && (this.input[this.position + 1] === 'x' || this.input[this.position + 1] === 'X')) {
+                let hexStr = '0x';
+                this.advance(); // '0'
+                this.advance(); // 'x'
+                while (/[0-9a-fA-F]/.test(this.currentChar())) {
+                    hexStr += this.currentChar();
+                    this.advance();
+                }
+                return {
+                    type: TokenType.Number,
+                    value: hexStr,
+                    line: startLine,
+                    column: startCol,
+                    length: hexStr.length
+                };
+            }
             let numStr = '';
             while (/[0-9\.]/.test(this.currentChar())) {
                 numStr += this.currentChar();
@@ -264,9 +283,11 @@ export class Lexer {
                 // 已从关键字表移除：它们在语句位置（h(q)）由 parser 的 Identifier
                 // 分支识别为函数调用，在表达式位置（x * x）识别为普通标识符。
                 'mod', 'use', 'pub', 'form', 'impl', 'trait', 'template', 'rank', 'self', 'for',
+                // 晶格数组类型（lattice<T, B>），吸收 Futhark/Remora/Rust 的新范式
+                'lattice',
                 'break', 'continue',
                 'fn',
-                'export', 'import', 'requires', 'ensures', 'invariant', 'result', 'from',
+                'export', 'import', 'extern', 'requires', 'ensures', 'invariant', 'result', 'from',
                 'surrogate', 'tanh_quantize', 'lif_step',
                 'mellowmax2', 'logsumexp2', 'boltzmann2',
                 'tnorm_luk', 'tnorm_prod', 'tnorm_godel',
@@ -277,6 +298,15 @@ export class Lexer {
                 'qk_sys_callp', 'qk_gc_free',
                 // QMS 数值内核
                 'qk_qms_gap', 'qk_mix_bound', 'qk_qms_conc',
+                // QChain 量子区块链内置函数
+                'qchain_wallet', 'qchain_mint', 'qchain_transfer', 'qchain_balance',
+                'qchain_mine', 'qchain_height', 'qchain_verify',
+                'qchain_qkd', 'qchain_qdba', 'qchain_coin_mint', 'qchain_coin_verify',
+                // QChain 密码原语 / 抗超时空 / 时空加密
+                'qchain_sha3', 'qchain_hmac', 'qchain_hash_unicode',
+                'qchain_sign', 'qchain_sign_verify', 'qchain_sign_pubkey',
+                'qchain_mlkem_encaps', 'qchain_mlkem_decaps',
+                'qchain_causal_verify', 'qchain_cipher_encrypt', 'qchain_cipher_decrypt',
                 // 系统级构造（P3 前置：裸机 / 内核编程）
                 'cap', 'unsafe', 'null', 'native',
                 'sync_load', 'sync_store', 'sync_add', 'sync_cas',

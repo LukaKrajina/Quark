@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <memory>
+#include <map>
 
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/SourceMgr.h"
@@ -15,6 +16,17 @@
 
 namespace qhal
 {
+    // 原生扩展符号表（quark_runtime_register_native_symbol 登记，SandboxJIT 绑定）
+    inline std::map<std::string, void *> &native_symbols()
+    {
+        static std::map<std::string, void *> s;
+        return s;
+    }
+    inline void register_native_symbol(const std::string &name, void *addr)
+    {
+        native_symbols()[name] = addr;
+    }
+
     class QUARK_RT_API SandboxJIT
     {
     private:
@@ -212,6 +224,47 @@ namespace qhal
                 add("qk_qms_gap", (void *)&qk_qms_gap);
                 add("qk_mix_bound", (void *)&qk_mix_bound);
                 add("qk_qms_conc", (void *)&qk_qms_conc);
+            }
+
+            // Lattice 晶格数组（基础能力，无条件绑定，供 .mmi 内 lattice 操作解析）
+            add("qk_lattice_new", (void *)&qk_lattice_new);
+            add("qk_lattice_free", (void *)&qk_lattice_free);
+            add("qk_lattice_ref", (void *)&qk_lattice_ref);
+            add("qk_lattice_set", (void *)&qk_lattice_set);
+            add("qk_lattice_rank", (void *)&qk_lattice_rank);
+            add("qk_lattice_size", (void *)&qk_lattice_size);
+            add("qk_lattice_boundary", (void *)&qk_lattice_boundary);
+
+            // 经典图形引擎 / GUI（无条件绑定，供 .mmi 内 cgfx/cgui 调用解析）
+            add("qk_cgfx_rect", (void *)&qk_cgfx_rect);
+            add("qk_cgfx_line", (void *)&qk_cgfx_line);
+            add("qk_cgfx_ellipse", (void *)&qk_cgfx_ellipse);
+            add("qk_cgfx_triangle", (void *)&qk_cgfx_triangle);
+            add("qk_cgfx_rect_a", (void *)&qk_cgfx_rect_a);
+            add("qk_cgfx_line_a", (void *)&qk_cgfx_line_a);
+            add("qk_cgfx_ellipse_a", (void *)&qk_cgfx_ellipse_a);
+            add("qk_cgfx_triangle_a", (void *)&qk_cgfx_triangle_a);
+            add("qk_cgui_init", (void *)&qk_cgui_init);
+            add("qk_cgui_should_close", (void *)&qk_cgui_should_close);
+            add("qk_cgui_begin_frame", (void *)&qk_cgui_begin_frame);
+            add("qk_cgui_end_frame", (void *)&qk_cgui_end_frame);
+            add("qk_cgui_button", (void *)&qk_cgui_button);
+            add("qk_cgui_text", (void *)&qk_cgui_text);
+            add("qk_cgui_text_int", (void *)&qk_cgui_text_int);
+            add("qk_cgui_beep", (void *)&qk_cgui_beep);
+            add("qk_cgui_width", (void *)&qk_cgui_width);
+            add("qk_cgui_height", (void *)&qk_cgui_height);
+            add("qk_cgui_panel", (void *)&qk_cgui_panel);
+            add("qk_cgui_panel_end", (void *)&qk_cgui_panel_end);
+            add("qk_cgui_row", (void *)&qk_cgui_row);
+            add("qk_cgui_mouse_x", (void *)&qk_cgui_mouse_x);
+            add("qk_cgui_mouse_y", (void *)&qk_cgui_mouse_y);
+            add("qk_cgui_mouse_left_clicked", (void *)&qk_cgui_mouse_left_clicked);
+
+            // 原生扩展符号（LoadLibrary 加载的动态库符号，经 register_native_symbol 登记）
+            for (const auto &[name, addr] : native_symbols())
+            {
+                add(name.c_str(), addr);
             }
 
             add("___chkstk_ms", (void *)&quark_chkstk_stub);

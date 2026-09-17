@@ -6,14 +6,14 @@
 //  导致 JIT 链接期符号解析失败：
 //      qk_sys_call / qk_sys_calld / qk_sys_log / qk_sys_logi / qk_gc_alloc
 //
-//  补完上述符号，并新增两个 P2/P3 需要的入口：
+//  补完上述符号，并新增两个需要的入口：
 //      qk_sys_callp —— 返回指针的 syscall（SYS_MAP 需要 64 位返回值）
 //      qk_gc_free   —— 归还 qk_gc_alloc 分配的内存
 //
 //  能力校验：每个 syscall 号绑定一个 CAP_* 位，掩码由 qcos::set_caps()
 //     设置，对应 QK 源码的 `requires <cap>` 声明。hosted 模式默认 CAP_ALL。
 //  宿主钩子 HostHooks：QPU / IRQ / yield / exit / panic 的真实实现由
-//     P2/P3 的 qcos_core 安装；未安装时返回 QCOS_ENOSYS，绝不崩溃。
+//     qcos_core 安装；未安装时返回 QCOS_ENOSYS，绝不崩溃。
 //  与 JIT.hpp 集成方式一致：声明无条件，定义仅在 QUARK_RT_BUILD 下编译。
 // ============================================================================
 

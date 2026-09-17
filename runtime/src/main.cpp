@@ -126,6 +126,47 @@ void process_stream(std::istream &in_stream, std::ostream &out_stream, quark_run
                            << "' for function " << func_name << "\n";
             }
         }
+        else if (command.rfind("QCHAIN ", 0) == 0)
+        {
+            std::stringstream cmd_ss(command);
+            std::string action, op;
+            cmd_ss >> action >> op;
+            if (op == "wallet")
+                out_stream << quark_runtime_qchain_wallet(rt);
+            else if (op == "mint")
+            {
+                std::string addr; uint64_t amt = 0; cmd_ss >> addr >> amt;
+                out_stream << quark_runtime_qchain_mint(rt, addr.c_str(), amt);
+            }
+            else if (op == "transfer")
+            {
+                std::string from, to; uint64_t amt = 0; cmd_ss >> from >> to >> amt;
+                out_stream << quark_runtime_qchain_transfer(rt, from.c_str(), to.c_str(), amt);
+            }
+            else if (op == "balance")
+            {
+                std::string addr; cmd_ss >> addr;
+                out_stream << quark_runtime_qchain_balance(rt, addr.c_str());
+            }
+            else if (op == "mine")
+                out_stream << quark_runtime_qchain_mine(rt);
+            else if (op == "height")
+                out_stream << quark_runtime_qchain_height(rt);
+            else if (op == "verify")
+                out_stream << quark_runtime_qchain_verify(rt);
+            else if (op == "qkd")
+            {
+                int32_t rounds = 0; cmd_ss >> rounds;
+                out_stream << quark_runtime_qchain_qkd(rt, rounds);
+            }
+            else if (op == "qdba")
+            {
+                int32_t parties = 0; cmd_ss >> parties;
+                out_stream << quark_runtime_qchain_qdba(rt, parties);
+            }
+            else
+                out_stream << "RESPONSE: ERROR - Unknown qchain op '" << op << "'\n";
+        }
         else if (command.rfind("LOAD_MMI ", 0) == 0)
         {
             std::string path = command.substr(9);
@@ -182,6 +223,15 @@ void process_stream(std::istream &in_stream, std::ostream &out_stream, quark_run
                 out_stream << "RESPONSE: ERROR - MMI handle not found\n";
             }
         }
+        else if (command.rfind("LOAD_NATIVE ", 0) == 0)
+        {
+            std::string path = command.substr(12);
+            int32_t ok = quark_runtime_load_native(rt, path.c_str());
+            if (ok)
+                out_stream << "RESPONSE: NATIVE_LOADED\n";
+            else
+                out_stream << "RESPONSE: ERROR - native load failed\n";
+        }
     }
 }
 
@@ -201,6 +251,9 @@ enum ProtocolCommand : uint8_t
     CMD_MMI_UNLOAD = 0x07,   // payload[1..] = "id"
     CMD_PING = 0x08,
     CMD_GET_SNAPSHOT = 0x09,
+    CMD_QCHAIN = 0x10,       // payload[1..] = "op args..."（量子区块链服务）
+    CMD_LOAD_NATIVE = 0x0A,  // payload[1..] = path（加载原生动态库，供 JIT 解析符号）
+    CMD_BIND_MMI = 0x0B,     // payload[1..] = "alias path"（加载 .mmi 并绑定到主 JIT）
     CMD_EXIT = 0xFF
 };
 
@@ -259,6 +312,24 @@ void process_command(const std::string &payload, std::string &out, quark_runtime
             out += "RESPONSE: ERROR - Unsupported return type '" + ret_type + "' for function " + func_name + "\n";
         break;
     }
+    case CMD_LOAD_NATIVE:
+    {
+        int32_t ok = quark_runtime_load_native(rt, body.c_str());
+        if (ok)
+            out += "RESPONSE: NATIVE_LOADED\n";
+        else
+            out += "RESPONSE: ERROR - native load failed\n";
+        break;
+    }
+    case CMD_BIND_MMI:
+    {
+        // 格式 "alias path"；path 可能含空格，取首个空格之后的所有内容
+        size_t sp = body.find(' ');
+        std::string alias = (sp == std::string::npos) ? body : body.substr(0, sp);
+        std::string path = (sp == std::string::npos) ? std::string() : body.substr(sp + 1);
+        out += quark_runtime_bind_mmi(rt, alias.c_str(), path.c_str());
+        break;
+    }
     case CMD_LOAD_MMI:
     {
         std::lock_guard<std::mutex> lk(g_mmi_mutex);
@@ -307,6 +378,65 @@ void process_command(const std::string &payload, std::string &out, quark_runtime
         else
         {
             out += "RESPONSE: ERROR - MMI handle not found\n";
+        }
+        break;
+    }
+    case CMD_QCHAIN:
+    {
+        std::stringstream ss(body);
+        std::string op;
+        ss >> op;
+        if (op == "wallet")
+        {
+            out += quark_runtime_qchain_wallet(rt);
+        }
+        else if (op == "mint")
+        {
+            std::string addr;
+            uint64_t amt = 0;
+            ss >> addr >> amt;
+            out += quark_runtime_qchain_mint(rt, addr.c_str(), amt);
+        }
+        else if (op == "transfer")
+        {
+            std::string from, to;
+            uint64_t amt = 0;
+            ss >> from >> to >> amt;
+            out += quark_runtime_qchain_transfer(rt, from.c_str(), to.c_str(), amt);
+        }
+        else if (op == "balance")
+        {
+            std::string addr;
+            ss >> addr;
+            out += quark_runtime_qchain_balance(rt, addr.c_str());
+        }
+        else if (op == "mine")
+        {
+            out += quark_runtime_qchain_mine(rt);
+        }
+        else if (op == "height")
+        {
+            out += quark_runtime_qchain_height(rt);
+        }
+        else if (op == "verify")
+        {
+            out += quark_runtime_qchain_verify(rt);
+        }
+        else if (op == "qkd")
+        {
+            int32_t rounds = 0;
+            ss >> rounds;
+            out += quark_runtime_qchain_qkd(rt, rounds);
+        }
+        else if (op == "qdba")
+        {
+            int32_t parties = 0;
+            ss >> parties;
+            out += quark_runtime_qchain_qdba(rt, parties);
+        }
+        else
+        {
+            out += "RESPONSE: ERROR - Unknown qchain op '" + op + "'\n";
         }
         break;
     }
@@ -623,12 +753,20 @@ static bool uninstall_autostart()
 int main(int argc, char *argv[])
 {
     bool daemon_mode = false;
+    bool game_mode = false;
+    std::string game_path;
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
         if (arg == "--daemon")
         {
             daemon_mode = true;
+        }
+        else if (arg == "--game")
+        {
+            game_mode = true;
+            if (i + 1 < argc)
+                game_path = argv[++i];
         }
         else if (arg == "--install-autostart")
         {
@@ -658,7 +796,26 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (daemon_mode)
+    if (game_mode)
+    {
+        // 游戏模式：加载主程序 .mmi（自动加载其 import 依赖）并调用入口
+        std::cerr << "[Quark] loading game .mmi: " << game_path << std::endl;
+        quark_mmi *game = quark_runtime_load_mmi(rt, game_path.c_str());
+        if (game)
+        {
+            std::cerr << "[Quark] invoking quark_main" << std::endl;
+            const char *ret = quark_runtime_mmi_invoke(game, "quark_main", "[]");
+            std::cerr << "[Quark] quark_main returned: " << (ret ? ret : "<null>") << std::endl;
+            quark_runtime_mmi_unload(game);
+        }
+        else
+        {
+            std::cerr << "[Quark] Failed to load game .mmi: " << game_path << std::endl;
+            quark_runtime_destroy(rt);
+            return 1;
+        }
+    }
+    else if (daemon_mode)
     {
         quark_runtime_viz_start(rt);
         run_daemon(rt);

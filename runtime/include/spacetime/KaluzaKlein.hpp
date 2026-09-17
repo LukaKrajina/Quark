@@ -13,14 +13,17 @@ namespace quark::spacetime
     // 每个切片上的模式携带量子化的 KK 动量 n/R
     struct KaluzaKlein
     {
-        double R; // 紧化半径（第 5 维周长 2πR）
+        double R;            // 紧化半径（第 5 维周长 2πR）
+        double theta = 0.0;  // Wilson line（额外维磁通）：破坏 ±n 模式质量对称
 
-        explicit KaluzaKlein(double radius) : R(radius) {}
+        explicit KaluzaKlein(double radius, double wilson_line = 0.0)
+            : R(radius), theta(wilson_line) {}
 
-        // 单个 KK 模式质量
+        // 单个 KK 模式质量（含 Wilson line 的 KK 动量 p = n/R + θ）。
+        // θ ≠ 0 时 m(n) ≠ m(-n)，±n 模式分裂。
         double mode_mass(int n, double m0 = 0.0) const
         {
-            double p = static_cast<double>(n) / R;
+            double p = static_cast<double>(n) / R + theta;
             return std::sqrt(m0 * m0 + p * p);
         }
 

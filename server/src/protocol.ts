@@ -13,6 +13,8 @@ export enum Cmd {
     MMI_UNLOAD = 0x07,   // payload = "id"
     PING = 0x08,
     GET_SNAPSHOT = 0x09,
+    LOAD_NATIVE = 0x0A,   // payload = path（加载原生动态库，供 JIT 解析符号）
+    BIND_MMI = 0x0B,      // payload = "alias path"（加载 .mmi 并绑定到主 JIT）
     EXIT = 0xff
 }
 

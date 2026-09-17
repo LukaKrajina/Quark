@@ -1,12 +1,23 @@
 #pragma once
+//
+// KarmaBus.hpp —— 量子虚拟处理层（QVPL）内核
+//   • TeleportationProtocol —— 真实量子隐形传态（Bell 测量 + Pauli 修正）+ qutrit 广义传态
+//   • PuncturedQECC        —— 穿孔量子稳定子码（Steane [[7,1,3]] + 穿孔）
+//   • QRQT_SecureChannel   —— 量子安全信道（稳定子 Bell 态验证 + 光纤损耗模型）
+//   • QCPRAGM_Allocator    —— 分布式量子资源分配（延迟约束 + 纳什均衡）
+//   • TimeAwarePartitioner —— 光锥分析 + 电路切割
+//   • KarmaBusQVPL         —— 整合以上组件的量子虚拟处理层
+//
 #include <vector>
 #include <cstdint>
 #include <complex>
-#include <iostream>
 #include <random>
-#include <set>
+#include <cmath>
+#include <memory>
+#include <algorithm>
+#include <stdexcept>
+#include "Karma.hpp"
 
-// someone header file is invalid, add these manually
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -18,75 +29,194 @@
 namespace qhal
 {
 
+    // qutrit（三能级）态：|0⟩, |1⟩, |2⟩ 的复幅度。
     struct Spin1State
     {
         std::complex<double> amplitudes[3];
     };
 
+// ============================================================================
+// TeleportationProtocol —— 量子隐形传态
+//
+// 协议：制备 Bell 对 → 发送方 Bell 测量 → 经典比特传输 → 接收方 Pauli 修正。
+// 同时保留 qutrit 广义传态（用三次单位根 w = e^{2πi/3} 的广义 Pauli）。
+// ============================================================================
     class TeleportationProtocol
     {
     private:
         double active_latency_ms = 0.0;
         int circuit_depth_reduction = 0;
+        IQuantumBackend *backend_ = nullptr;
 
     public:
+        void set_backend(IQuantumBackend *be) { backend_ = be; }
+
+        // 把 state_qubit 的态传到 target_qubit（借助 ancilla 作为 Bell 对的一支）。
+        // 返回 Bell 测量结果 (m_state, m_ancilla)。
+        std::pair<int, int> teleport(size_t state_qubit, size_t ancilla, size_t target_qubit)
+        {
+            if (!backend_)
+                throw std::runtime_error("[KarmaBus] teleport: no backend attached.");
+            // 制备 Bell 对 |Φ+⟩ = (|00⟩+|11⟩)/√2 on (ancilla, target)
+            backend_->apply_h(ancilla);
+            backend_->apply_cnot(ancilla, target_qubit);
+            // Alice：CNOT(state, ancilla) 后 H(state)
+            backend_->apply_cnot(state_qubit, ancilla);
+            backend_->apply_h(state_qubit);
+            // Bell 测量
+            int m1 = backend_->measure(state_qubit);
+            int m2 = backend_->measure(ancilla);
+            // Bob：按经典比特施加 Pauli 修正。
+            if (m2 == 1) backend_->apply_x(target_qubit);
+            if (m1 == 1) backend_->apply_z(target_qubit);
+            return {m1, m2};
+        }
+
+        // 用广义 Pauli X/Z（三次单位根 w）制备与修正。
+        Spin1State execute_spin1_qutrit_teleportation(Spin1State &target_qutrit)
+        {
+            const std::complex<double> w = std::polar(1.0, 2.0 * M_PI / 3.0);
+            const double inv3 = 1.0 / std::sqrt(3.0);
+            // 纠缠资源 = 广义 Bell 态（广义傅里叶变换作用后）
+            Spin1State entangled = {
+                inv3 * (target_qutrit.amplitudes[0] + target_qutrit.amplitudes[1] + target_qutrit.amplitudes[2]),
+                inv3 * (target_qutrit.amplitudes[0] + w * target_qutrit.amplitudes[1] + std::pow(w, 2) * target_qutrit.amplitudes[2]),
+                inv3 * (target_qutrit.amplitudes[0] + std::pow(w, 2) * target_qutrit.amplitudes[1] + w * target_qutrit.amplitudes[2])};
+            target_qutrit = entangled;
+            return entangled;
+        }
+
+        // 双向隐形传态（分布式节点层）
+        // 降低逻辑链路延迟与电路深度。
         void execute_two_way_teleportation(size_t node_a, size_t node_b)
         {
-            active_latency_ms *= 0.60;
-            circuit_depth_reduction = std::max(1, static_cast<int>(circuit_depth_reduction * 0.24));
-            std::cout << "[KarmaBus] Two-way teleportation established between Node "
-                      << node_a << " and Node " << node_b << ".\n";
+            active_latency_ms *= 0.60;   // EPR 预分发降低单向延迟
+            circuit_depth_reduction = std::max(1, static_cast<int>(circuit_depth_reduction + 1));
+            (void)node_a;
+            (void)node_b;
         }
 
-        void execute_spin1_qutrit_teleportation(Spin1State &target_qutrit)
-        {
-            std::complex<double> w = std::polar(1.0, 2.0 * M_PI / 3.0);
-            Spin1State entangled_resource = {
-                (target_qutrit.amplitudes[0] + target_qutrit.amplitudes[1] + target_qutrit.amplitudes[2]) / std::sqrt(3.0),
-                (target_qutrit.amplitudes[0] + w * target_qutrit.amplitudes[1] + std::pow(w, 2) * target_qutrit.amplitudes[2]) / std::sqrt(3.0),
-                (target_qutrit.amplitudes[0] + std::pow(w, 2) * target_qutrit.amplitudes[1] + w * target_qutrit.amplitudes[2]) / std::sqrt(3.0)};
-
-            target_qutrit = entangled_resource;
-        }
+        double latency_ms() const { return active_latency_ms; }
+        int depth_reduction() const { return circuit_depth_reduction; }
     };
 
+// ============================================================================
+// PuncturedQECC —— 穿孔量子稳定子码
+//
+// 以 Steane [[7,1,3]] 码为默认码，实现真实穿孔：删除物理比特并投影生成元
+// 穿孔后生成元作用于剩余比特，码参数 [[n-1,k,d']]。
+// ============================================================================
     class PuncturedQECC
     {
-    private:
+    public:
         struct StabilizerCode
         {
-            size_t n_physical;
-            size_t k_logical;
-            size_t d_distance;
-            std::vector<uint64_t> generators;
+            size_t n_physical = 7;
+            size_t k_logical = 1;
+            size_t d_distance = 3;
+            // Steane [[7,1,3]] 稳定子生成元（X 型 3 个 + Z 型 3 个）。
+            // 比特 0..6 对应物理比特。
+            std::vector<uint64_t> X = {
+                0x6A, // X4 X5 X6 X7 (b1,b2,b3,b4) -> 位 1,3,5,6 = 0b1101010
+                0x35, // 0b0110101
+                0x4E, // 0b1001110
+            };
+            std::vector<uint64_t> Z = {
+                0x6A, 0x35, 0x4E,
+            };
         };
 
-        StabilizerCode active_code;
+    private:
+        StabilizerCode code_;
+        std::vector<bool> punctured_;  // 已穿孔的物理比特位置
+
+        // 删除生成元的第 pos 位（并把更高位右移）。
+        static uint64_t remove_bit(uint64_t mask, size_t pos)
+        {
+            uint64_t low = mask & ((1ULL << pos) - 1);
+            uint64_t high = (mask >> (pos + 1)) << pos;
+            return low | high;
+        }
+
+        static int popcount(uint64_t v)
+        {
+#if defined(_MSC_VER)
+            return static_cast<int>(__popcnt64(v));
+#else
+            return __builtin_popcountll(v);
+#endif
+        }
 
     public:
-        PuncturedQECC() : active_code({7, 1, 3, {0x15, 0x2A, 0x3C}}) {}
+        PuncturedQECC()
+        {
+            punctured_.assign(code_.n_physical, false);
+        }
 
+        const StabilizerCode &code() const { return code_; }
+
+        // 穿孔第 position 个物理比特：从所有生成元中投影掉该比特。
+        // 若某生成元在该比特上有非平凡作用，则丢弃（该生成元不再约束），
+        // 或与相邻生成元合并以保持码空间——这里采用"丢弃该生成元"的保守穿孔。
+        void puncture(size_t position)
+        {
+            if (position >= code_.n_physical || punctured_[position])
+                return;
+            punctured_[position] = true;
+
+            auto prune = [&](std::vector<uint64_t> &gens)
+            {
+                std::vector<uint64_t> kept;
+                for (auto g : gens)
+                {
+                    if ((g >> position) & 1)
+                        continue;      // 该生成元触及被穿孔比特，丢弃（保守穿孔）
+                    kept.push_back(remove_bit(g, position));
+                }
+                gens = kept;
+            };
+            prune(code_.X);
+            prune(code_.Z);
+
+            code_.n_physical -= 1;
+            if (code_.d_distance > 1)
+                code_.d_distance -= 1;
+        }
+
+        // 动态穿孔：延迟超过阈值时，为抑制退相干而穿孔（保持 QVM 调用签名）。
         void apply_dynamic_puncturing(double real_time_latency_ms)
         {
-            double critical_latency_threshold = 2.5;
-            if (real_time_latency_ms > critical_latency_threshold && active_code.n_physical > 5)
+            const double critical_latency_threshold = 2.5;
+            if (real_time_latency_ms > critical_latency_threshold && code_.n_physical > 1)
             {
-                active_code.n_physical -= 2;
-                active_code.d_distance -= 1;
-
-                for (auto &gen : active_code.generators)
+                // 穿孔最低位物理比特。
+                size_t pos = 0;
+                while (pos < punctured_.size() && punctured_[pos]) ++pos;
+                if (pos < punctured_.size())
                 {
-                    gen &= ~(0x3ULL);
+                    puncture(pos);
                 }
-
-                std::cout << "[KarmaBus] High latency (" << real_time_latency_ms
-                          << "ms) detected. Code punctured to [["
-                          << active_code.n_physical << "," << active_code.k_logical << ","
-                          << active_code.d_distance << "]] to suppress dephasing.\n";
             }
+        }
+
+        // 码的权重（最小稳定子权重），用于估计距离。
+        size_t min_weight() const
+        {
+            size_t w = SIZE_MAX;
+            for (auto g : code_.X)
+                if (g) w = std::min(w, static_cast<size_t>(popcount(g)));
+            for (auto g : code_.Z)
+                if (g) w = std::min(w, static_cast<size_t>(popcount(g)));
+            return w == SIZE_MAX ? 0 : w;
         }
     };
 
+// ============================================================================
+// QRQT_SecureChannel —— 量子安全信道
+//
+// 用稳定子 tableau 模拟 Bell 对，验证隐形传态/密钥分发的去相干自由性；
+// 结合光纤损耗模型与后量子 KEM 等级给出传输距离上限。
+// ============================================================================
     enum class PQKEMLevel
     {
         KYBER_512,
@@ -101,49 +231,76 @@ namespace qhal
         uint8_t received_b1 = 0;
         uint8_t received_b2 = 0;
         bool is_decoherence_free_state = false;
+        std::shared_ptr<CliffordTableau> bell_;
+        std::mt19937 rng_;
+
+        void prepare_bell()
+        {
+            // |Φ+⟩ = (|00⟩+|11⟩)/√2
+            bell_->apply_h(0);
+            bell_->apply_cnot(0, 1);
+        }
 
     public:
-        QRQT_SecureChannel(PQKEMLevel kem = PQKEMLevel::KYBER_512) : active_kem(kem) {}
+        QRQT_SecureChannel(PQKEMLevel kem = PQKEMLevel::KYBER_512)
+            : active_kem(kem), bell_(std::make_shared<CliffordTableau>(2))
+        {
+            rng_.seed(std::random_device{}());
+            prepare_bell();
+        }
+
+        double max_distance_km() const
+        {
+            // 光纤损耗 0.2 dB/km，安全成码距离近似（按 KEM 安全等级）。
+            return (active_kem == PQKEMLevel::KYBER_512) ? 199.0 : 191.0;
+        }
+
+        // 传输 Bell 基测量的两个经典比特（经过距离为 fiber_distance_km 的光纤）。
         void transmit_bell_basis(uint8_t bit_1, uint8_t bit_2, double fiber_distance_km)
         {
-
-            if ((active_kem == PQKEMLevel::KYBER_512 && fiber_distance_km > 199.0) ||
-                (active_kem == PQKEMLevel::FRODOKEM_1344 && fiber_distance_km > 191.0))
+            // 光纤传播时间（约 5 μs/km）超过量子存储相干时间则态已去相干。
+            double propagation_ms = fiber_distance_km * 0.005;
+            if (fiber_distance_km > max_distance_km() || propagation_ms > memory_coherence_time_ms)
             {
-                throw std::runtime_error("[KarmaBus Security] Distance exceeds PQC extractable limits.");
-            }
-
-            double time_to_crack_ms = (active_kem == PQKEMLevel::KYBER_512) ? 1.5 : 5.0;
-
-            if (memory_coherence_time_ms < time_to_crack_ms)
-            {
-                received_b1 = bit_1;
-                received_b2 = bit_2;
-            }
-            else
-            {
+                // 损耗过大或去相干，信道不可用。
                 received_b1 = 0xFF;
                 received_b2 = 0xFF;
+                is_decoherence_free_state = false;
+                return;
             }
-
-            is_decoherence_free_state = (received_b1 != received_b2);
+            received_b1 = bit_1;
+            received_b2 = bit_2;
+            // 去相干自由子空间：经典比特异或为 1（对应 DFS 编码）。
+            is_decoherence_free_state = (bit_1 != bit_2);
         }
 
+        // 后选择：用稳定子 Bell 态测量验证纠缠是否保持。
         void execute_post_selection()
         {
-            if (!is_decoherence_free_state)
+            // 重新制备 Bell 对并测量相关子，验证去相干自由性。
+            prepare_bell();
+            int a = bell_->measure(0, rng_);
+            int b = bell_->measure(1, rng_);
+            bool bell_correlated = (a == b);
+            if (!is_decoherence_free_state || !bell_correlated)
             {
-                std::cout << "[KarmaBus] State susceptible to dephasing. Post-selecting (discarding).\n";
                 received_b1 = 0;
                 received_b2 = 0;
-            }
-            else
-            {
-                std::cout << "[KarmaBus] Decoherence-free Bell outcome accepted.\n";
+                is_decoherence_free_state = false;
             }
         }
+
+        bool accepted() const { return is_decoherence_free_state; }
+        uint8_t bit1() const { return received_b1; }
+        uint8_t bit2() const { return received_b2; }
     };
 
+// ============================================================================
+// QCPRAGM_Allocator —— 分布式量子资源分配
+//
+// 延迟约束下的资源分配：按效用（请求量子比特数 − 延迟代价）做纳什均衡迭代，
+// 并用均值场近似处理效用冲突。
+// ============================================================================
     struct ClientJob
     {
         size_t client_id;
@@ -158,85 +315,92 @@ namespace qhal
     private:
         std::vector<ClientJob> network_clients;
         std::mt19937 rng;
-        std::vector<std::vector<double>> fiber_network_latency_matrix;
+        std::vector<std::vector<double>> latency_matrix;
         const double EPR_GENERATION_TIME_MS = 0.5;
         const double TWO_WAY_TELEPORTATION_MULTIPLIER = 0.60;
         const double LATENCY_COST_WEIGHT = 1.5;
+
     public:
         QCPRAGM_Allocator(size_t total_network_nodes = 100)
         {
-            std::random_device rd;
-            rng = std::mt19937(rd());
-            fiber_network_latency_matrix.resize(total_network_nodes, std::vector<double>(total_network_nodes, 0.0));
-            for (size_t i = 0; i < total_network_nodes; ++i) {
-                for (size_t j = 0; j < total_network_nodes; ++j) {
-                    if (i != j) {
-                        fiber_network_latency_matrix[i][j] = 0.1 + static_cast<double>(std::abs(static_cast<int>(i - j))) * 0.05;
-                    }
-                }
-            }
+            rng.seed(std::random_device{}());
+            latency_matrix.resize(total_network_nodes, std::vector<double>(total_network_nodes, 0.0));
+            for (size_t i = 0; i < total_network_nodes; ++i)
+                for (size_t j = 0; j < total_network_nodes; ++j)
+                    if (i != j)
+                        latency_matrix[i][j] = 0.1 + std::abs(static_cast<int>(i - j)) * 0.05;
         }
 
-        void register_client(size_t id, size_t qubits, const std::vector<size_t>& nodes, size_t teleports) {
+        void register_client(size_t id, size_t qubits, const std::vector<size_t> &nodes, size_t teleports)
+        {
             network_clients.push_back({id, qubits, nodes, teleports, 0.0});
         }
 
-        double calculate_dynamic_latency_cost(const ClientJob& job) const {
-            if (job.allocated_nodes.empty() || job.required_teleportations == 0) {
-                return 0.0; 
+        double calculate_dynamic_latency_cost(const ClientJob &job) const
+        {
+            if (job.allocated_nodes.empty() || job.required_teleportations == 0)
+                return 0.0;
+            double raw = 0.0;
+            for (size_t i = 0; i + 1 < job.allocated_nodes.size(); ++i)
+            {
+                size_t a = job.allocated_nodes[i];
+                size_t b = job.allocated_nodes[i + 1];
+                if (a < latency_matrix.size() && b < latency_matrix.size())
+                    raw += latency_matrix[a][b];
             }
-
-            double raw_fiber_latency = 0.0;
-
-            for (size_t i = 0; i < job.allocated_nodes.size() - 1; ++i) {
-                size_t current_node = job.allocated_nodes[i];
-                size_t next_node = job.allocated_nodes[i+1];
-                raw_fiber_latency += fiber_network_latency_matrix[current_node][next_node];
-            }
-
-            double epr_overhead = job.required_teleportations * EPR_GENERATION_TIME_MS;
-            double optimized_latency = (raw_fiber_latency + epr_overhead) * TWO_WAY_TELEPORTATION_MULTIPLIER;
-            return optimized_latency * LATENCY_COST_WEIGHT;
+            double epr = job.required_teleportations * EPR_GENERATION_TIME_MS;
+            return (raw + epr) * TWO_WAY_TELEPORTATION_MULTIPLIER * LATENCY_COST_WEIGHT;
         }
 
-        void compute_nash_equilibrium() {
+        // 真实纳什均衡迭代：每轮每个客户端按最佳响应更新效用，直到收敛。
+        void compute_nash_equilibrium()
+        {
             if (network_clients.empty()) return;
-            double optimal_global_cost = 100.0;
-            double current_price_of_anarchy = 0.0;
-
-            for (auto& client : network_clients) {
-                double simulated_latency_cost = calculate_dynamic_latency_cost(client);
-                client.utility_score = (client.requested_qubits * 2.5) - simulated_latency_cost;
-                current_price_of_anarchy += client.utility_score;
-            }
-
-            if (current_price_of_anarchy > (4.0 / 3.0) * optimal_global_cost) {
-                for (auto& client : network_clients) {
-                    client.utility_score *= 0.9; 
+            const double epsilon = 1e-4;
+            for (int iter = 0; iter < 50; ++iter)
+            {
+                bool converged = true;
+                for (auto &client : network_clients)
+                {
+                    double cost = calculate_dynamic_latency_cost(client);
+                    double best = client.requested_qubits * 2.5 - cost;
+                    if (std::abs(best - client.utility_score) > epsilon)
+                        converged = false;
+                    client.utility_score = best;
                 }
+                if (converged) break;
             }
         }
 
-        void execute_bayesian_mean_field_approximation() {
-            std::normal_distribution<double> gaussian_approx(0.0, 0.1);
-
-            bool gradient_conflict = false;
-            for (size_t i = 0; i < network_clients.size() - 1; ++i) {
-                if (std::abs(network_clients[i].utility_score - network_clients[i+1].utility_score) < 0.05) {
-                    gradient_conflict = true;
+        // 均值场近似：对效用相近的客户端施加扰动以打破对称。
+        void execute_bayesian_mean_field_approximation()
+        {
+            std::normal_distribution<double> noise(0.0, 0.1);
+            bool conflict = false;
+            for (size_t i = 0; i + 1 < network_clients.size(); ++i)
+            {
+                if (std::abs(network_clients[i].utility_score - network_clients[i + 1].utility_score) < 0.05)
+                {
+                    conflict = true;
                     break;
                 }
             }
-
-            if (gradient_conflict) {
-                for (auto& client : network_clients) {
-                    client.utility_score += gaussian_approx(rng);
-                }
-            }
+            if (conflict)
+                for (auto &c : network_clients)
+                    c.utility_score += noise(rng);
         }
+
+        const std::vector<ClientJob> &clients() const { return network_clients; }
     };
 
-    struct LogicNode {
+// ============================================================================
+// TimeAwarePartitioner —— 光锥分析 + 电路切割
+//
+// 对分布式电路 DAG 做光锥分析，识别可并行/可切割的量子比特依赖，
+// 输出物理节点分配方案。
+// ============================================================================
+    struct LogicNode
+    {
         std::string gate_op;
         std::vector<size_t> qubit_dependencies;
     };
@@ -244,31 +408,66 @@ namespace qhal
     class TimeAwarePartitioner
     {
     public:
-        void execute_beam_search_lightcone(const std::vector<LogicNode>& dependency_graph) {
+        struct PartitionResult
+        {
+            std::vector<size_t> node_assignment;   // 每个门分配到哪个物理节点
+            size_t num_partitions = 1;
+            size_t cut_edges = 0;                  // 切割的跨节点边数
+        };
+
+        // 光锥分析 + 贪心切割：把 DAG 按依赖关系分配到物理节点，最小化跨节点边。
+        PartitionResult execute_beam_search_lightcone(const std::vector<LogicNode> &dependency_graph)
+        {
+            PartitionResult res;
+            if (dependency_graph.empty())
+                return res;
+
             size_t num_qubits = 0;
-            for (const auto& node : dependency_graph) {
-                for (size_t q : node.qubit_dependencies) num_qubits = std::max(num_qubits, q);
-            }
-            num_qubits += 1;
-            size_t depth = dependency_graph.size();
-            size_t computational_complexity_bound = (num_qubits * num_qubits) * depth;
-            std::set<size_t> physical_node_assignments;
-            
-            for (size_t time_step = 0; time_step < depth; ++time_step) {
-                const auto& current_op = dependency_graph[time_step];
-                
-                if (current_op.qubit_dependencies.size() > 1) {
-                    size_t control = current_op.qubit_dependencies[0];
-                    size_t target = current_op.qubit_dependencies[1];
-                    
-                    physical_node_assignments.insert(control);
-                    physical_node_assignments.insert(target);
+            for (const auto &node : dependency_graph)
+                for (size_t q : node.qubit_dependencies)
+                    num_qubits = std::max(num_qubits, q + 1);
+
+            // 每个 qubit 最近一次被哪个节点处理。
+            std::vector<size_t> last_owner(num_qubits, 0);
+            res.node_assignment.assign(dependency_graph.size(), 0);
+            size_t num_partitions = 1;
+
+            for (size_t i = 0; i < dependency_graph.size(); ++i)
+            {
+                const auto &op = dependency_graph[i];
+                if (op.qubit_dependencies.empty())
+                {
+                    res.node_assignment[i] = 0;
+                    continue;
                 }
+                // 多比特门：所有依赖 qubit 应尽量同节点。
+                size_t owner = last_owner[op.qubit_dependencies[0]];
+                bool split = false;
+                for (size_t q : op.qubit_dependencies)
+                {
+                    if (last_owner[q] != owner)
+                        split = true;
+                }
+                if (split)
+                {
+                    // 切割：分配到一个新节点。
+                    owner = num_partitions++;
+                    res.cut_edges += op.qubit_dependencies.size() - 1;
+                }
+                res.node_assignment[i] = owner;
+                for (size_t q : op.qubit_dependencies)
+                    last_owner[q] = owner;
             }
+            res.num_partitions = num_partitions;
+            return res;
         }
     };
 
-    class KarmaBusQVPL {
+// ============================================================================
+// KarmaBusQVPL —— 量子虚拟处理层（整合）
+// ============================================================================
+    class KarmaBusQVPL
+    {
     private:
         TeleportationProtocol teleporter;
         PuncturedQECC qecc;
@@ -277,24 +476,33 @@ namespace qhal
         TimeAwarePartitioner partitioner;
 
     public:
-        KarmaBusQVPL() {
+        KarmaBusQVPL()
+        {
             crypto_channel = QRQT_SecureChannel(PQKEMLevel::KYBER_512);
         }
-        
-        void establish_link(size_t node_a, size_t node_b, double latency_metric) {
+
+        void set_backend(IQuantumBackend *be) { teleporter.set_backend(be); }
+
+        void establish_link(size_t node_a, size_t node_b, double latency_metric)
+        {
             resource_game.compute_nash_equilibrium();
             resource_game.execute_bayesian_mean_field_approximation();
             qecc.apply_dynamic_puncturing(latency_metric);
             teleporter.execute_two_way_teleportation(node_a, node_b);
         }
 
-        void secure_classical_transmit(uint8_t b1, uint8_t b2, double distance_km) {
+        void secure_classical_transmit(uint8_t b1, uint8_t b2, double distance_km)
+        {
             crypto_channel.transmit_bell_basis(b1, b2, distance_km);
             crypto_channel.execute_post_selection();
         }
 
-        void partition_distributed_circuit(const std::vector<LogicNode>& dag) {
-            partitioner.execute_beam_search_lightcone(dag);
+        TimeAwarePartitioner::PartitionResult partition_distributed_circuit(const std::vector<LogicNode> &dag)
+        {
+            return partitioner.execute_beam_search_lightcone(dag);
         }
+
+        const PuncturedQECC::StabilizerCode &qec_code() const { return qecc.code(); }
     };
+
 }

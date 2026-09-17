@@ -1,7 +1,7 @@
 import { Expression, Program, Statement, FunctionDeclaration, ReturnStatement, Item, FormDecl, TraitDecl, ImplDecl, TemplateDecl, FnDecl, FieldDecl, RankBlock, Param } from './ast';
 
 function isTopLevelItem(node: any): node is Item {
-    return ['ModuleDecl', 'UseDecl', 'FormDecl', 'FlavorDecl', 'ImplDecl', 'TraitDecl', 'TemplateDecl', 'ImportDecl', 'RequiresDecl'].includes(node.type);
+    return ['ModuleDecl', 'UseDecl', 'FormDecl', 'FlavorDecl', 'ImplDecl', 'TraitDecl', 'TemplateDecl', 'ImportDecl', 'RequiresDecl', 'ExternDecl'].includes(node.type);
 }
 
 interface LLVMValue {
@@ -47,6 +47,7 @@ export class IRGenerator {
     private userFunctions: Map<string, FunctionDeclaration> = new Map();
     private importAliases: Map<string, string> = new Map();
     private importSigs: Map<string, { params: string[]; ret: string }> = new Map();
+    private externSigs: Map<string, { params: string[]; ret: string }> = new Map();
 
     private nextReg(): string {
         return '%' + (this.regCount++);
@@ -138,27 +139,18 @@ export class IRGenerator {
         }
 
         let llvmStr = "";
-        let byteLength = 1;
-        for (let i = 0; i < value.length; i++) {
-            const charCode = value.charCodeAt(i);
-
-            if (charCode === 34) {
-                llvmStr += "\\22";
-                byteLength++;
-            } else if (charCode === 92) {
-                llvmStr += "\\5C";
-                byteLength++;
-            } else if (charCode === 10) {
-                llvmStr += "\\0A";
-                byteLength++;
-            } else if (charCode === 13) {
-                llvmStr += "\\0D";
-                byteLength++;
-            } else {
-                llvmStr += value[i];
-                byteLength++;
-            }
+        // 按 UTF-8 字节处理，避免中文字符长度（字符数 ≠ 字节数）导致 IR 数组长度不匹配
+        const utf8 = Buffer.from(value, 'utf8');
+        for (let i = 0; i < utf8.length; i++) {
+            const b = utf8[i];
+            if (b === 34) llvmStr += "\\22";
+            else if (b === 92) llvmStr += "\\5C";
+            else if (b === 10) llvmStr += "\\0A";
+            else if (b === 13) llvmStr += "\\0D";
+            else if (b < 32 || b > 126) llvmStr += "\\" + b.toString(16).padStart(2, '0');
+            else llvmStr += String.fromCharCode(b);
         }
+        const byteLength = utf8.length + 1; // +1 for \00
 
         const globalName = `@.str.${this.stringCount++}`;
         const llvmStringDef = `${globalName} = private unnamed_addr constant [${byteLength} x i8] c"${llvmStr}\\00", align 1`;
@@ -203,6 +195,9 @@ export class IRGenerator {
             `%Qubit = type opaque`,
             `%QObject = type opaque`,
             `%QModel = type opaque`,
+            `%QReservoir = type opaque`,
+            `; --- 晶格数组类型（lattice<T, B>，吸收 Futhark/Remora/Rust）---`,
+            `%Lattice = type opaque`,
             ``
         ];
 
@@ -248,6 +243,13 @@ export class IRGenerator {
             `; --- VedaROS QLM Trampolines ---`,
             `declare void @qk_veda_qlm_train(%QObject*, i32, double)`,
             ``,
+            `; --- QRC Quantum Reservoir ABI ---`,
+            `declare %QReservoir* @qk_qrc_new(i32, i32)`,
+            `declare void @qk_qrc_train(%QReservoir*, i32, double)`,
+            `declare %QObject* @qk_qrc_probe(%QReservoir*, %QObject*)`,
+            `declare %QObject* @qk_qrc_predict(%QReservoir*, %QObject*)`,
+            `declare void @qk_qrc_release(%QReservoir*)`,
+            ``,
             `; --- Other ---`,
             `declare double @qk_surrogate(double, double, double)`,
             `declare double @qk_tanh_quantize(double, double, i32)`,
@@ -262,6 +264,41 @@ export class IRGenerator {
             `declare double @qk_polymer_mix_bound(double, double)`,
             `declare i8* @malloc(i64)`,
             ``,
+            `; --- 晶格数组 ABI（lattice<T, B>，首版 int32 元素 / 1D-2D）---`,
+            `declare %Lattice* @qk_lattice_new(i32, i32, i32, i32)`,
+            `declare void @qk_lattice_free(%Lattice*)`,
+            `declare i32 @qk_lattice_ref(%Lattice*, i32, i32)`,
+            `declare void @qk_lattice_set(%Lattice*, i32, i32, i32)`,
+            `declare i32 @qk_lattice_rank(%Lattice*)`,
+            `declare i32 @qk_lattice_size(%Lattice*, i32)`,
+            `declare i32 @qk_lattice_boundary(%Lattice*)`,
+            ``,
+            `; --- 经典 GUI / 图形引擎 ABI（cgui_* / cgfx_*）---`,
+            `declare i32 @qk_cgui_init(i32, i32, i8*)`,
+            `declare i32 @qk_cgui_should_close()`,
+            `declare void @qk_cgui_begin_frame()`,
+            `declare void @qk_cgui_end_frame()`,
+            `declare i32 @qk_cgui_button(i8*)`,
+            `declare void @qk_cgui_text(i8*)`,
+            `declare void @qk_cgui_text_int(i32)`,
+            `declare void @qk_cgui_beep(i32, i32)`,
+            `declare i32 @qk_cgui_width()`,
+            `declare i32 @qk_cgui_height()`,
+            `declare void @qk_cgui_panel(i32, i32, i32, i32, i8*)`,
+            `declare void @qk_cgui_panel_end()`,
+            `declare void @qk_cgui_row(i32, i32)`,
+            `declare i32 @qk_cgui_mouse_x()`,
+            `declare i32 @qk_cgui_mouse_y()`,
+            `declare i32 @qk_cgui_mouse_left_clicked()`,
+            `declare void @qk_cgfx_rect(i32, i32, i32, i32, i32)`,
+            `declare void @qk_cgfx_line(i32, i32, i32, i32, i32, i32)`,
+            `declare void @qk_cgfx_ellipse(i32, i32, i32, i32, i32)`,
+            `declare void @qk_cgfx_triangle(i32, i32, i32, i32, i32, i32, i32)`,
+            `declare void @qk_cgfx_rect_a(i32, i32, i32, i32, i32, i32)`,
+            `declare void @qk_cgfx_line_a(i32, i32, i32, i32, i32, i32, i32)`,
+            `declare void @qk_cgfx_ellipse_a(i32, i32, i32, i32, i32, i32)`,
+            `declare void @qk_cgfx_triangle_a(i32, i32, i32, i32, i32, i32, i32, i32)`,
+            ``,
             `; --- QCOS Syscall ABI + Heap ---`,
             `declare i32 @qk_sys_call(i32, i32, i32, i32)`,
             `declare double @qk_sys_calld(i32, double, double)`,
@@ -271,10 +308,36 @@ export class IRGenerator {
             `declare i8* @qk_sys_callp(i32, i64, i64, i64)`,
             `declare void @qk_gc_free(i8*)`,
             ``,
-            `; --- QMS 数值内核（算法 4）---`,
+            `; --- QMS 数值内核 ---`,
             `declare double @qk_qms_gap(i32, double, double)`,
             `declare double @qk_mix_bound(double, double, double)`,
             `declare double @qk_qms_conc(double, double)`,
+            ``,
+            `; --- QChain 量子区块链 ABI ---`,
+            `declare i8* @qk_qchain_wallet()`,
+            `declare i64 @qk_qchain_balance(i8*)`,
+            `declare void @qk_qchain_mint(i8*, i64)`,
+            `declare i32 @qk_qchain_transfer(i8*, i8*, i64)`,
+            `declare i32 @qk_qchain_mine()`,
+            `declare i32 @qk_qchain_height()`,
+            `declare i32 @qk_qchain_verify()`,
+            `declare i8* @qk_qchain_qkd(i32)`,
+            `declare i32 @qk_qchain_qdba(i32)`,
+            `declare %QObject* @qk_qchain_coin_mint(i32)`,
+            `declare i32 @qk_qchain_coin_verify(%QObject*)`,
+            ``,
+            `; --- QChain 密码原语 / 抗超时空 / 时空加密 ABI ---`,
+            `declare i8* @qk_qchain_sha3(i8*)`,
+            `declare i8* @qk_qchain_hmac(i8*, i8*)`,
+            `declare i8* @qk_qchain_hash_unicode(i8*)`,
+            `declare i8* @qk_qchain_sign(i8*)`,
+            `declare i32 @qk_qchain_sign_verify(i8*, i8*)`,
+            `declare i8* @qk_qchain_sign_pubkey()`,
+            `declare i8* @qk_qchain_mlkem_encaps(i8*)`,
+            `declare i8* @qk_qchain_mlkem_decaps(i8*, i8*)`,
+            `declare i32 @qk_qchain_causal_verify()`,
+            `declare i8* @qk_qchain_cipher_encrypt(i64, i8*)`,
+            `declare i8* @qk_qchain_cipher_decrypt(i64, i8*)`,
             ``
         ];
 
@@ -319,6 +382,7 @@ export class IRGenerator {
             ...(this.globalStrings.length > 0 ? [``] : []),
             ...declarations,
             ...this.buildImportDecls(),
+            ...this.buildExternDecls(),
             ...this.vtableConsts,
             ...this.methodIRs,
             ...this.lambdaIRs,
@@ -328,14 +392,33 @@ export class IRGenerator {
 
     private buildImportDecls(): string[] {
         const decls: string[] = [];
+        const formTypes = new Set<string>();
         for (const [alias, mmiPath] of this.importAliases) {
             for (const [key, sig] of this.importSigs) {
                 if (key.startsWith(alias + '::')) {
                     const funcName = key.slice(alias.length + 2);
                     const symbol = alias + '_' + funcName;
                     decls.push(`declare ${sig.ret} @${symbol}(${sig.params.join(', ')})`);
+                    // 收集 form 类型（%form.X*），生成 opaque 定义供 declare 使用
+                    for (const t of [sig.ret, ...sig.params]) {
+                        const m = t.match(/^%form\.([A-Za-z0-9_]+)\*$/);
+                        if (m) formTypes.add(m[1]);
+                    }
                 }
             }
+        }
+        const defs: string[] = [];
+        for (const ft of formTypes) {
+            defs.push(`%form.${ft} = type opaque`);
+        }
+        return [...defs, ...decls];
+    }
+
+    // 外部 C 符号（extern 声明）的 declare
+    private buildExternDecls(): string[] {
+        const decls: string[] = [];
+        for (const [name, sig] of this.externSigs) {
+            decls.push(`declare ${sig.ret} @${name}(${sig.params.join(', ')})`);
         }
         return decls;
     }
@@ -352,6 +435,7 @@ export class IRGenerator {
         this.lambdaIRs = [];
         this.userFunctions.clear();
         this.importAliases.clear();
+        this.externSigs.clear();
     }
 
     private collectDeclarations(items: (Statement | Item)[], prefix: string) {
@@ -378,6 +462,11 @@ export class IRGenerator {
                 this.userFunctions.set(node.name, node);
             } else if (node.type === 'ImportDecl') {
                 this.importAliases.set(node.alias, node.path);
+            } else if (node.type === 'ExternDecl') {
+                this.externSigs.set(node.name, {
+                    params: node.params.map(p => this.getLLVMType(p.type)),
+                    ret: this.getLLVMType(node.returnType)
+                });
             } else if (node.type === 'ModuleDecl') {
                 const fullName = prefix ? prefix + '::' + node.name : node.name;
                 this.collectDeclarations(node.body, fullName);
@@ -674,6 +763,10 @@ export class IRGenerator {
                 case 'NewExpression':
                     e.arguments.forEach(visitExpr);
                     break;
+                case 'IndexExpression':
+                    visitExpr(e.object);
+                    e.indices.forEach(visitExpr);
+                    break;
             }
         };
 
@@ -747,6 +840,15 @@ export class IRGenerator {
         }
     }
 
+    // 边界条件字符串 -> 数值编码（与 C++ 运行时约定一致）
+    private boundaryCode(b: string): number {
+        switch (b.trim()) {
+            case 'periodic': return 1;
+            case 'reflect': return 2;
+            default: return 0; // open
+        }
+    }
+
     private visitStatement(stmt: Statement) {
         if (this.isBlockTerminated) return;
         if (stmt.type === 'VariableDeclaration') {
@@ -777,6 +879,16 @@ export class IRGenerator {
                 this.emit(`store ${pointee} ${rhs.val}, ${ptr.type} ${ptr.val}`);
                 return;
             }
+            if (stmt.target && stmt.target.type === 'IndexExpression') {
+                const obj = this.visitExpression((stmt.target as any).object);
+                const indices = (stmt.target as any).indices;
+                const idx0 = indices.length > 0 ? this.visitExpression(indices[0]).val : '0';
+                const idx1 = indices.length > 1 ? this.visitExpression(indices[1]).val : '0';
+                const rhs = this.visitExpression(stmt.value);
+                this.untrackTemporary(rhs.val);
+                this.emit(`call void @qk_lattice_set(${obj.type} ${obj.val}, i32 ${idx0}, i32 ${idx1}, i32 ${rhs.val})`);
+                return;
+            }
             if (stmt.target) {
                 const obj = this.visitExpression((stmt.target as any).object);
                 const bareType = obj.type.replace(/^%/, '').replace(/\*$/, '');
@@ -799,6 +911,12 @@ export class IRGenerator {
             this.emit(`store ${rhs.type} ${rhs.val}, ${sym.type}* ${sym.ptr}`);
         }
         else if (stmt.type === 'ReturnStatement') {
+            if ((stmt as any).isVoid) {
+                this.emitCleanup();
+                this.emit(`ret void`);
+                this.isBlockTerminated = true;
+                return;
+            }
             const expr = this.visitExpression(stmt.argument);
             this.untrackTemporary(expr.val);
             this.emitCleanup();
@@ -1117,6 +1235,10 @@ export class IRGenerator {
                 this.emit(`${resReg} = ${isFloat ? 'fdiv' : 'sdiv'} ${left.type} ${left.val}, ${right.val}`);
                 return { val: resReg, type: left.type };
             }
+            else if (expr.operator === '%') {
+                this.emit(`${resReg} = ${isFloat ? 'frem' : 'srem'} ${left.type} ${left.val}, ${right.val}`);
+                return { val: resReg, type: left.type };
+            }
             else if (expr.operator === '&') {
                 this.emit(`${resReg} = and ${left.type} ${left.val}, ${right.val}`);
                 return { val: resReg, type: left.type };
@@ -1151,7 +1273,8 @@ export class IRGenerator {
         }
 
         if (expr.type === 'LogicalExpression') {
-            const resPtr = this.nextReg();
+            // 短路结果用命名寄存器（避免 splice 到 entry 后与未命名编号冲突）
+            const resPtr = '%logic_ptr_' + (this.labelCount++);
             this.allocas.push(` ${resPtr} = alloca i1`);
             const endLabel = this.nextLabel('logic_end_');
             const shortLabel = this.nextLabel('logic_short_');
@@ -1267,7 +1390,7 @@ export class IRGenerator {
 
         if (expr.type === 'StringLiteral') {
             const strGlobal = this.addStringLiteral(expr.value);
-            const strLen = expr.value.length + 1;
+            const strLen = Buffer.byteLength(expr.value, 'utf8') + 1;
             const resReg = this.nextReg();
             this.emit(`${resReg} = getelementptr inbounds [${strLen} x i8], [${strLen} x i8]* ${strGlobal}, i64 0, i64 0`);
             return { val: resReg, type: 'i8*' };
@@ -1300,8 +1423,8 @@ export class IRGenerator {
         if (expr.type === 'FuseExpression') {
             const resultTy = 'i32';
             // 先分配结果临时变量，再求值判别式——保证寄存器编号在最终 IR 中单调递增
-            // （allocas 会被 splice 到函数入口，必须先于任何普通指令编号）。
-            const resultPtr = this.nextReg();
+            // （allocas 会被 splice 到函数入口，命名寄存器避免与未命名编号冲突）。
+            const resultPtr = '%fuse_ptr_' + (this.labelCount++);
             this.allocas.push(` ${resultPtr} = alloca ${resultTy}`);
 
             const disc = this.visitExpression(expr.discriminant);
@@ -1368,6 +1491,18 @@ export class IRGenerator {
 
         if (expr.type === 'NewExpression') {
             const resReg = this.nextReg();
+            if (expr.className.startsWith('lattice<')) {
+                const inner = expr.className.slice('lattice<'.length, -1);
+                const parts = inner.split(',').map((s: string) => s.trim());
+                const boundary = parts.length > 1 ? this.boundaryCode(parts[1]) : 0;
+                const rank = expr.arguments.length;
+                const arg0 = rank > 0 ? this.visitExpression(expr.arguments[0]).val : '1';
+                const arg1 = rank > 1 ? this.visitExpression(expr.arguments[1]).val : '1';
+                const lresReg = this.nextReg();
+                this.emit(`${lresReg} = call %Lattice* @qk_lattice_new(i32 ${rank}, i32 ${arg0}, i32 ${arg1}, i32 ${boundary})`);
+                this.trackTemporary(lresReg, '%Lattice*');
+                return { val: lresReg, type: '%Lattice*' };
+            }
             if (expr.className === 'BellState') {
                 this.emit(`${resReg} = call %QObject* @qk_create_BellState()`);
                 this.trackTemporary(resReg, '%QObject*');
@@ -1435,6 +1570,146 @@ export class IRGenerator {
                 this.emit(`${resReg} = call %QObject* @qk_create_basis_state(double ${thetaVal}, double ${phiVal}, i32 ${valueArg.val})`);
                 this.trackTemporary(resReg, '%QObject*');
                 return { val: resReg, type: '%QObject*' };
+            }
+
+            // 晶格内省：lattice_rank / lattice_size / lattice_boundary
+            if (expr.name === 'lattice_rank') {
+                const obj = this.visitExpression(expr.arguments[0]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_lattice_rank(${obj.type} ${obj.val})`);
+                return { val: resReg, type: 'i32' };
+            }
+            if (expr.name === 'lattice_size') {
+                const obj = this.visitExpression(expr.arguments[0]);
+                const dim = this.visitExpression(expr.arguments[1]).val;
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_lattice_size(${obj.type} ${obj.val}, i32 ${dim})`);
+                return { val: resReg, type: 'i32' };
+            }
+            if (expr.name === 'lattice_boundary') {
+                const obj = this.visitExpression(expr.arguments[0]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_lattice_boundary(${obj.type} ${obj.val})`);
+                return { val: resReg, type: 'i32' };
+            }
+
+            // 经典 GUI（cgui_*）
+            if (expr.name === 'cgui_init') {
+                const w = this.visitExpression(expr.arguments[0]);
+                const h = this.visitExpression(expr.arguments[1]);
+                const t = this.visitExpression(expr.arguments[2]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_cgui_init(i32 ${w.val}, i32 ${h.val}, i8* ${t.val})`);
+                return { val: resReg, type: 'i32' };
+            }
+            if (expr.name === 'cgui_should_close') {
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_cgui_should_close()`);
+                return { val: resReg, type: 'i32' };
+            }
+            if (expr.name === 'cgui_begin_frame') {
+                this.emit(`call void @qk_cgui_begin_frame()`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgui_end_frame') {
+                this.emit(`call void @qk_cgui_end_frame()`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgui_button') {
+                const l = this.visitExpression(expr.arguments[0]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_cgui_button(i8* ${l.val})`);
+                return { val: resReg, type: 'i32' };
+            }
+            if (expr.name === 'cgui_text') {
+                const t = this.visitExpression(expr.arguments[0]);
+                this.emit(`call void @qk_cgui_text(i8* ${t.val})`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgui_text_int') {
+                const v = this.visitExpression(expr.arguments[0]);
+                this.emit(`call void @qk_cgui_text_int(i32 ${v.val})`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgui_beep') {
+                const f = this.visitExpression(expr.arguments[0]);
+                const d = this.visitExpression(expr.arguments[1]);
+                this.emit(`call void @qk_cgui_beep(i32 ${f.val}, i32 ${d.val})`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgui_width') {
+                const r = this.nextReg();
+                this.emit(`${r} = call i32 @qk_cgui_width()`);
+                return { val: r, type: 'i32' };
+            }
+            if (expr.name === 'cgui_height') {
+                const r = this.nextReg();
+                this.emit(`${r} = call i32 @qk_cgui_height()`);
+                return { val: r, type: 'i32' };
+            }
+            if (expr.name === 'cgui_panel') {
+                const x = this.visitExpression(expr.arguments[0]);
+                const y = this.visitExpression(expr.arguments[1]);
+                const w = this.visitExpression(expr.arguments[2]);
+                const h = this.visitExpression(expr.arguments[3]);
+                const t = this.visitExpression(expr.arguments[4]);
+                this.emit(`call void @qk_cgui_panel(i32 ${x.val}, i32 ${y.val}, i32 ${w.val}, i32 ${h.val}, i8* ${t.val})`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgui_panel_end') {
+                this.emit(`call void @qk_cgui_panel_end()`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgui_row') {
+                const c = this.visitExpression(expr.arguments[0]);
+                const h = this.visitExpression(expr.arguments[1]);
+                this.emit(`call void @qk_cgui_row(i32 ${c.val}, i32 ${h.val})`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgui_mouse_x') {
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_cgui_mouse_x()`);
+                return { val: resReg, type: 'i32' };
+            }
+            if (expr.name === 'cgui_mouse_y') {
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_cgui_mouse_y()`);
+                return { val: resReg, type: 'i32' };
+            }
+            if (expr.name === 'cgui_mouse_left_clicked') {
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_cgui_mouse_left_clicked()`);
+                return { val: resReg, type: 'i32' };
+            }
+
+            // 经典图形引擎（cgfx_*）
+            if (expr.name === 'cgfx_rect') {
+                const a = expr.arguments.map(x => this.visitExpression(x).val);
+                this.emit(`call void @qk_cgfx_rect(${a.map(v => `i32 ${v}`).join(', ')})`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgfx_line') {
+                const a = expr.arguments.map(x => this.visitExpression(x).val);
+                this.emit(`call void @qk_cgfx_line(${a.map(v => `i32 ${v}`).join(', ')})`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgfx_ellipse') {
+                const a = expr.arguments.map(x => this.visitExpression(x).val);
+                this.emit(`call void @qk_cgfx_ellipse(${a.map(v => `i32 ${v}`).join(', ')})`);
+                return { val: 'void', type: 'void' };
+            }
+            if (expr.name === 'cgfx_triangle') {
+                const a = expr.arguments.map(x => this.visitExpression(x).val);
+                this.emit(`call void @qk_cgfx_triangle(${a.map(v => `i32 ${v}`).join(', ')})`);
+                return { val: 'void', type: 'void' };
+            }
+
+            // 带 alpha 的经典图形原语（粒子特效淡出）
+            if (expr.name === 'cgfx_rect_a' || expr.name === 'cgfx_line_a' ||
+                expr.name === 'cgfx_ellipse_a' || expr.name === 'cgfx_triangle_a') {
+                const a = expr.arguments.map(x => this.visitExpression(x).val);
+                this.emit(`call void @qk_cgfx_${expr.name.slice(5)}(${a.map(v => `i32 ${v}`).join(', ')})`);
+                return { val: 'void', type: 'void' };
             }
 
             if (expr.name === 'qk_sys_call') {
@@ -1720,6 +1995,190 @@ export class IRGenerator {
                 return { val: 'void', type: 'void' };
             }
 
+            // ─── QRC 量子储备池内置函数 ──────────────────────────
+            if (expr.name === 'qrc_new') {
+                const qubitsArg = this.visitExpression(expr.arguments[0]);
+                const layersArg = this.visitExpression(expr.arguments[1]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call %QReservoir* @qk_qrc_new(i32 ${qubitsArg.val}, i32 ${layersArg.val})`);
+                return { val: resReg, type: '%QReservoir*' };
+            }
+
+            if (expr.name === 'qrc_train') {
+                const resArg = this.visitExpression(expr.arguments[0]);
+                const epochsArg = this.visitExpression(expr.arguments[1]);
+                const lrArg = this.visitExpression(expr.arguments[2]);
+                const lrVal = lrArg.type === 'i32' ? `${lrArg.val}.0` : lrArg.val;
+                this.emit(`call void @qk_qrc_train(%QReservoir* ${resArg.val}, i32 ${epochsArg.val}, double ${lrVal})`);
+                return { val: 'void', type: 'void' };
+            }
+
+            if (expr.name === 'qrc_probe') {
+                const resArg = this.visitExpression(expr.arguments[0]);
+                const dataArg = this.visitExpression(expr.arguments[1]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call %QObject* @qk_qrc_probe(%QReservoir* ${resArg.val}, %QObject* ${dataArg.val})`);
+                this.trackTemporary(resReg, '%QObject*');
+                return { val: resReg, type: '%QObject*' };
+            }
+
+            if (expr.name === 'qrc_predict') {
+                const resArg = this.visitExpression(expr.arguments[0]);
+                const dataArg = this.visitExpression(expr.arguments[1]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call %QObject* @qk_qrc_predict(%QReservoir* ${resArg.val}, %QObject* ${dataArg.val})`);
+                this.trackTemporary(resReg, '%QObject*');
+                return { val: resReg, type: '%QObject*' };
+            }
+
+            if (expr.name === 'qrc_release') {
+                const resArg = this.visitExpression(expr.arguments[0]);
+                this.emit(`call void @qk_qrc_release(%QReservoir* ${resArg.val})`);
+                return { val: 'void', type: 'void' };
+            }
+
+            // ─── QChain 量子区块链内置函数 ──────────────────────────
+            if (expr.name === 'qchain_wallet') {
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i8* @qk_qchain_wallet()`);
+                return { val: resReg, type: 'i8*' };
+            }
+
+            if (expr.name === 'qchain_balance') {
+                const arg = this.visitExpression(expr.arguments[0]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i64 @qk_qchain_balance(i8* ${arg.val})`);
+                return { val: resReg, type: 'i64' };
+            }
+
+            if (expr.name === 'qchain_mint') {
+                const addrArg = this.visitExpression(expr.arguments[0]);
+                const amtArg = this.visitExpression(expr.arguments[1]);
+                let amtVal = amtArg.val;
+                if (amtArg.type === 'i32') {
+                    const z = this.nextReg();
+                    this.emit(`${z} = zext i32 ${amtArg.val} to i64`);
+                    amtVal = z;
+                }
+                this.emit(`call void @qk_qchain_mint(i8* ${addrArg.val}, i64 ${amtVal})`);
+                return { val: 'void', type: 'void' };
+            }
+
+            if (expr.name === 'qchain_transfer') {
+                const fromArg = this.visitExpression(expr.arguments[0]);
+                const toArg = this.visitExpression(expr.arguments[1]);
+                const amtArg = this.visitExpression(expr.arguments[2]);
+                let amtVal = amtArg.val;
+                if (amtArg.type === 'i32') {
+                    const z = this.nextReg();
+                    this.emit(`${z} = zext i32 ${amtArg.val} to i64`);
+                    amtVal = z;
+                }
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_qchain_transfer(i8* ${fromArg.val}, i8* ${toArg.val}, i64 ${amtVal})`);
+                return { val: resReg, type: 'i32' };
+            }
+
+            if (expr.name === 'qchain_mine' || expr.name === 'qchain_height' || expr.name === 'qchain_verify') {
+                const fn = expr.name === 'qchain_mine' ? 'qk_qchain_mine'
+                         : expr.name === 'qchain_height' ? 'qk_qchain_height'
+                         : 'qk_qchain_verify';
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @${fn}()`);
+                return { val: resReg, type: 'i32' };
+            }
+
+            if (expr.name === 'qchain_qkd') {
+                const arg = this.visitExpression(expr.arguments[0]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i8* @qk_qchain_qkd(i32 ${arg.val})`);
+                return { val: resReg, type: 'i8*' };
+            }
+
+            if (expr.name === 'qchain_qdba') {
+                const arg = this.visitExpression(expr.arguments[0]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_qchain_qdba(i32 ${arg.val})`);
+                return { val: resReg, type: 'i32' };
+            }
+
+            if (expr.name === 'qchain_coin_mint') {
+                const arg = this.visitExpression(expr.arguments[0]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call %QObject* @qk_qchain_coin_mint(i32 ${arg.val})`);
+                this.trackTemporary(resReg, '%QObject*');
+                return { val: resReg, type: '%QObject*' };
+            }
+
+            if (expr.name === 'qchain_coin_verify') {
+                const arg = this.visitExpression(expr.arguments[0]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_qchain_coin_verify(%QObject* ${arg.val})`);
+                return { val: resReg, type: 'i32' };
+            }
+
+            // ─── QChain 密码原语 / 抗超时空 / 时空加密 ──────────────
+            if (expr.name === 'qchain_sha3' || expr.name === 'qchain_hash_unicode' ||
+                expr.name === 'qchain_sign') {
+                const arg = this.visitExpression(expr.arguments[0]);
+                const resReg = this.nextReg();
+                const fn = expr.name === 'qchain_sha3' ? 'qk_qchain_sha3'
+                         : expr.name === 'qchain_hash_unicode' ? 'qk_qchain_hash_unicode'
+                         : 'qk_qchain_sign';
+                this.emit(`${resReg} = call i8* @${fn}(i8* ${arg.val})`);
+                return { val: resReg, type: 'i8*' };
+            }
+
+            if (expr.name === 'qchain_hmac' || expr.name === 'qchain_sign_verify' ||
+                expr.name === 'qchain_mlkem_decaps') {
+                const a = this.visitExpression(expr.arguments[0]);
+                const b = this.visitExpression(expr.arguments[1]);
+                const resReg = this.nextReg();
+                const fn = expr.name === 'qchain_hmac' ? 'qk_qchain_hmac'
+                         : expr.name === 'qchain_sign_verify' ? 'qk_qchain_sign_verify'
+                         : 'qk_qchain_mlkem_decaps';
+                if (expr.name === 'qchain_sign_verify') {
+                    this.emit(`${resReg} = call i32 @${fn}(i8* ${a.val}, i8* ${b.val})`);
+                    return { val: resReg, type: 'i32' };
+                }
+                this.emit(`${resReg} = call i8* @${fn}(i8* ${a.val}, i8* ${b.val})`);
+                return { val: resReg, type: 'i8*' };
+            }
+
+            if (expr.name === 'qchain_sign_pubkey') {
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i8* @qk_qchain_sign_pubkey()`);
+                return { val: resReg, type: 'i8*' };
+            }
+
+            if (expr.name === 'qchain_mlkem_encaps') {
+                const arg = this.visitExpression(expr.arguments[0]);
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i8* @qk_qchain_mlkem_encaps(i8* ${arg.val})`);
+                return { val: resReg, type: 'i8*' };
+            }
+
+            if (expr.name === 'qchain_causal_verify') {
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call i32 @qk_qchain_causal_verify()`);
+                return { val: resReg, type: 'i32' };
+            }
+
+            if (expr.name === 'qchain_cipher_encrypt' || expr.name === 'qchain_cipher_decrypt') {
+                const seedArg = this.visitExpression(expr.arguments[0]);
+                let seedVal = seedArg.val;
+                if (seedArg.type === 'i32') {
+                    const z = this.nextReg();
+                    this.emit(`${z} = zext i32 ${seedArg.val} to i64`);
+                    seedVal = z;
+                }
+                const dataArg = this.visitExpression(expr.arguments[1]);
+                const resReg = this.nextReg();
+                const fn = expr.name === 'qchain_cipher_encrypt' ? 'qk_qchain_cipher_encrypt' : 'qk_qchain_cipher_decrypt';
+                this.emit(`${resReg} = call i8* @${fn}(i64 ${seedVal}, i8* ${dataArg.val})`);
+                return { val: resReg, type: 'i8*' };
+            }
+
             const scalarMathFns: Record<string, string[]> = {
                 surrogate: ['double', 'double', 'double'],
                 tanh_quantize: ['double', 'double', 'i32'],
@@ -1744,6 +2203,20 @@ export class IRGenerator {
                 const res = this.nextReg();
                 this.emit(`${res} = call double @qk_${expr.name}(${callArgs})`);
                 return { val: res, type: 'double' };
+            }
+
+            // 外部 C 符号调用（extern 声明）
+            const externSig = this.externSigs.get(expr.name);
+            if (externSig) {
+                const argVals = expr.arguments.map(a => this.visitExpression(a));
+                const callArgs = externSig.params.map((pt, i) => `${pt} ${argVals[i].val}`).join(', ');
+                if (externSig.ret === 'void') {
+                    this.emit(`call void @${expr.name}(${callArgs})`);
+                    return { val: 'void', type: 'void' };
+                }
+                const resReg = this.nextReg();
+                this.emit(`${resReg} = call ${externSig.ret} @${expr.name}(${callArgs})`);
+                return { val: resReg, type: externSig.ret };
             }
 
             if (expr.name.includes('::')) {
@@ -1805,6 +2278,15 @@ export class IRGenerator {
             }
 
             throw new Error(`IR Error: Unknown function '${expr.name}'`);
+        }
+
+        if (expr.type === 'IndexExpression') {
+            const obj = this.visitExpression(expr.object);
+            const idx0 = expr.indices.length > 0 ? this.visitExpression(expr.indices[0]).val : '0';
+            const idx1 = expr.indices.length > 1 ? this.visitExpression(expr.indices[1]).val : '0';
+            const resReg = this.nextReg();
+            this.emit(`${resReg} = call i32 @qk_lattice_ref(${obj.type} ${obj.val}, i32 ${idx0}, i32 ${idx1})`);
+            return { val: resReg, type: 'i32' };
         }
 
         if (expr.type === 'MemberExpression') {
@@ -1959,12 +2441,15 @@ export class IRGenerator {
             case 'Qubit': return '%Qubit*';
             case 'QObject': return '%QObject*';
             case 'QModel': return '%QModel*';
+            case 'QReservoir': return '%QReservoir*';
+            case 'void': return 'void';
             default:
                 if (quarkType.startsWith('cap<')) {
                     const inner = quarkType.slice(4, -1);
                     return this.getLLVMType(inner) + '*'; // 能力（typed pointer）
                 }
                 if (this.forms.has(quarkType)) return '%' + this.mangleForm(quarkType) + '*';
+                if (quarkType.startsWith('lattice<')) return '%Lattice*';
                 if (quarkType.startsWith('(') && quarkType.includes(')->')) return 'i8*'; // 函数类型
                 throw new Error(`IR Error: Unknown type '${quarkType}'`);
         }

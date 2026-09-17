@@ -141,7 +141,7 @@ import {
  */
 function isTopLevelItem(node: any): boolean {
     return ['ModuleDecl', 'UseDecl', 'FormDecl', 'FlavorDecl', 'ImplDecl', 'TraitDecl',
-            'TemplateDecl', 'ImportDecl', 'RequiresDecl'].includes(node.type);
+            'TemplateDecl', 'ImportDecl', 'RequiresDecl', 'ExternDecl'].includes(node.type);
 }
 
 /**
@@ -407,6 +407,11 @@ export class MirBuilder {
                 return { kind: 'Copy', place: p };
             }
 
+            case 'IndexExpression': {
+                // 晶格索引读取：降为内置调用（不透明类型 + 运行时访问）
+                return this.lowerCall('lattice_ref', [expr.object, ...expr.indices], expr.line, expr.column);
+            }
+
             default:
                 throw new Error(`MIR Error: unsupported expression '${(expr as any).type}`);
         }
@@ -491,6 +496,12 @@ export class MirBuilder {
                 // 裸指针解引用赋值：*p = v（借用检查 v1 不追踪指针别名）
                 if (stmt.target && stmt.target.type === 'Dereference') {
                     this.lowerExpression(stmt.target.target);
+                    this.lowerExpression(stmt.value);
+                    break;
+                }
+                // 晶格索引赋值 board[x,y] = v / 字段赋值 obj.field = v：作为副作用降级
+                if (stmt.target && (stmt.target.type === 'IndexExpression' || stmt.target.type === 'MemberExpression')) {
+                    this.lowerExpression(stmt.target);
                     this.lowerExpression(stmt.value);
                     break;
                 }

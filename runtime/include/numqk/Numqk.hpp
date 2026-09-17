@@ -7,6 +7,8 @@
 #include <cmath>
 #include <complex>
 #include <unordered_set>
+#include <functional>
+#include <utility>
 
 namespace numqk {
 
@@ -118,30 +120,29 @@ namespace numqk {
         Tensor<T> matmul(const Tensor<T>& other);
         Tensor<T> sigmoid();
 
+        // P0 地基扩展：逐元素 / 归约运算（带自动微分）
+        Tensor<T> add(const Tensor<T>& other);
+        Tensor<T> sub(const Tensor<T>& other);
+        Tensor<T> mul(const Tensor<T>& other);
+        Tensor<T> div(const Tensor<T>& other);
+        Tensor<T> relu();
+        Tensor<T> tanh();
+        Tensor<T> exp();
+        Tensor<T> sum();
+        Tensor<T> mean();
+
         
         void backward() {
             if (!requires_grad) throw std::runtime_error("Cannot call backward on a tensor that does not require gradients.");
 
+            // 标量损失：∂L/∂self = 1。非标量输出按元素初始化为 1。
             for (size_t i = 0; i < this->size(); ++i) {
                 this->grad->data()[i] = T(1.0);
             }
 
-            std::vector<std::shared_ptr<AutogradNode<T>>> topo_order;
-            std::unordered_set<AutogradNode<T>*> visited;
-
-            auto build_topo = [&](auto& self, std::shared_ptr<AutogradNode<T>> node) -> void {
-                if (!node || visited.count(node.get())) return;
-                visited.insert(node.get());
-
-                for (const auto& child : node->get_next_edges()) {
-                    self(self, child);
-                }
-                
-                topo_order.push_back(node);
-            };
-
-            build_topo(build_topo, this->grad_fn);
-
+            // 递归反传：每个 AutogradNode 负责 (1) 计算局部梯度、(2) accumulate_grad
+            // 到输入、(3) 若输入仍需求梯度则递归触发其 backward。叶子节点（无 grad_fn）
+            // 在此终止。与 MatmulBackward / SigmoidBackward 的既有约定一致。
             if (this->grad_fn) {
                 this->grad_fn->apply_backward(*(this->grad));
             }
@@ -248,6 +249,234 @@ namespace numqk {
         if (track_grad) {
             auto backward_node = std::make_shared<MatmulBackward<T>>(*this, other);
             result.set_grad_fn(backward_node);
+        }
+        return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // P0 地基扩展：逐元素 / 归约运算的自动微分节点与成员函数
+    // ─────────────────────────────────────────────────────────────
+
+    // 二元逐元素运算的通用反传节点。
+    //   grad_a_fn(g, a, b) -> 对左操作数 a 的局部梯度
+    //   grad_b_fn(g, a, b) -> 对右操作数 b 的局部梯度
+    template <typename T>
+    class ElementwiseBinaryBackward : public AutogradNode<T> {
+    private:
+        Tensor<T> a;
+        Tensor<T> b;
+        std::function<T(T, T, T)> grad_a_fn;
+        std::function<T(T, T, T)> grad_b_fn;
+    public:
+        ElementwiseBinaryBackward(Tensor<T> a_, Tensor<T> b_,
+                                  std::function<T(T, T, T)> ga,
+                                  std::function<T(T, T, T)> gb)
+            : a(a_), b(b_), grad_a_fn(std::move(ga)), grad_b_fn(std::move(gb)) {}
+
+        void apply_backward(const Tensor<T>& grad_output) override {
+            const T* g = grad_output.data();
+            const T* av = a.data();
+            const T* bv = b.data();
+            const size_t n = grad_output.size();
+
+            if (a.gets_gradients()) {
+                Tensor<T> local(a.get_shape(), false);
+                T* l = local.data();
+                for (size_t i = 0; i < n; ++i) l[i] = grad_a_fn(g[i], av[i], bv[i]);
+                a.accumulate_grad(local);
+                if (a.get_grad_fn()) a.get_grad_fn()->apply_backward(*(a.get_grad()));
+            }
+            if (b.gets_gradients()) {
+                Tensor<T> local(b.get_shape(), false);
+                T* l = local.data();
+                for (size_t i = 0; i < n; ++i) l[i] = grad_b_fn(g[i], av[i], bv[i]);
+                b.accumulate_grad(local);
+                if (b.get_grad_fn()) b.get_grad_fn()->apply_backward(*(b.get_grad()));
+            }
+        }
+    };
+
+    // 一元逐元素运算的反传节点。grad_fn(g, y) -> 对输入的局部梯度，y 为前向输出。
+    template <typename T>
+    class UnaryBackward : public AutogradNode<T> {
+    private:
+        Tensor<T> input;
+        Tensor<T> output;
+        std::function<T(T, T)> grad_fn;
+    public:
+        UnaryBackward(Tensor<T> in, Tensor<T> out, std::function<T(T, T)> fn)
+            : input(in), output(out), grad_fn(std::move(fn)) {}
+
+        void apply_backward(const Tensor<T>& grad_output) override {
+            if (!input.gets_gradients()) return;
+            const T* g = grad_output.data();
+            const T* y = output.data();
+            const size_t n = grad_output.size();
+            Tensor<T> local(input.get_shape(), false);
+            T* l = local.data();
+            for (size_t i = 0; i < n; ++i) l[i] = grad_fn(g[i], y[i]);
+            input.accumulate_grad(local);
+            if (input.get_grad_fn()) input.get_grad_fn()->apply_backward(*(input.get_grad()));
+        }
+    };
+
+    // 归约（sum/mean）反传节点：把标量上游梯度广播回输入形状。
+    template <typename T>
+    class ReduceBackward : public AutogradNode<T> {
+    private:
+        Tensor<T> input;
+        T scale; // sum=1，mean=1/n
+    public:
+        ReduceBackward(Tensor<T> in, T s) : input(in), scale(s) {}
+
+        void apply_backward(const Tensor<T>& grad_output) override {
+            if (!input.gets_gradients()) return;
+            T g = grad_output.data()[0];
+            Tensor<T> local(input.get_shape(), false);
+            T* l = local.data();
+            for (size_t i = 0; i < input.size(); ++i) l[i] = g * scale;
+            input.accumulate_grad(local);
+            if (input.get_grad_fn()) input.get_grad_fn()->apply_backward(*(input.get_grad()));
+        }
+    };
+
+    template <typename T>
+    Tensor<T> Tensor<T>::add(const Tensor<T>& other) {
+        Tensor<T> result(this->shape, this->requires_grad || other.gets_gradients());
+        const T* a = this->data();
+        const T* b = other.data();
+        T* c = result.data();
+        for (size_t i = 0; i < this->size(); ++i) c[i] = a[i] + b[i];
+        if (result.gets_gradients()) {
+            auto node = std::make_shared<ElementwiseBinaryBackward<T>>(
+                *this, other,
+                [](T g, T, T) { return g; },
+                [](T g, T, T) { return g; });
+            result.set_grad_fn(node);
+        }
+        return result;
+    }
+
+    template <typename T>
+    Tensor<T> Tensor<T>::sub(const Tensor<T>& other) {
+        Tensor<T> result(this->shape, this->requires_grad || other.gets_gradients());
+        const T* a = this->data();
+        const T* b = other.data();
+        T* c = result.data();
+        for (size_t i = 0; i < this->size(); ++i) c[i] = a[i] - b[i];
+        if (result.gets_gradients()) {
+            auto node = std::make_shared<ElementwiseBinaryBackward<T>>(
+                *this, other,
+                [](T g, T, T) { return g; },
+                [](T g, T, T) { return -g; });
+            result.set_grad_fn(node);
+        }
+        return result;
+    }
+
+    template <typename T>
+    Tensor<T> Tensor<T>::mul(const Tensor<T>& other) {
+        Tensor<T> result(this->shape, this->requires_grad || other.gets_gradients());
+        const T* a = this->data();
+        const T* b = other.data();
+        T* c = result.data();
+        for (size_t i = 0; i < this->size(); ++i) c[i] = a[i] * b[i];
+        if (result.gets_gradients()) {
+            auto node = std::make_shared<ElementwiseBinaryBackward<T>>(
+                *this, other,
+                [](T g, T, T bv) { return g * bv; },
+                [](T g, T av, T) { return g * av; });
+            result.set_grad_fn(node);
+        }
+        return result;
+    }
+
+    template <typename T>
+    Tensor<T> Tensor<T>::div(const Tensor<T>& other) {
+        Tensor<T> result(this->shape, this->requires_grad || other.gets_gradients());
+        const T* a = this->data();
+        const T* b = other.data();
+        T* c = result.data();
+        for (size_t i = 0; i < this->size(); ++i) c[i] = a[i] / b[i];
+        if (result.gets_gradients()) {
+            auto node = std::make_shared<ElementwiseBinaryBackward<T>>(
+                *this, other,
+                [](T g, T, T bv) { return g / bv; },
+                [](T g, T av, T bv) { return -g * av / (bv * bv); });
+            result.set_grad_fn(node);
+        }
+        return result;
+    }
+
+    template <typename T>
+    Tensor<T> Tensor<T>::relu() {
+        Tensor<T> result(this->shape, this->requires_grad);
+        const T* a = this->data();
+        T* c = result.data();
+        for (size_t i = 0; i < this->size(); ++i) c[i] = a[i] > T(0) ? a[i] : T(0);
+        if (result.gets_gradients()) {
+            auto node = std::make_shared<UnaryBackward<T>>(
+                *this, result,
+                [](T g, T y) { return y > T(0) ? g : T(0); });
+            result.set_grad_fn(node);
+        }
+        return result;
+    }
+
+    template <typename T>
+    Tensor<T> Tensor<T>::tanh() {
+        Tensor<T> result(this->shape, this->requires_grad);
+        const T* a = this->data();
+        T* c = result.data();
+        for (size_t i = 0; i < this->size(); ++i) c[i] = std::tanh(a[i]);
+        if (result.gets_gradients()) {
+            auto node = std::make_shared<UnaryBackward<T>>(
+                *this, result,
+                [](T g, T y) { return g * (T(1) - y * y); });
+            result.set_grad_fn(node);
+        }
+        return result;
+    }
+
+    template <typename T>
+    Tensor<T> Tensor<T>::exp() {
+        Tensor<T> result(this->shape, this->requires_grad);
+        const T* a = this->data();
+        T* c = result.data();
+        for (size_t i = 0; i < this->size(); ++i) c[i] = std::exp(a[i]);
+        if (result.gets_gradients()) {
+            auto node = std::make_shared<UnaryBackward<T>>(
+                *this, result,
+                [](T g, T y) { return g * y; });
+            result.set_grad_fn(node);
+        }
+        return result;
+    }
+
+    template <typename T>
+    Tensor<T> Tensor<T>::sum() {
+        Tensor<T> result({1}, this->requires_grad);
+        const T* a = this->data();
+        T s = T(0);
+        for (size_t i = 0; i < this->size(); ++i) s += a[i];
+        result.data()[0] = s;
+        if (result.gets_gradients()) {
+            auto node = std::make_shared<ReduceBackward<T>>(*this, T(1));
+            result.set_grad_fn(node);
+        }
+        return result;
+    }
+
+    template <typename T>
+    Tensor<T> Tensor<T>::mean() {
+        Tensor<T> result({1}, this->requires_grad);
+        const T* a = this->data();
+        T s = T(0);
+        for (size_t i = 0; i < this->size(); ++i) s += a[i];
+        result.data()[0] = s / T(this->size());
+        if (result.gets_gradients()) {
+            auto node = std::make_shared<ReduceBackward<T>>(*this, T(1) / T(this->size()));
+            result.set_grad_fn(node);
         }
         return result;
     }

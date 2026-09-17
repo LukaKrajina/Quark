@@ -1,6 +1,7 @@
 #pragma once
 #include "../numqk/Numqk.hpp"
 #include "../qhal/IQuantumBackend.hpp"
+#include "../qhal/PhotonicBackend.hpp"
 #include "../qml/Layer.hpp"
 #include "../qml/QKMFormat.hpp"
 #include "../../src/QObject.hpp"
@@ -122,30 +123,98 @@ namespace qlm
                 out[j] = backend->expectation_z(active_qubits[j + 8]);
         }
 
-        // ── Fubini-Study 对角度量 ──────────────────────────
-        // 替换硬编码 g_ii = 0.25：真实 FS 度量对角元在单 qubit RZ 门
-        // 无纠缠段为 1/4，纠缠后按该层 lapse 平方衰减（解析近似）。
-        // 第 i 个参数属于第 layer = i / (num_qubits_ + 8) 层。
-        double fs_metric_diagonal(size_t param_index) const
+        // ── 真实 Fubini-Study 对角度量（基于 ⟨Z⟩ 方差估计）──────
+        // 替换旧的硬编码 g_ii = 0.25·N_t²：对 RZ 门，Fubini-Study 度量对角元
+        // 为 g_ii = (1/4)(1 - ⟨Z_q⟩²)，其中 q 是参数 i 作用的 qubit。
+        // 无纠缠时该式精确；有纠缠后是对角近似，仍比硬编码 0.25·N_t² 更贴合真实度量。
+        // 参数→qubit 映射：within = i % (n_q + 8)；
+        //   q = within < n_q ? within : 8 + (within - n_q)
+        std::vector<double> estimate_fs_diagonal(numqk::Tensor<double> &params,
+                                                 std::shared_ptr<quark::QObject> input_data)
         {
-            size_t per_layer = num_qubits_ + 8;
-            size_t layer = (per_layer > 0) ? (param_index / per_layer) : 0;
-            double N_t = (layer < lapse_functions.size()) ? lapse_functions[layer] : 1.0;
-            double g_ii = 0.25 * N_t * N_t;
-            return (g_ii < 1e-12) ? 1e-12 : g_ii;
+            const auto &active_qubits = input_data->get_ids();
+            size_t n_q = active_qubits.size();
+            size_t total = params.size();
+            std::vector<double> diag(total, 0.25);
+            if (n_q == 0)
+                return diag;
+
+            // 运行电路（与 circuit_ansatz 一致），读所有 n_q 个 qubit 的 ⟨Z⟩
+            input_data->reset_to_ground_state();
+            size_t param_idx = 0;
+            std::mt19937 rng(42);
+            std::uniform_real_distribution<double> dropout_dist(0.0, 1.0);
+
+            for (size_t t = 0; t < num_layers; ++t)
+            {
+                double N_t = lapse_functions[t];
+                for (size_t i = 0; i < n_q; ++i)
+                    if (param_idx < params.size())
+                        backend->apply_rz(active_qubits[i], params.data()[param_idx++] * N_t);
+                for (size_t i = 0; i < 8; ++i)
+                {
+                    if (dropout_dist(rng) > 0.15)
+                        backend->apply_cnot(active_qubits[i], active_qubits[i + 8]);
+                    if (param_idx < params.size())
+                        backend->apply_rz(active_qubits[i + 8], params.data()[param_idx++] * N_t);
+                }
+            }
+
+            std::vector<double> z(n_q, 0.0);
+            for (size_t q = 0; q < n_q; ++q)
+                z[q] = backend->expectation_z(active_qubits[q]);
+
+            size_t per_layer = n_q + 8;
+            for (size_t i = 0; i < total; ++i)
+            {
+                size_t within = i % per_layer;
+                size_t q = (within < n_q) ? within : (8 + (within - n_q));
+                if (q < n_q)
+                {
+                    double g = 0.25 * (1.0 - z[q] * z[q]);
+                    diag[i] = (g < 1e-12) ? 1e-12 : g;
+                }
+            }
+            return diag;
         }
 
-        void apply_qng_update(numqk::Tensor<double> &params, double learning_rate)
+        void apply_qng_update(numqk::Tensor<double> &params, double learning_rate,
+                              std::shared_ptr<quark::QObject> input_data)
         {
             auto grad = params.get_grad();
 
+            // Fubini-Study 对角元（基于 ⟨Z⟩ 方差）做自然梯度
+            auto diag = estimate_fs_diagonal(params, input_data);
+
             for (size_t i = 0; i < params.size(); ++i)
             {
-                double g_ii = fs_metric_diagonal(i);   // 真实 FS 度量
-                double natural_grad = grad->data()[i] / g_ii;
+                double natural_grad = grad->data()[i] / diag[i];
                 params.data()[i] -= learning_rate * natural_grad;
                 grad->data()[i] = 0.0;                 // 清零，避免跨步梯度累积
             }
+        }
+
+        // ── 光子后端生成采样（GKP / 连续变量高斯采样）──────────
+        // 若 backend 是 PhotonicBackend，用其 homodyne 正交分量采样产生
+        // 连续变量样本（高斯玻色采样风格）。这是"量子采样优势"最实的路径：
+        // 光子 GBS 是实验验证的量子优势候选。
+        // 非光子后端返回空，调用方应回退到 ⟨Z⟩ 期望通道。
+        std::vector<double> sample_photonic(size_t num_samples)
+        {
+            auto *ph = dynamic_cast<qhal::PhotonicBackend *>(backend);
+            if (!ph)
+            {
+                std::cerr << "[QLM] backend is not photonic; photonic sampling unavailable.\n";
+                return {};
+            }
+            size_t modes = ph->get_num_qubits();
+            if (modes == 0)
+                return {};
+            std::vector<double> samples;
+            samples.reserve(num_samples);
+            for (size_t i = 0; i < num_samples; ++i)
+                samples.push_back(ph->homodyne(i % modes, 0.0));
+            return samples;
         }
 
         void apply_qdp_noise(numqk::Tensor<double> &params, double epsilon)
@@ -184,7 +253,7 @@ namespace qlm
                 for (auto& sample : dataset) {
                     numqk::Tensor<double> out = layer.forward(sample, theta);
                     out.backward();
-                    apply_qng_update(theta, lr);
+                    apply_qng_update(theta, lr, sample);
                     epoch_loss += out.data()[0];
                     sample->reset_to_ground_state();
                 }
@@ -271,7 +340,7 @@ namespace qlm
                     if (out.get_grad_fn())
                         out.get_grad_fn()->apply_backward(g_out);
 
-                    apply_qng_update(theta, lr);
+                    apply_qng_update(theta, lr, sample);
                     sample->reset_to_ground_state();
                 }
                 std::cout << "      [FLOW] Epoch " << e + 1 << "/" << epochs

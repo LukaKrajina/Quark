@@ -4,7 +4,7 @@ import { BorrowChecker } from "./borrow";
 import { detectRaces, detectQuantumRaces, entanglementClosure, Access, Digest } from "./race";
 
 function isTopLevelItem(node: any): node is Item {
-    return ['ModuleDecl', 'UseDecl', 'FormDecl', 'FlavorDecl', 'ImplDecl', 'TraitDecl', 'TemplateDecl', 'ImportDecl', 'RequiresDecl'].includes(node.type);
+    return ['ModuleDecl', 'UseDecl', 'FormDecl', 'FlavorDecl', 'ImplDecl', 'TraitDecl', 'TemplateDecl', 'ImportDecl', 'RequiresDecl', 'ExternDecl'].includes(node.type);
 }
 
 // 量子门名（我已将它们从 lexer 关键字移除，但是仍作为门调用使用）
@@ -34,6 +34,7 @@ export class SemanticAnalyzer {
     private usedGates: Set<string> = new Set();
     private fixedSymbols: Set<string> = new Set();
     private flavorMembers: Map<string, number> = new Map();
+    private externSigs: Map<string, { params: string[]; ret: string }> = new Map();
 
     private resetDeclarations() {
         this.forms.clear();
@@ -43,6 +44,7 @@ export class SemanticAnalyzer {
         this.templates = [];
         this.parentOf.clear();
         this.childOf.clear();
+        this.externSigs.clear();
     }
 
     private collectDeclarations(items: (Statement | Item)[], prefix: string) {
@@ -69,6 +71,8 @@ export class SemanticAnalyzer {
                 const fullName = prefix ? prefix + '::' + node.name : node.name;
                 this.modules.set(fullName, node);
                 this.collectDeclarations(node.body, fullName);
+            } else if (node.type === 'ExternDecl') {
+                this.externSigs.set(node.name, { params: node.params.map(p => p.type), ret: node.returnType });
             }
         }
     }
@@ -214,16 +218,20 @@ export class SemanticAnalyzer {
      * Detection Off The Beaten Path》的 digest 框架；纠缠闭包为本文新增。
      */
     private runRaceDetection(program: Program): void {
-        const entry = program.body.find(
-            s => s.type === 'FunctionDeclaration' && (s as any).name === 'quark_main'
-        ) as any ?? program.body.find(s => s.type === 'FunctionDeclaration') as any;
-        if (!entry || !Array.isArray(entry.body)) return;
+        // 遍历所有函数体（不再仅限 quark_main），对每个函数体独立做
+        // spawn/entangle/sync_*/measure 的 digest 分析；tid 用函数名区分。
+        const functions = program.body.filter(
+            s => s.type === 'FunctionDeclaration' && Array.isArray((s as any).body)
+        ) as any[];
+        if (functions.length === 0) return;
 
         interface RawAccess {
             tid: string;
             variable: string;
             isWrite: boolean;
             destructive: string[];
+            line: number;
+            column: number;
         }
         const classic: RawAccess[] = [];
         const quantum: RawAccess[] = [];
@@ -253,12 +261,14 @@ export class SemanticAnalyzer {
                             variable: varName(expr.arguments[0]),
                             isWrite: name !== 'sync_load',
                             destructive: [],
+                            line: expr.line,
+                            column: expr.column,
                         });
                     }
                     if (MEASURES.has(name)) {
                         const q = varName(expr.arguments[0]);
                         touchQubit(tid, q);
-                        quantum.push({ tid, variable: 'qubit:' + q, isWrite: true, destructive: [q] });
+                        quantum.push({ tid, variable: 'qubit:' + q, isWrite: true, destructive: [q], line: expr.line, column: expr.column });
                     }
                     if (GATES.has(name)) {
                         for (const a of expr.arguments) touchQubit(tid, varName(a));
@@ -267,6 +277,8 @@ export class SemanticAnalyzer {
                             variable: 'qubit:' + varName(expr.arguments[0]),
                             isWrite: false,
                             destructive: [],
+                            line: expr.line,
+                            column: expr.column,
                         });
                     }
                     expr.arguments.forEach((a: any) => walkExpr(a, tid));
@@ -279,6 +291,7 @@ export class SemanticAnalyzer {
                 case 'AddressOf': walkExpr(expr.target, tid); return;
                 case 'MemberExpression': walkExpr(expr.object, tid); expr.arguments.forEach((a: any) => walkExpr(a, tid)); return;
                 case 'NewExpression': expr.arguments.forEach((a: any) => walkExpr(a, tid)); return;
+                case 'IndexExpression': walkExpr(expr.object, tid); expr.indices.forEach((a: any) => walkExpr(a, tid)); return;
                 case 'FuseExpression':
                     walkExpr(expr.discriminant, tid);
                     expr.arms.forEach((arm: any) => { walkExpr(arm.pattern, tid); walkExpr(arm.value, tid); });
@@ -315,7 +328,10 @@ export class SemanticAnalyzer {
             }
         };
 
-        walkStmts(entry.body, 'main');
+        // 遍历所有函数体（tid 用函数名，spawn 内层线程用 't'+计数器）
+        for (const fn of functions) {
+            walkStmts(fn.body, fn.name);
+        }
 
         // 展开纠缠闭包：每个量子比特的等价类（纠缠传递性）
         const closure = entanglementClosure(entanglePairs);
@@ -343,24 +359,28 @@ export class SemanticAnalyzer {
             isWrite: a.isWrite,
             digest: makeDigest(a.tid),
             destructiveQubits: new Set<string>(),
+            line: a.line,
+            column: a.column,
         }));
         const quantumAccesses: Access[] = quantum.map(a => ({
             variable: a.variable,
             isWrite: a.isWrite,
             digest: makeDigest(a.tid),
             destructiveQubits: new Set(a.destructive),
+            line: a.line,
+            column: a.column,
         }));
 
         for (const r of detectRaces(classicAccesses)) {
             this.errors.push({
                 message: `Race Warning [Q-Digest]: shared '${r.variable}' accessed by '${r.threadA}' and '${r.threadB}' without a common lock (${r.reason}).`,
-                line: 0, column: 0, length: 1,
+                line: r.line, column: r.column, length: 1,
             });
         }
         for (const r of detectQuantumRaces(quantumAccesses)) {
             this.errors.push({
                 message: `Quantum Race [Q-Digest]: ${r.reason} (threads '${r.threadA}' vs '${r.threadB}').`,
-                line: 0, column: 0, length: 1,
+                line: r.line, column: r.column, length: 1,
             });
         }
     }
@@ -424,6 +444,20 @@ export class SemanticAnalyzer {
                 if (stmt.target.type === 'Dereference') {
                     this.visitExpression(stmt.target.target);
                     this.visitExpression(stmt.value);
+                    return;
+                }
+                // 晶格索引赋值：board[x, y] = v（元素类型需与值类型一致）
+                if (stmt.target.type === 'IndexExpression') {
+                    const elemType = this.visitExpression(stmt.target);
+                    const valType = this.visitExpression(stmt.value);
+                    if (elemType !== 'unknown' && valType !== 'unknown' && elemType !== valType) {
+                        this.errors.push({
+                            message: `Type Error: Cannot assign '${valType}' to lattice element of type '${elemType}'.`,
+                            line: stmt.line,
+                            column: stmt.column,
+                            length: 1
+                        });
+                    }
                     return;
                 }
                 const objType = this.visitExpression((stmt.target as MemberExpression).object);
@@ -784,6 +818,39 @@ export class SemanticAnalyzer {
                 return 'QObject';
             }
 
+            // 晶格内省：lattice_rank / lattice_size / lattice_boundary -> int32
+            if (expr.name === 'lattice_rank' || expr.name === 'lattice_size' || expr.name === 'lattice_boundary') {
+                expr.arguments.forEach(a => this.visitExpression(a));
+                return 'int32';
+            }
+
+            // 经典 GUI（cgui_*）返回 int32 的内建
+            if (expr.name === 'cgui_init' || expr.name === 'cgui_should_close' ||
+                expr.name === 'cgui_button' || expr.name === 'cgui_mouse_x' ||
+                expr.name === 'cgui_mouse_y' || expr.name === 'cgui_mouse_left_clicked' ||
+                expr.name === 'cgui_width' || expr.name === 'cgui_height') {
+                expr.arguments.forEach(a => this.visitExpression(a));
+                return 'int32';
+            }
+
+            // 经典 GUI / 图形引擎返回 void 的内建
+            if (expr.name === 'cgui_begin_frame' || expr.name === 'cgui_end_frame' ||
+                expr.name === 'cgui_text' || expr.name === 'cgui_text_int' ||
+                expr.name === 'cgui_beep' || expr.name === 'cgui_panel' ||
+                expr.name === 'cgui_panel_end' || expr.name === 'cgui_row' ||
+                expr.name === 'cgfx_rect' ||
+                expr.name === 'cgfx_line' || expr.name === 'cgfx_ellipse' ||
+                expr.name === 'cgfx_triangle' || expr.name === 'cgfx_rect_a' ||
+                expr.name === 'cgfx_line_a' || expr.name === 'cgfx_ellipse_a' ||
+                expr.name === 'cgfx_triangle_a') {
+                expr.arguments.forEach(a => this.visitExpression(a));
+                return 'void';
+            }
+
+
+
+
+
             if (expr.name === 'h' || expr.name === 'x') {
                 this.checkQubitArgs(expr, 1);
                 return 'void';
@@ -951,6 +1018,79 @@ export class SemanticAnalyzer {
                 return 'string';
             }
 
+            // ─── QRC 量子储备池内置函数（DQNF 范式）──────────────
+            // QReservoir 是「固定随机电路 + 线性读出」的储备池资源，
+            // 不是线性类型（可共享、可复用），储备池内部 qubit 的线性语义
+            // 由运行时（QVM 的 expectation_z 非破坏观测）保证。
+            if (expr.name === 'qrc_new') {
+                if (expr.arguments.length !== 2) {
+                    this.errors.push({
+                        message: `Signature Error: 'qrc_new' expects 2 arguments (qubits: int32, layers: int32).`,
+                        line: expr.line, column: expr.column, length: expr.length
+                    });
+                } else {
+                    expr.arguments.forEach(a => this.visitExpression(a));
+                }
+                return 'QReservoir';
+            }
+
+            if (expr.name === 'qrc_train') {
+                if (expr.arguments.length !== 3) {
+                    this.errors.push({
+                        message: `Signature Error: 'qrc_train' expects 3 arguments (res: QReservoir, epochs: int32, lr: double).`,
+                        line: expr.line, column: expr.column, length: expr.length
+                    });
+                } else {
+                    const arg0Type = this.visitExpression(expr.arguments[0]);
+                    if (arg0Type !== 'QReservoir' && arg0Type !== 'unknown') {
+                        this.errors.push({
+                            message: `Type Error: First argument of 'qrc_train' must be QReservoir, got '${arg0Type}'.`,
+                            line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length
+                        });
+                    }
+                    this.visitExpression(expr.arguments[1]);
+                    this.visitExpression(expr.arguments[2]);
+                }
+                return 'void';
+            }
+
+            if (expr.name === 'qrc_probe' || expr.name === 'qrc_predict') {
+                if (expr.arguments.length !== 2) {
+                    this.errors.push({
+                        message: `Signature Error: '${expr.name}' expects 2 arguments (res: QReservoir, data: QObject).`,
+                        line: expr.line, column: expr.column, length: expr.length
+                    });
+                } else {
+                    const arg0Type = this.visitExpression(expr.arguments[0]);
+                    if (arg0Type !== 'QReservoir' && arg0Type !== 'unknown') {
+                        this.errors.push({
+                            message: `Type Error: First argument of '${expr.name}' must be QReservoir, got '${arg0Type}'.`,
+                            line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length
+                        });
+                    }
+                    this.visitExpression(expr.arguments[1]);
+                }
+                return 'QObject';
+            }
+
+            if (expr.name === 'qrc_release') {
+                if (expr.arguments.length !== 1) {
+                    this.errors.push({
+                        message: `Signature Error: 'qrc_release' expects 1 argument (res: QReservoir).`,
+                        line: expr.line, column: expr.column, length: expr.length
+                    });
+                } else {
+                    const arg0Type = this.visitExpression(expr.arguments[0]);
+                    if (arg0Type !== 'QReservoir' && arg0Type !== 'unknown') {
+                        this.errors.push({
+                            message: `Type Error: First argument of 'qrc_release' must be QReservoir, got '${arg0Type}'.`,
+                            line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length
+                        });
+                    }
+                }
+                return 'void';
+            }
+
             if (expr.name === 'mind_read') {
                 if (expr.arguments.length !== 1) {
                     this.errors.push({
@@ -1029,6 +1169,146 @@ export class SemanticAnalyzer {
                     }
                 }
                 return 'void';
+            }
+
+            // ─── QChain 量子区块链内置函数 ──────────────────────────
+            if (expr.name === 'qchain_wallet') {
+                return 'string';
+            }
+            if (expr.name === 'qchain_balance') {
+                if (expr.arguments.length !== 1) {
+                    this.errors.push({
+                        message: `Signature Error: 'qchain_balance' expects 1 argument (address: string).`,
+                        line: expr.line, column: expr.column, length: expr.length
+                    });
+                } else {
+                    const t = this.visitExpression(expr.arguments[0]);
+                    if (t !== 'string' && t !== 'unknown') {
+                        this.errors.push({ message: `Type Error: 'qchain_balance' expects a string address, got '${t}'.`, line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length });
+                    }
+                }
+                return 'uint64';
+            }
+            if (expr.name === 'qchain_mint') {
+                if (expr.arguments.length !== 2) {
+                    this.errors.push({ message: `Signature Error: 'qchain_mint' expects 2 arguments (address: string, amount: uint64).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    this.visitExpression(expr.arguments[0]);
+                    this.visitExpression(expr.arguments[1]);
+                }
+                return 'void';
+            }
+            if (expr.name === 'qchain_transfer') {
+                if (expr.arguments.length !== 3) {
+                    this.errors.push({ message: `Signature Error: 'qchain_transfer' expects 3 arguments (from: string, to: string, amount: uint64).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    this.visitExpression(expr.arguments[0]);
+                    this.visitExpression(expr.arguments[1]);
+                    this.visitExpression(expr.arguments[2]);
+                }
+                return 'int32';
+            }
+            if (expr.name === 'qchain_mine' || expr.name === 'qchain_height' || expr.name === 'qchain_verify') {
+                return 'int32';
+            }
+            if (expr.name === 'qchain_qkd') {
+                if (expr.arguments.length !== 1) {
+                    this.errors.push({ message: `Signature Error: 'qchain_qkd' expects 1 argument (rounds: int32).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    this.visitExpression(expr.arguments[0]);
+                }
+                return 'string';
+            }
+            if (expr.name === 'qchain_qdba') {
+                if (expr.arguments.length !== 1) {
+                    this.errors.push({ message: `Signature Error: 'qchain_qdba' expects 1 argument (parties: int32).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    this.visitExpression(expr.arguments[0]);
+                }
+                return 'int32';
+            }
+            if (expr.name === 'qchain_coin_mint') {
+                if (expr.arguments.length !== 1) {
+                    this.errors.push({ message: `Signature Error: 'qchain_coin_mint' expects 1 argument (qubits: int32).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    this.visitExpression(expr.arguments[0]);
+                }
+                return 'QObject';
+            }
+            if (expr.name === 'qchain_coin_verify') {
+                if (expr.arguments.length !== 1) {
+                    this.errors.push({ message: `Signature Error: 'qchain_coin_verify' expects 1 argument (coin: QObject).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    const t = this.visitExpression(expr.arguments[0]);
+                    if (t !== 'QObject' && t !== 'unknown') {
+                        this.errors.push({ message: `Type Error: 'qchain_coin_verify' expects a QObject coin, got '${t}'.`, line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length });
+                    }
+                }
+                return 'int32';
+            }
+
+            // ─── QChain 密码原语 / 抗超时空 / 时空加密 ──────────────
+            if (expr.name === 'qchain_sha3' || expr.name === 'qchain_hash_unicode' ||
+                expr.name === 'qchain_sign' || expr.name === 'qchain_sign_pubkey') {
+                if (expr.name === 'qchain_sign_pubkey') {
+                    return 'string';
+                }
+                if (expr.arguments.length !== 1) {
+                    this.errors.push({ message: `Signature Error: '${expr.name}' expects 1 argument (msg: string).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    const t = this.visitExpression(expr.arguments[0]);
+                    if (t !== 'string' && t !== 'unknown') {
+                        this.errors.push({ message: `Type Error: '${expr.name}' expects a string message, got '${t}'.`, line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length });
+                    }
+                }
+                return 'string';
+            }
+            if (expr.name === 'qchain_hmac') {
+                if (expr.arguments.length !== 2) {
+                    this.errors.push({ message: `Signature Error: 'qchain_hmac' expects 2 arguments (key: string, msg: string).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    this.visitExpression(expr.arguments[0]);
+                    this.visitExpression(expr.arguments[1]);
+                }
+                return 'string';
+            }
+            if (expr.name === 'qchain_sign_verify') {
+                if (expr.arguments.length !== 2) {
+                    this.errors.push({ message: `Signature Error: 'qchain_sign_verify' expects 2 arguments (msg: string, sig: string).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    this.visitExpression(expr.arguments[0]);
+                    this.visitExpression(expr.arguments[1]);
+                }
+                return 'int32';
+            }
+            if (expr.name === 'qchain_mlkem_encaps') {
+                if (expr.arguments.length !== 1) {
+                    this.errors.push({ message: `Signature Error: 'qchain_mlkem_encaps' expects 1 argument (pk: string).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    this.visitExpression(expr.arguments[0]);
+                }
+                return 'string';
+            }
+            if (expr.name === 'qchain_mlkem_decaps') {
+                if (expr.arguments.length !== 2) {
+                    this.errors.push({ message: `Signature Error: 'qchain_mlkem_decaps' expects 2 arguments (sk: string, ct: string).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    this.visitExpression(expr.arguments[0]);
+                    this.visitExpression(expr.arguments[1]);
+                }
+                return 'string';
+            }
+            if (expr.name === 'qchain_causal_verify') {
+                return 'int32';
+            }
+            if (expr.name === 'qchain_cipher_encrypt' || expr.name === 'qchain_cipher_decrypt') {
+                if (expr.arguments.length !== 2) {
+                    this.errors.push({ message: `Signature Error: '${expr.name}' expects 2 arguments (seed: uint64, data: string).`, line: expr.line, column: expr.column, length: expr.length });
+                } else {
+                    this.visitExpression(expr.arguments[0]);
+                    this.visitExpression(expr.arguments[1]);
+                }
+                return 'string';
             }
 
             // QCOS syscall ABI（通用 syscall 入口 + 控制台）
@@ -1127,6 +1407,13 @@ export class SemanticAnalyzer {
                 }
                 expr.arguments.forEach(a => this.visitExpression(a));
                 return 'double';
+            }
+
+            // 外部 C 符号调用（extern 声明）
+            const externSig = this.externSigs.get(expr.name);
+            if (externSig) {
+                expr.arguments.forEach(a => this.visitExpression(a));
+                return externSig.ret;
             }
 
             // 函数变量调用（lambda / 高阶函数）
@@ -1230,9 +1517,34 @@ export class SemanticAnalyzer {
             return t;
         }
 
+        if (expr.type === 'IndexExpression') {
+            const objType = this.visitExpression(expr.object);
+            expr.indices.forEach(i => this.visitExpression(i));
+            if (objType.startsWith('lattice<')) {
+                const inner = objType.slice('lattice<'.length, -1);
+                return inner.split(',')[0].trim();
+            }
+            this.errors.push({
+                message: `Type Error: Indexing requires a lattice, got '${objType}'.`,
+                line: expr.line,
+                column: expr.column,
+                length: expr.length
+            });
+            return 'unknown';
+        }
+
         if (expr.type === 'NewExpression') {
+            if (expr.className === 'QReservoir') {
+                expr.arguments.forEach(a => this.visitExpression(a));
+                return 'QReservoir';
+            }
             if (expr.className === 'BellState' || expr.className === 'DiracState' || expr.className === 'QuantumRegister') {
                 return 'QObject';
+            }
+            // 晶格构造：new/make lattice<T, B>(...) -> lattice<T, B>
+            if (expr.className.startsWith('lattice<')) {
+                expr.arguments.forEach(a => this.visitExpression(a));
+                return expr.className;
             }
             const base = expr.className.split('<')[0];
             if (this.forms.has(base)) {

@@ -77,6 +77,9 @@ The following third-party components are distributed under their own licenses.
 | LLVM | Apache-2.0 WITH LLVM-exception |
 | Kokkos | BSD-3-Clause（部分捆绑组件遵循各自宽松许可证） |
 | Vulkan SDK / Vulkan-Headers | Apache-2.0（The Khronos Group Inc.） |
+| pq-crystals Kyber（ML-KEM-768） | Public Domain / CC0（`runtime/include/qchain/primitives/ml_kem.hpp` 移植自 pq-crystals/kyber 参考实现） |
+| pq-crystals Dilithium（ML-DSA-65） | Public Domain / CC0（`runtime/include/qchain/primitives/ml_dsa.hpp` 移植自 pq-crystals/dilithium 参考实现） |
+| tiny_sha3（Keccak-f[1600]） | Public Domain（`runtime/include/qchain/primitives/sha3.hpp` 参考公有领域 tiny_sha3 实现） |
 
 ## vendored 库 Vendored libraries
 
@@ -84,6 +87,7 @@ The following third-party components are distributed under their own licenses.
 | --- | --- | --- |
 | GLFW | `vendor/GLFW/` | zlib/libpng License（版权：Marcus Geelnard、Camilla Löwy，详见 `vendor/GLFW/LICENSE.md`） |
 | Nuklear | `vendor/Nuklear/` | MIT 或 Unlicense（公共领域）双许可，任选其一（版权：Micha Mettke，详见 `vendor/Nuklear/LICENSE`） |
+| Unicode Unihan 数据库（汉字拼音数据） | `vendor/pinyin/` | Unicode License v3（版权：Unicode, Inc.，详见 `vendor/pinyin/LICENSE`） |
 
 ## 构建工具 Build tools（可选 Optional）
 

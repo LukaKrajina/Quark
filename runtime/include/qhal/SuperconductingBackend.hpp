@@ -1,5 +1,6 @@
 #pragma once
 #include "IQuantumBackend.hpp"
+#include "IdealStateCore.hpp"
 #include <cstddef>
 #include <iostream>
 #include <vector>
@@ -50,36 +51,6 @@ namespace qhal
         std::vector<std::complex<double>> envelope_iq;
     };
 
-    struct MLStateClassifier
-    {
-    private:
-        const double SVM_WEIGHT_I = 0.5;
-        const double SVM_WEIGHT_Q = -0.35;
-        const double SVM_BIAS = -0.12;
-
-    public:
-        int predict(const std::vector<std::complex<double>> &trajectory)
-        {
-            if (trajectory.empty())
-                return 0;
-            double sum_i = 0.0;
-            double sum_q = 0.0;
-
-            for (const auto &sample : trajectory)
-            {
-                sum_i += sample.real();
-                sum_q += sample.imag();
-            }
-
-            double avg_i = sum_i / trajectory.size();
-            double avg_q = sum_q / trajectory.size();
-
-            double decision_value = (avg_i * SVM_WEIGHT_I) + (avg_q * SVM_WEIGHT_Q) + SVM_BIAS;
-
-            return (decision_value > 0.0) ? 1 : 0;
-        }
-    };
-
     class SuperconductingBackend : public IQuantumBackend
     {
     private:
@@ -101,7 +72,7 @@ namespace qhal
         const double ANHARMONICITY_GHZ = -0.3;
         const double PI = M_PI;
 
-        MLStateClassifier ml_classifier;
+        IdealStateCore ideal_;  // 理想态矢量参考（Born 规则坍缩语义）
 
 #if HARDWARE_HOST_MODE == 0
         void Network_SendPayload(const std::string &ip, int port, const MicrowavePulse &pulse)
@@ -278,20 +249,71 @@ namespace qhal
             }
         }
 
+        // ─── 脉冲层：仅产生物理副作用（微波脉冲 / NCO 相位），不更新理想态 ───
+        void pulse_x(size_t qubit_id)
+        {
+            MicrowavePulse x_pulse = synthesize_drag_pulse(1.0, 20.0);
+            dispatch_to_fpga(x_pulse);
+        }
+
+        void pulse_h(size_t qubit_id)
+        {
+            MicrowavePulse h_pulse = synthesize_drag_pulse(0.5, 20.0); // π/2 脉冲
+            dispatch_to_fpga(h_pulse);
+        }
+
+        void pulse_rz(size_t qubit_id, double angle)
+        {
+            update_nco_phase(qubit_id, angle);
+        }
+
         void apply_ecr(size_t control, size_t target)
         {
             MicrowavePulse cr_pos = synthesize_drag_pulse(0.5, 100.0);
             dispatch_to_fpga(cr_pos);
-            apply_x(control);
+            pulse_x(control);
             MicrowavePulse cr_neg = synthesize_drag_pulse(-0.5, 100.0);
             dispatch_to_fpga(cr_neg);
-            apply_x(control);
+            pulse_x(control);
+        }
+
+        void pulse_cnot(size_t control, size_t target)
+        {
+            pulse_rz(control, -PI / 2);
+            pulse_x(target);
+            apply_ecr(control, target);
+            pulse_x(target);
+        }
+
+        void pulse_toffoli(size_t control1, size_t control2, size_t target)
+        {
+            pulse_rz(target, PI / 4);
+            pulse_cnot(control2, target);
+            pulse_rz(target, -PI / 4);
+            pulse_cnot(control1, target);
+            pulse_rz(target, PI / 4);
+            pulse_cnot(control2, target);
+            pulse_rz(target, -PI / 4);
+            pulse_cnot(control1, target);
+            pulse_rz(control2, PI / 4);
+            pulse_cnot(control1, control2);
+            pulse_rz(control1, PI / 4);
+            pulse_rz(control2, -PI / 4);
+            pulse_cnot(control1, control2);
+        }
+
+        // ─── 阶段 B：硬件噪声注入（测量前，理想态 → 噪声态）───────────
+        // T1 振幅弛豫 + T2 相位去相干。量级为示意值，可由硬件标定替换。
+        void inject_measurement_noise(size_t qubit_id)
+        {
+            ideal_.apply_amplitude_damping(qubit_id, 0.02); // T1
+            ideal_.apply_phase_flip(qubit_id, 0.01);        // T2
         }
 
     public:
         SuperconductingBackend()
         {
-#if HEADWARE_HOST_MODE && HAS_POSIX_MMAP
+#if HARDWARE_HOST_MODE && HAS_POSIX_MMAP
             dma_fd = open("/dev/udmabuf0", O_RDWR | O_SYNC);
             if (dma_fd >= 0)
             {
@@ -329,6 +351,7 @@ namespace qhal
             virtual_z_phases.resize(num_qubits, 0.0);
             is_qubit_allocated.resize(num_qubits, true);
             is_qubit_locked.resize(num_qubits, false);
+            ideal_.allocate(num_qubits);
         }
 
         void release_qubit(size_t qubit_id) override 
@@ -357,48 +380,40 @@ namespace qhal
         {
             MicrowavePulse readout_pulse = synthesize_drag_pulse(1.0, 500.0);
             dispatch_to_fpga(readout_pulse);
-            std::vector<std::complex<double>> adc_trajectory = fetch_adc_buffer(500);
-            int classified_state = ml_classifier.predict(adc_trajectory);
-
-            return classified_state;
+            inject_measurement_noise(qubit_id);
+            return ideal_.measure(qubit_id);
         }
 
         void apply_x(size_t qubit_id) override
         {
-            MicrowavePulse x_pulse = synthesize_drag_pulse(1.0, 20.0);
-            dispatch_to_fpga(x_pulse);
+            pulse_x(qubit_id);
+            ideal_.apply_x(qubit_id);
+        }
+
+        void apply_h(size_t qubit_id) override
+        {
+            pulse_h(qubit_id);
+            ideal_.apply_h(qubit_id);
         }
 
         void apply_rz(size_t qubit_id, double angle) override
         {
             // Z-gates are typically implemented virtually in software by shifting the reference frame
-            // of the FPGA numerically controlled oscillator (NCO) phases. 
-            update_nco_phase(qubit_id, angle);
+            // of the FPGA numerically controlled oscillator (NCO) phases.
+            pulse_rz(qubit_id, angle);
+            ideal_.apply_rz(qubit_id, angle);
         }
 
         void apply_cnot(size_t control, size_t target) override
         {
-            apply_rz(control, -PI / 2);
-            apply_x(target);
-            apply_ecr(control, target);
-            apply_x(target);
+            pulse_cnot(control, target);
+            ideal_.apply_cnot(control, target);
         }
 
         void apply_toffoli(size_t control1, size_t control2, size_t target) override
         {
-            apply_rz(target, PI / 4);
-            apply_cnot(control2, target);
-            apply_rz(target, -PI / 4);
-            apply_cnot(control1, target);
-            apply_rz(target, PI / 4);
-            apply_cnot(control2, target);
-            apply_rz(target, -PI / 4);
-            apply_cnot(control1, target);
-            apply_rz(control2, PI / 4);
-            apply_cnot(control1, control2);
-            apply_rz(control1, PI / 4);
-            apply_rz(control2, -PI / 4);
-            apply_cnot(control1, control2);
+            pulse_toffoli(control1, control2, target);
+            ideal_.apply_toffoli(control1, control2, target);
         }
     };
 }

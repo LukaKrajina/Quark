@@ -142,13 +142,15 @@ N_t = exp(-0.1·t)（lapse 衰减函数）
 
 ### 4.2 自然梯度（QNG）
 
-使用对角 **Fubini-Study 度量**（`fs_metric_diagonal`）：
+使用对角 **Fubini-Study 度量**（`estimate_fs_diagonal`）：
 
 ```
-g_ii = 0.25 · N_t²        （单 qubit RZ 门无纠缠段为 1/4）
+g_ii = 0.25 · (1 - ⟨Z_q⟩²)   （RZ 门的 Fubini-Study 对角元，q 为参数 i 作用的 qubit）
 natural_grad_i = grad_i / g_ii
 θ_i -= lr · natural_grad_i
 ```
+
+无纠缠时该式精确；有纠缠后为对角近似，仍比旧的硬编码 `0.25·N_t²` 更贴合真实度量。
 
 ### 4.3 差分隐私（QDP）
 

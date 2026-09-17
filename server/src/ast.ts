@@ -175,6 +175,7 @@ export type Expression =
     | FunctionCall
     | NewExpression
     | MemberExpression
+    | IndexExpression
     | BinaryExpression
     | LogicalExpression
     | UnaryExpression
@@ -269,6 +270,18 @@ export interface MemberExpression extends ASTNode {
     arguments: Expression[];
 }
 
+/**
+ * 晶格索引：board[x, y] —— 对 lattice 的多维下标访问。
+ * object 是 lattice 表达式，indices 是各维下标。
+ * 作为表达式求值（读取元素）；作为赋值目标（AssignmentStatement.target）时写入。
+ * 命名源自晶格（lattice）的格点坐标。
+ */
+export interface IndexExpression extends ASTNode {
+    type: 'IndexExpression';
+    object: Expression;
+    indices: Expression[];
+}
+
 export type Item =
     | ModuleDecl
     | UseDecl
@@ -278,7 +291,8 @@ export type Item =
     | TraitDecl
     | TemplateDecl
     | ImportDecl
-    | RequiresDecl;
+    | RequiresDecl
+    | ExternDecl;
 
 export interface Param {
     name: string;
@@ -379,6 +393,18 @@ export interface RequiresDecl extends ASTNode {
     permission: string;
 }
 
+/**
+ * 外部 C 符号声明（FFI）：extern <ret> <name>(<params>);
+ * 声明一个由原生库（dlopen 加载）提供的外部函数，qk 代码可直接调用。
+ * 用于把「库」（如 SteamSDK_qk）解耦为独立项目 + 原生动态库。
+ */
+export interface ExternDecl extends ASTNode {
+    type: 'ExternDecl';
+    returnType: string;
+    name: string;
+    params: Param[];
+}
+
 export interface FunctionDeclaration extends ASTNode {
     type: 'FunctionDeclaration';
     returnType: string;
@@ -403,6 +429,8 @@ export interface FunctionAttribute {
 export interface ReturnStatement extends ASTNode {
     type: 'ReturnStatement';
     argument: Expression;
+    /** void 函数空返回 return; */
+    isVoid?: boolean;
 }
 
 /**

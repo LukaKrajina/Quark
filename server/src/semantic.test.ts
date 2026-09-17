@@ -42,3 +42,65 @@ test('semantic: while condition must be boolean/numeric', () => {
     const a = analyze('while ("string") { int32 i = 1; }');
     assert.ok(a.errors.some(e => e.message.includes('while condition')));
 });
+
+// ─── QChain 量子区块链内置函数 ──────────────────────────────────────
+test('semantic: qchain_wallet returns string', () => {
+    const a = analyze('string w = qchain_wallet();');
+    assert.strictEqual(a.errors.length, 0);
+});
+
+test('semantic: qchain_balance expects string address', () => {
+    const a = analyze('uint64 b = qchain_balance("addr");');
+    assert.strictEqual(a.errors.length, 0);
+});
+
+test('semantic: qchain_mint with wrong arg count is flagged', () => {
+    const a = analyze('qchain_mint();');
+    assert.ok(a.errors.some(e => e.message.includes('qchain_mint')));
+});
+
+test('semantic: qchain_transfer returns int32', () => {
+    const a = analyze('int32 ok = qchain_transfer("a", "b", 100);');
+    assert.strictEqual(a.errors.length, 0);
+});
+
+test('semantic: qchain_coin_mint returns QObject, verify takes QObject', () => {
+    const a = analyze('QObject c = qchain_coin_mint(8);\nint32 ok = qchain_coin_verify(c);');
+    assert.strictEqual(a.errors.length, 0);
+});
+
+test('semantic: qchain_coin_verify with non-QObject is flagged', () => {
+    const a = analyze('int32 ok = qchain_coin_verify(42);');
+    assert.ok(a.errors.some(e => e.message.includes('qchain_coin_verify')));
+});
+
+// ─── QChain 密码原语 / 抗超时空 / 时空加密 ──────────────────────
+test('semantic: qchain_sha3 returns string', () => {
+    const a = analyze('string h = qchain_sha3("abc");');
+    assert.strictEqual(a.errors.length, 0);
+});
+
+test('semantic: qchain_hmac expects 2 args', () => {
+    const a = analyze('string h = qchain_hmac("key", "msg");');
+    assert.strictEqual(a.errors.length, 0);
+});
+
+test('semantic: qchain_sign and sign_verify', () => {
+    const a = analyze('string s = qchain_sign("msg");\nint32 ok = qchain_sign_verify("msg", s);');
+    assert.strictEqual(a.errors.length, 0);
+});
+
+test('semantic: qchain_mlkem_encaps returns string', () => {
+    const a = analyze('string c = qchain_mlkem_encaps("pk");');
+    assert.strictEqual(a.errors.length, 0);
+});
+
+test('semantic: qchain_causal_verify returns int32', () => {
+    const a = analyze('int32 ok = qchain_causal_verify();');
+    assert.strictEqual(a.errors.length, 0);
+});
+
+test('semantic: qchain_cipher_encrypt returns string', () => {
+    const a = analyze('string c = qchain_cipher_encrypt(12345, "msg");');
+    assert.strictEqual(a.errors.length, 0);
+});

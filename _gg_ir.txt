@@ -1,0 +1,3187 @@
+﻿; ModuleID = 'quark_module'
+source_filename = "quark_script.qk"
+
+; --- QIR Standard Library ---
+%Qubit = type opaque
+%QObject = type opaque
+%QModel = type opaque
+; --- 晶格数组类型（lattice<T, B>，吸收 Futhark/Remora/Rust）---
+%Lattice = type opaque
+
+
+@.str.1 = private unnamed_addr constant [17 x i8] c"The Spirit of Go\00", align 1
+@.str.2 = private unnamed_addr constant [8 x i8] c"loading\00", align 1
+@.str.3 = private unnamed_addr constant [13 x i8] c"\e5\9b\b4\e6\a3\8b\e4\b9\8b\e7\81\b5\00", align 1
+@.str.4 = private unnamed_addr constant [11 x i8] c"Loading...\00", align 1
+@.str.5 = private unnamed_addr constant [4 x i8] c"hud\00", align 1
+@.str.6 = private unnamed_addr constant [38 x i8] c"The Spirit of Go  \e5\9b\b4\e6\a3\8b\e4\b9\8b\e7\81\b5 v0.3.0\00", align 1
+@.str.7 = private unnamed_addr constant [8 x i8] c"spirits\00", align 1
+@.str.8 = private unnamed_addr constant [13 x i8] c"\e9\80\89\e6\8b\a9\e5\bc\88\e7\81\b5\00", align 1
+@.str.9 = private unnamed_addr constant [15 x i8] c"\e7\9b\ae\e9\89\b4(\e5\85\89\e7\8e\af)\00", align 1
+@.str.10 = private unnamed_addr constant [15 x i8] c"\e5\8a\ab\e6\b8\a1(\e5\85\8d\e5\8a\ab)\00", align 1
+@.str.11 = private unnamed_addr constant [15 x i8] c"\e5\a4\a9\e5\85\83(\e5\bc\80\e5\b1\80)\00", align 1
+@.str.12 = private unnamed_addr constant [15 x i8] c"\e4\b8\80\e6\b0\94(\e6\bf\92\e6\ad\bb)\00", align 1
+@.str.13 = private unnamed_addr constant [15 x i8] c"\e8\99\9a\e5\bd\b1(\e8\99\9a\e5\ad\90)\00", align 1
+@.str.14 = private unnamed_addr constant [15 x i8] c"\e6\b0\94\e7\88\86(\e6\89\a9\e6\95\a3)\00", align 1
+@.str.15 = private unnamed_addr constant [15 x i8] c"\e5\b7\b2\e9\80\89: \e7\9b\ae\e9\89\b4\00", align 1
+@.str.16 = private unnamed_addr constant [15 x i8] c"\e5\b7\b2\e9\80\89: \e5\8a\ab\e6\b8\a1\00", align 1
+@.str.17 = private unnamed_addr constant [15 x i8] c"\e5\b7\b2\e9\80\89: \e5\a4\a9\e5\85\83\00", align 1
+@.str.18 = private unnamed_addr constant [15 x i8] c"\e5\b7\b2\e9\80\89: \e4\b8\80\e6\b0\94\00", align 1
+@.str.19 = private unnamed_addr constant [15 x i8] c"\e5\b7\b2\e9\80\89: \e8\99\9a\e5\bd\b1\00", align 1
+@.str.20 = private unnamed_addr constant [15 x i8] c"\e5\b7\b2\e9\80\89: \e6\b0\94\e7\88\86\00", align 1
+@.str.21 = private unnamed_addr constant [6 x i8] c"modes\00", align 1
+@.str.22 = private unnamed_addr constant [13 x i8] c"\e9\80\89\e6\8b\a9\e6\a8\a1\e5\bc\8f\00", align 1
+@.str.23 = private unnamed_addr constant [9 x i8] c"AI (PvE)\00", align 1
+@.str.24 = private unnamed_addr constant [12 x i8] c"Local (PvP)\00", align 1
+@.str.25 = private unnamed_addr constant [15 x i8] c"Online (Steam)\00", align 1
+@.str.26 = private unnamed_addr constant [1 x i8] c"\00", align 1
+@.str.27 = private unnamed_addr constant [7 x i8] c"\e8\ae\be\e7\bd\ae\00", align 1
+@.str.28 = private unnamed_addr constant [13 x i8] c"\e5\bc\88\e7\81\b5\e5\9b\be\e9\89\b4\00", align 1
+@.str.29 = private unnamed_addr constant [7 x i8] c"\e5\a4\8d\e7\9b\98\00", align 1
+@.str.30 = private unnamed_addr constant [5 x i8] c"quit\00", align 1
+@.str.31 = private unnamed_addr constant [5 x i8] c"Quit\00", align 1
+@.str.32 = private unnamed_addr constant [9 x i8] c"settings\00", align 1
+@.str.33 = private unnamed_addr constant [12 x i8] c"\e9\9f\b3\e6\95\88: \e5\bc\80\00", align 1
+@.str.34 = private unnamed_addr constant [12 x i8] c"\e9\9f\b3\e6\95\88: \e5\85\b3\00", align 1
+@.str.35 = private unnamed_addr constant [13 x i8] c"\e5\88\87\e6\8d\a2\e9\9f\b3\e6\95\88\00", align 1
+@.str.36 = private unnamed_addr constant [12 x i8] c"\e7\94\bb\e8\b4\a8: \e4\bd\8e\00", align 1
+@.str.37 = private unnamed_addr constant [12 x i8] c"\e7\94\bb\e8\b4\a8: \e4\b8\ad\00", align 1
+@.str.38 = private unnamed_addr constant [12 x i8] c"\e7\94\bb\e8\b4\a8: \e9\ab\98\00", align 1
+@.str.39 = private unnamed_addr constant [4 x i8] c"\e4\bd\8e\00", align 1
+@.str.40 = private unnamed_addr constant [4 x i8] c"\e4\b8\ad\00", align 1
+@.str.41 = private unnamed_addr constant [4 x i8] c"\e9\ab\98\00", align 1
+@.str.42 = private unnamed_addr constant [21 x i8] c"\e6\a3\8b\e7\9b\98\e4\b8\bb\e9\a2\98: \e6\9c\a8\e8\89\b2\00", align 1
+@.str.43 = private unnamed_addr constant [21 x i8] c"\e6\a3\8b\e7\9b\98\e4\b8\bb\e9\a2\98: \e6\b7\b1\e8\89\b2\00", align 1
+@.str.44 = private unnamed_addr constant [24 x i8] c"\e6\a3\8b\e7\9b\98\e4\b8\bb\e9\a2\98: \e9\87\8f\e5\ad\90\e8\93\9d\00", align 1
+@.str.45 = private unnamed_addr constant [7 x i8] c"\e6\9c\a8\e8\89\b2\00", align 1
+@.str.46 = private unnamed_addr constant [7 x i8] c"\e6\b7\b1\e8\89\b2\00", align 1
+@.str.47 = private unnamed_addr constant [10 x i8] c"\e9\87\8f\e5\ad\90\e8\93\9d\00", align 1
+@.str.48 = private unnamed_addr constant [14 x i8] c"\e6\a3\8b\e7\9b\98\e5\b0\ba\e5\af\b8:\00", align 1
+@.str.49 = private unnamed_addr constant [5 x i8] c"9\e8\b7\af\00", align 1
+@.str.50 = private unnamed_addr constant [6 x i8] c"13\e8\b7\af\00", align 1
+@.str.51 = private unnamed_addr constant [6 x i8] c"19\e8\b7\af\00", align 1
+@.str.52 = private unnamed_addr constant [27 x i8] c"AI \e7\b1\bb\e5\9e\8b: \e9\87\8f\e5\ad\90\e5\90\af\e5\8f\91\e5\bc\8f\00", align 1
+@.str.53 = private unnamed_addr constant [23 x i8] c"AI \e7\b1\bb\e5\9e\8b: \e9\87\8f\e5\ad\90 MCTS\00", align 1
+@.str.54 = private unnamed_addr constant [27 x i8] c"AI \e7\b1\bb\e5\9e\8b: \e7\bb\8f\e5\85\b8 DeepSeek\00", align 1
+@.str.55 = private unnamed_addr constant [13 x i8] c"\e9\87\8f\e5\ad\90\e5\90\af\e5\8f\91\00", align 1
+@.str.56 = private unnamed_addr constant [11 x i8] c"\e9\87\8f\e5\ad\90MCTS\00", align 1
+@.str.57 = private unnamed_addr constant [15 x i8] c"\e7\bb\8f\e5\85\b8DeepSeek\00", align 1
+@.str.58 = private unnamed_addr constant [18 x i8] c"\e7\aa\97\e5\8f\a3: \e8\87\aa\e9\80\82\e5\ba\94\00", align 1
+@.str.59 = private unnamed_addr constant [12 x i8] c"\e7\aa\97\e5\8f\a3: \e5\b0\8f\00", align 1
+@.str.60 = private unnamed_addr constant [12 x i8] c"\e7\aa\97\e5\8f\a3: \e4\b8\ad\00", align 1
+@.str.61 = private unnamed_addr constant [12 x i8] c"\e7\aa\97\e5\8f\a3: \e5\a4\a7\00", align 1
+@.str.62 = private unnamed_addr constant [10 x i8] c"\e8\87\aa\e9\80\82\e5\ba\94\00", align 1
+@.str.63 = private unnamed_addr constant [4 x i8] c"\e5\b0\8f\00", align 1
+@.str.64 = private unnamed_addr constant [4 x i8] c"\e5\a4\a7\00", align 1
+@.str.65 = private unnamed_addr constant [7 x i8] c"\e8\bf\94\e5\9b\9e\00", align 1
+@.str.66 = private unnamed_addr constant [4 x i8] c"dex\00", align 1
+@.str.67 = private unnamed_addr constant [46 x i8] c"\e7\9b\ae\e9\89\b4\ef\bc\9a\e7\bb\88\e5\b1\80\e6\98\be\e5\8f\8c\e6\96\b9\e7\9b\ae\e6\95\b0\e5\b7\ae\ef\bc\88\e6\8f\90\e7\a4\ba\ef\bc\89\00", align 1
+@.str.68 = private unnamed_addr constant [46 x i8] c"\e5\8a\ab\e6\b8\a1\ef\bc\9a\e4\b8\bb\e5\8a\a8\e5\85\8d\e9\99\a4\e4\b8\80\e6\ac\a1\e5\8a\ab\e4\ba\89\e5\9b\9e\e6\8f\90\e7\a6\81\e4\bb\a4\00", align 1
+@.str.69 = private unnamed_addr constant [46 x i8] c"\e5\a4\a9\e5\85\83\ef\bc\9a\e5\bc\80\e5\b1\80\e8\87\aa\e5\8a\a8\e5\8d\a0\e6\8d\ae\e5\a4\a9\e5\85\83\ef\bc\88\e8\a2\ab\e5\8a\a8\ef\bc\89\00", align 1
+@.str.70 = private unnamed_addr constant [46 x i8] c"\e4\b8\80\e6\b0\94\ef\bc\9a\e6\bf\92\e6\ad\bb\e6\97\b6\e6\98\be\e5\b7\b1\e6\96\b9\e6\b0\94\e6\95\b0\ef\bc\88\e8\a2\ab\e5\8a\a8\ef\bc\89\00", align 1
+@.str.71 = private unnamed_addr constant [43 x i8] c"\e8\99\9a\e5\bd\b1\ef\bc\9a\e8\90\bd\e5\ad\90\e5\90\8e\e7\94\9f\e6\88\90\e8\99\9a\e5\ad\90\e8\bf\b7\e6\83\91\e5\af\b9\e6\89\8b\00", align 1
+@.str.72 = private unnamed_addr constant [43 x i8] c"\e6\b0\94\e7\88\86\ef\bc\9a\e6\98\be\e6\9f\90\e7\82\b9\e5\9b\9b\e9\82\bb\e6\b0\94\e6\95\b0\ef\bc\88\e6\8f\90\e7\a4\ba\ef\bc\89\00", align 1
+@.str.73 = private unnamed_addr constant [13 x i8] c"\e8\81\94\e6\9c\ba\e5\a4\a7\e5\8e\85\00", align 1
+@.str.74 = private unnamed_addr constant [6 x i8] c"lobby\00", align 1
+@.str.75 = private unnamed_addr constant [13 x i8] c"\e5\88\9b\e5\bb\ba\e6\88\bf\e9\97\b4\00", align 1
+@.str.76 = private unnamed_addr constant [14 x i8] c"\e6\88\bf\e9\97\b4\e5\88\97\e8\a1\a8:\00", align 1
+@.str.77 = private unnamed_addr constant [19 x i8] c"\e6\88\bf\e9\97\b4 #1001 (1/2)\00", align 1
+@.str.78 = private unnamed_addr constant [19 x i8] c"\e6\88\bf\e9\97\b4 #1002 (2/2)\00", align 1
+@.str.79 = private unnamed_addr constant [19 x i8] c"\e6\88\bf\e9\97\b4 #1003 (1/2)\00", align 1
+@.str.80 = private unnamed_addr constant [8 x i8] c"\e8\a7\82\e6\88\98:\00", align 1
+@.str.81 = private unnamed_addr constant [12 x i8] c"\e8\a7\82\e6\88\98#1001\00", align 1
+@.str.82 = private unnamed_addr constant [12 x i8] c"\e8\a7\82\e6\88\98#1002\00", align 1
+@.str.83 = private unnamed_addr constant [12 x i8] c"\e8\a7\82\e6\88\98#1003\00", align 1
+@.str.84 = private unnamed_addr constant [22 x i8] c"\e8\a7\82\e6\88\98 - \e6\88\bf\e9\97\b4 #1001\00", align 1
+@.str.85 = private unnamed_addr constant [10 x i8] c"ob-bottom\00", align 1
+@.str.86 = private unnamed_addr constant [13 x i8] c"\e9\80\80\e5\87\ba\e8\a7\82\e6\88\98\00", align 1
+@.str.87 = private unnamed_addr constant [11 x i8] c"rep-bottom\00", align 1
+@.str.88 = private unnamed_addr constant [10 x i8] c"\e4\b8\8a\e4\b8\80\e6\89\8b\00", align 1
+@.str.89 = private unnamed_addr constant [10 x i8] c"\e4\b8\8b\e4\b8\80\e6\89\8b\00", align 1
+@.str.90 = private unnamed_addr constant [13 x i8] c"\e8\87\aa\e5\8a\a8\e6\92\ad\e6\94\be\00", align 1
+@.str.91 = private unnamed_addr constant [13 x i8] c"\e9\bb\91\e6\96\b9\e8\a1\8c\e6\a3\8b\00", align 1
+@.str.92 = private unnamed_addr constant [13 x i8] c"\e7\99\bd\e6\96\b9\e8\a1\8c\e6\a3\8b\00", align 1
+@.str.93 = private unnamed_addr constant [16 x i8] c"AI \e6\80\9d\e8\80\83\e4\b8\ad...\00", align 1
+@.str.94 = private unnamed_addr constant [7 x i8] c"bottom\00", align 1
+@.str.95 = private unnamed_addr constant [5 x i8] c"Pass\00", align 1
+@.str.96 = private unnamed_addr constant [10 x i8] c"Use Skill\00", align 1
+@.str.97 = private unnamed_addr constant [7 x i8] c"Resign\00", align 1
+@.str.98 = private unnamed_addr constant [5 x i8] c"Back\00", align 1
+
+declare %QObject* @qk_create_DiracState(i32)
+declare %QObject* @qk_create_BellState()
+declare %QObject* @qk_create_QuantumRegister(i32)
+declare %QObject* @qk_create_basis_state(double, double, i32)
+declare %Qubit* @__quantum__rt__qubit_allocate()
+declare void @__quantum__rt__qubit_release(%Qubit*)
+declare i32 @__quantum__qis__measure_int(%Qubit*)
+
+; --- 扩展量子门（论文3 Hadamard/QFT/MUB + 论文5 Yang-Baxter braid）---
+declare void @__quantum__qis__h(%Qubit*)
+declare void @__quantum__qis__x(%Qubit*)
+declare void @__quantum__qis__rz(double, %Qubit*)
+declare void @__quantum__qis__cnot(%Qubit*, %Qubit*)
+declare void @__quantum__qis__toffoli(%Qubit*, %Qubit*, %Qubit*)
+declare void @__quantum__qis__swap(%Qubit*, %Qubit*)
+declare void @__quantum__qis__qft(i32)
+declare void @__quantum__qis__braid(%Qubit*, %Qubit*)
+declare i32 @__quantum__qis__measure_basis(%Qubit*, i8)
+declare i32 @qk_measure_object(%QObject*)
+declare %QObject* @qk_extract_qubit(%QObject*, i32)
+declare void @qk_release_object(%QObject*)
+
+; --- QML&QKM Native Trampolines ---
+declare %QObject* @qk_encode_text(i8*)
+declare %QModel* @qk_qlm_invoke(%QObject*, i32, double)
+declare void @qk_qkm_export(%QModel*, i8*)
+
+; --- Quark AI Standard Library ABI ---
+declare %QModel* @qk_qlm_load(i8*)
+declare void @qk_qlm_forward(%QModel*, %QObject*)
+declare %QObject* @qk_encode_string(i8*)
+declare i8* @qk_decode_string(%QObject*)
+
+; --- QBNS Mind-Controlled Programming Trampolines ---
+declare %QObject* @qk_mind_read(i8*)
+declare void @qk_mind_train(%QObject*, i32, double)
+declare void @qk_mind_feedback(%QObject*)
+
+; --- VedaROS QLM Trampolines ---
+declare void @qk_veda_qlm_train(%QObject*, i32, double)
+
+; --- Other ---
+declare double @qk_surrogate(double, double, double)
+declare double @qk_tanh_quantize(double, double, i32)
+declare double @qk_lif_step(double, double, double, double)
+declare double @qk_mellowmax2(double, double, double)
+declare double @qk_logsumexp2(double, double, double)
+declare double @qk_boltzmann2(double, double, double)
+declare double @qk_tnorm_luk(double, double)
+declare double @qk_tnorm_prod(double, double)
+declare double @qk_tnorm_godel(double, double)
+declare double @qk_polymer_weight(double, double, double)
+declare double @qk_polymer_mix_bound(double, double)
+declare i8* @malloc(i64)
+
+; --- 晶格数组 ABI（lattice<T, B>，首版 int32 元素 / 1D-2D）---
+declare %Lattice* @qk_lattice_new(i32, i32, i32, i32)
+declare void @qk_lattice_free(%Lattice*)
+declare i32 @qk_lattice_ref(%Lattice*, i32, i32)
+declare void @qk_lattice_set(%Lattice*, i32, i32, i32)
+declare i32 @qk_lattice_rank(%Lattice*)
+declare i32 @qk_lattice_size(%Lattice*, i32)
+declare i32 @qk_lattice_boundary(%Lattice*)
+
+; --- 经典 GUI / 图形引擎 ABI（cgui_* / cgfx_*）---
+declare i32 @qk_cgui_init(i32, i32, i8*)
+declare i32 @qk_cgui_should_close()
+declare void @qk_cgui_begin_frame()
+declare void @qk_cgui_end_frame()
+declare i32 @qk_cgui_button(i8*)
+declare void @qk_cgui_text(i8*)
+declare void @qk_cgui_text_int(i32)
+declare void @qk_cgui_beep(i32, i32)
+declare i32 @qk_cgui_width()
+declare i32 @qk_cgui_height()
+declare void @qk_cgui_panel(i32, i32, i32, i32, i8*)
+declare void @qk_cgui_panel_end()
+declare void @qk_cgui_row(i32, i32)
+declare i32 @qk_cgui_mouse_x()
+declare i32 @qk_cgui_mouse_y()
+declare i32 @qk_cgui_mouse_left_clicked()
+declare void @qk_cgfx_rect(i32, i32, i32, i32, i32)
+declare void @qk_cgfx_line(i32, i32, i32, i32, i32, i32)
+declare void @qk_cgfx_ellipse(i32, i32, i32, i32, i32)
+declare void @qk_cgfx_triangle(i32, i32, i32, i32, i32, i32, i32)
+declare void @qk_cgfx_rect_a(i32, i32, i32, i32, i32, i32)
+declare void @qk_cgfx_line_a(i32, i32, i32, i32, i32, i32, i32)
+declare void @qk_cgfx_ellipse_a(i32, i32, i32, i32, i32, i32)
+declare void @qk_cgfx_triangle_a(i32, i32, i32, i32, i32, i32, i32, i32)
+
+; --- QCOS Syscall ABI + Heap ---
+declare i32 @qk_sys_call(i32, i32, i32, i32)
+declare double @qk_sys_calld(i32, double, double)
+declare void @qk_sys_log(i32, i8*)
+declare i32 @qk_sys_logi(i32, i32)
+declare i8* @qk_gc_alloc(i64)
+declare i8* @qk_sys_callp(i32, i64, i64, i64)
+declare void @qk_gc_free(i8*)
+
+; --- QMS 数值内核（算法 4）---
+declare double @qk_qms_gap(i32, double, double)
+declare double @qk_mix_bound(double, double, double)
+declare double @qk_qms_conc(double, double)
+
+; --- QChain 量子区块链 ABI ---
+declare i8* @qk_qchain_wallet()
+declare i64 @qk_qchain_balance(i8*)
+declare void @qk_qchain_mint(i8*, i64)
+declare i32 @qk_qchain_transfer(i8*, i8*, i64)
+declare i32 @qk_qchain_mine()
+declare i32 @qk_qchain_height()
+declare i32 @qk_qchain_verify()
+declare i8* @qk_qchain_qkd(i32)
+declare i32 @qk_qchain_qdba(i32)
+declare %QObject* @qk_qchain_coin_mint(i32)
+declare i32 @qk_qchain_coin_verify(%QObject*)
+
+; --- QChain 密码原语 / 抗超时空 / 时空加密 ABI ---
+declare i8* @qk_qchain_sha3(i8*)
+declare i8* @qk_qchain_hmac(i8*, i8*)
+declare i8* @qk_qchain_hash_unicode(i8*)
+declare i8* @qk_qchain_sign(i8*)
+declare i32 @qk_qchain_sign_verify(i8*, i8*)
+declare i8* @qk_qchain_sign_pubkey()
+declare i8* @qk_qchain_mlkem_encaps(i8*)
+declare i8* @qk_qchain_mlkem_decaps(i8*, i8*)
+declare i32 @qk_qchain_causal_verify()
+declare i8* @qk_qchain_cipher_encrypt(i64, i8*)
+declare i8* @qk_qchain_cipher_decrypt(i64, i8*)
+
+%form.Spirit = type opaque
+declare i32 @rules_opponent(i32)
+declare i32 @rules_place_stone(%Lattice*, i32, i32, i32, i32, i32, i32)
+declare i32 @engine_count_stones(%Lattice*, i32, i32)
+declare i32 @engine_score(%Lattice*, i32, i32)
+declare i32 @ai_ai_random_move(%Lattice*, i32, i32)
+declare i32 @ai_ai_heuristic_move(%Lattice*, i32, i32)
+declare %form.Spirit* @spirits_spirit_new(i32)
+declare i32 @spirits_spirit_can_use(%form.Spirit*)
+declare i32 @spirits_spirit_cooldown_left(%form.Spirit*)
+declare i32 @spirits_spirit_cooldown_total(%form.Spirit*)
+declare void @spirits_spirit_tick(%form.Spirit*)
+declare i32 @spirits_spirit_find_dying(%Lattice*, i32, i32)
+declare i32 @spirits_spirit_find_ko(%Lattice*, i32, i32)
+declare i32 @spirits_spirit_use(%form.Spirit*, %Lattice*, i32, i32, i32, i32)
+declare i32 @steam_steam_init()
+declare i32 @steam_steam_lobby_create()
+declare i32 @steam_steam_lobby_join()
+declare i32 @steam_steam_peer_ready()
+declare void @steam_steam_send(i32, i32, i32)
+declare i32 @steam_steam_poll()
+declare void @board_draw_board(%Lattice*, i32, i32, i32, i32, i32)
+declare void @particles_px_emit(%Lattice*, i32, i32, i32, i32, i32, i32)
+declare void @particles_px_update(%Lattice*, i32)
+declare void @particles_px_render(%Lattice*, i32)
+declare i32 @mcts_choose_move(%Lattice*, i32, i32, i32)
+declare i32 @ai_classic_move(%Lattice*, i32, i32)
+
+define i32 @gx_to_screen(i32 %arg0, i32 %arg1, i32 %arg2) {
+entry:
+ %gx_ptr = alloca i32
+ %gy_ptr = alloca i32
+ %cell_ptr = alloca i32
+ store i32 %arg0, i32* %gx_ptr
+ store i32 %arg1, i32* %gy_ptr
+ store i32 %arg2, i32* %cell_ptr
+ %1 = load i32, i32* %gx_ptr
+ %2 = load i32, i32* %cell_ptr
+ %3 = mul i32 %1, %2
+ %4 = add i32 76, %3
+ %5 = load i32, i32* %gy_ptr
+ %6 = load i32, i32* %cell_ptr
+ %7 = mul i32 %5, %6
+ %8 = mul i32 %7, 22
+ %9 = sdiv i32 %8, 100
+ %10 = add i32 %4, %9
+ ret i32 %10
+}
+
+define i32 @gy_to_screen(i32 %arg0, i32 %arg1) {
+entry:
+ %gy_ptr = alloca i32
+ %cell_ptr = alloca i32
+ store i32 %arg0, i32* %gy_ptr
+ store i32 %arg1, i32* %cell_ptr
+ %1 = load i32, i32* %gy_ptr
+ %2 = load i32, i32* %cell_ptr
+ %3 = mul i32 %1, %2
+ %4 = mul i32 %3, 80
+ %5 = sdiv i32 %4, 100
+ %6 = add i32 150, %5
+ ret i32 %6
+}
+
+define i32 @skill_color(i32 %arg0) {
+entry:
+ %skill_id_ptr = alloca i32
+ store i32 %arg0, i32* %skill_id_ptr
+ %1 = load i32, i32* %skill_id_ptr
+ %2 = icmp eq i32 %1, 0
+ br i1 %2, label %if_then_1, label %if_after_3
+
+if_then_1:
+ ret i32 6737151
+
+if_after_3:
+ %3 = load i32, i32* %skill_id_ptr
+ %4 = icmp eq i32 %3, 1
+ br i1 %4, label %if_then_4, label %if_after_6
+
+if_then_4:
+ ret i32 16766720
+
+if_after_6:
+ %5 = load i32, i32* %skill_id_ptr
+ %6 = icmp eq i32 %5, 2
+ br i1 %6, label %if_then_7, label %if_after_9
+
+if_then_7:
+ ret i32 16746564
+
+if_after_9:
+ %7 = load i32, i32* %skill_id_ptr
+ %8 = icmp eq i32 %7, 3
+ br i1 %8, label %if_then_10, label %if_after_12
+
+if_then_10:
+ ret i32 4521864
+
+if_after_12:
+ %9 = load i32, i32* %skill_id_ptr
+ %10 = icmp eq i32 %9, 4
+ br i1 %10, label %if_then_13, label %if_after_15
+
+if_then_13:
+ ret i32 13421772
+
+if_after_15:
+ ret i32 4491519
+}
+
+define i32 @particle_count(i32 %arg0) {
+entry:
+ %quality_ptr = alloca i32
+ store i32 %arg0, i32* %quality_ptr
+ %1 = load i32, i32* %quality_ptr
+ %2 = icmp eq i32 %1, 0
+ br i1 %2, label %if_then_16, label %if_after_18
+
+if_then_16:
+ ret i32 32
+
+if_after_18:
+ %3 = load i32, i32* %quality_ptr
+ %4 = icmp eq i32 %3, 2
+ br i1 %4, label %if_then_19, label %if_after_21
+
+if_then_19:
+ ret i32 128
+
+if_after_21:
+ ret i32 64
+}
+
+define i32 @calc_cell(i32 %arg0, i32 %arg1) {
+entry:
+ %win_mode_ptr = alloca i32
+ %size_ptr = alloca i32
+ %w_ptr_31 = alloca i32
+ %c_ptr_32 = alloca i32
+ store i32 %arg0, i32* %win_mode_ptr
+ store i32 %arg1, i32* %size_ptr
+ %1 = load i32, i32* %win_mode_ptr
+ %2 = icmp eq i32 %1, 1
+ br i1 %2, label %if_then_22, label %if_after_24
+
+if_then_22:
+ ret i32 26
+
+if_after_24:
+ %3 = load i32, i32* %win_mode_ptr
+ %4 = icmp eq i32 %3, 2
+ br i1 %4, label %if_then_25, label %if_after_27
+
+if_then_25:
+ ret i32 32
+
+if_after_27:
+ %5 = load i32, i32* %win_mode_ptr
+ %6 = icmp eq i32 %5, 3
+ br i1 %6, label %if_then_28, label %if_after_30
+
+if_then_28:
+ ret i32 40
+
+if_after_30:
+ %7 = call i32 @qk_cgui_width()
+ store i32 %7, i32* %w_ptr_31
+ %8 = load i32, i32* %w_ptr_31
+ %9 = sub i32 %8, 120
+ %10 = load i32, i32* %size_ptr
+ %11 = sdiv i32 %9, %10
+ store i32 %11, i32* %c_ptr_32
+ %12 = load i32, i32* %c_ptr_32
+ %13 = icmp slt i32 %12, 20
+ br i1 %13, label %if_then_33, label %if_after_35
+
+if_then_33:
+ store i32 20, i32* %c_ptr_32
+ br label %if_after_35
+
+if_after_35:
+ %14 = load i32, i32* %c_ptr_32
+ %15 = icmp sgt i32 %14, 42
+ br i1 %15, label %if_then_36, label %if_after_38
+
+if_then_36:
+ store i32 42, i32* %c_ptr_32
+ br label %if_after_38
+
+if_after_38:
+ %16 = load i32, i32* %c_ptr_32
+ ret i32 %16
+}
+
+define i32 @ai_choose(%Lattice* %arg0, i32 %arg1, i32 %arg2, i32 %arg3) {
+entry:
+ %b_ptr = alloca %Lattice*
+ %size_ptr = alloca i32
+ %color_ptr = alloca i32
+ %ai_type_ptr = alloca i32
+ store %Lattice* %arg0, %Lattice** %b_ptr
+ store i32 %arg1, i32* %size_ptr
+ store i32 %arg2, i32* %color_ptr
+ store i32 %arg3, i32* %ai_type_ptr
+ %1 = load i32, i32* %ai_type_ptr
+ %2 = icmp eq i32 %1, 1
+ br i1 %2, label %if_then_39, label %if_after_41
+
+if_then_39:
+ %3 = load %Lattice*, %Lattice** %b_ptr
+ %4 = load i32, i32* %size_ptr
+ %5 = load i32, i32* %color_ptr
+ %6 = call i32 @mcts_choose_move(%Lattice* %3, i32 %4, i32 %5, i32 500)
+ ret i32 %6
+
+if_after_41:
+ %7 = load i32, i32* %ai_type_ptr
+ %8 = icmp eq i32 %7, 2
+ br i1 %8, label %if_then_42, label %if_after_44
+
+if_then_42:
+ %9 = load %Lattice*, %Lattice** %b_ptr
+ %10 = load i32, i32* %size_ptr
+ %11 = load i32, i32* %color_ptr
+ %12 = call i32 @ai_classic_move(%Lattice* %9, i32 %10, i32 %11)
+ ret i32 %12
+
+if_after_44:
+ %13 = load %Lattice*, %Lattice** %b_ptr
+ %14 = load i32, i32* %size_ptr
+ %15 = load i32, i32* %color_ptr
+ %16 = call i32 @ai_ai_heuristic_move(%Lattice* %13, i32 %14, i32 %15)
+ ret i32 %16
+}
+
+define void @skill_sound(i32 %arg0, i32 %arg1) {
+entry:
+ %skill_id_ptr = alloca i32
+ %sound_on_ptr = alloca i32
+ store i32 %arg0, i32* %skill_id_ptr
+ store i32 %arg1, i32* %sound_on_ptr
+ %1 = load i32, i32* %sound_on_ptr
+ %2 = icmp eq i32 %1, 0
+ br i1 %2, label %if_then_45, label %if_after_47
+
+if_then_45:
+ ret void
+
+if_after_47:
+ %3 = load i32, i32* %skill_id_ptr
+ %4 = icmp eq i32 %3, 0
+ br i1 %4, label %if_then_48, label %if_after_50
+
+if_then_48:
+ call void @qk_cgui_beep(i32 880, i32 120)
+ br label %if_after_50
+
+if_after_50:
+ %5 = load i32, i32* %skill_id_ptr
+ %6 = icmp eq i32 %5, 1
+ br i1 %6, label %if_then_51, label %if_after_53
+
+if_then_51:
+ call void @qk_cgui_beep(i32 660, i32 120)
+ br label %if_after_53
+
+if_after_53:
+ %7 = load i32, i32* %skill_id_ptr
+ %8 = icmp eq i32 %7, 2
+ br i1 %8, label %if_then_54, label %if_after_56
+
+if_then_54:
+ call void @qk_cgui_beep(i32 523, i32 120)
+ br label %if_after_56
+
+if_after_56:
+ %9 = load i32, i32* %skill_id_ptr
+ %10 = icmp eq i32 %9, 3
+ br i1 %10, label %if_then_57, label %if_after_59
+
+if_then_57:
+ call void @qk_cgui_beep(i32 440, i32 120)
+ br label %if_after_59
+
+if_after_59:
+ %11 = load i32, i32* %skill_id_ptr
+ %12 = icmp eq i32 %11, 4
+ br i1 %12, label %if_then_60, label %if_after_62
+
+if_then_60:
+ call void @qk_cgui_beep(i32 392, i32 120)
+ br label %if_after_62
+
+if_after_62:
+ %13 = load i32, i32* %skill_id_ptr
+ %14 = icmp eq i32 %13, 5
+ br i1 %14, label %if_then_63, label %if_after_65
+
+if_then_63:
+ call void @qk_cgui_beep(i32 587, i32 120)
+ br label %if_after_65
+
+if_after_65:
+ ret void
+}
+
+define void @trigger_skill_fx(%Lattice* %arg0, i32 %arg1, i32 %arg2, i32 %arg3, i32 %arg4) {
+entry:
+ %pool_ptr = alloca %Lattice*
+ %skill_id_ptr = alloca i32
+ %cx_ptr = alloca i32
+ %cy_ptr = alloca i32
+ %n_ptr = alloca i32
+ store %Lattice* %arg0, %Lattice** %pool_ptr
+ store i32 %arg1, i32* %skill_id_ptr
+ store i32 %arg2, i32* %cx_ptr
+ store i32 %arg3, i32* %cy_ptr
+ store i32 %arg4, i32* %n_ptr
+ %1 = load i32, i32* %skill_id_ptr
+ %2 = icmp eq i32 %1, 0
+ br i1 %2, label %if_then_66, label %if_after_68
+
+if_then_66:
+ %3 = load %Lattice*, %Lattice** %pool_ptr
+ %4 = load i32, i32* %cx_ptr
+ %5 = load i32, i32* %cy_ptr
+ %6 = load i32, i32* %n_ptr
+ call void @particles_px_emit(%Lattice* %3, i32 256, i32 %4, i32 %5, i32 6737151, i32 %6, i32 1)
+ br label %if_after_68
+
+if_after_68:
+ %7 = load i32, i32* %skill_id_ptr
+ %8 = icmp eq i32 %7, 1
+ br i1 %8, label %if_then_69, label %if_after_71
+
+if_then_69:
+ %9 = load %Lattice*, %Lattice** %pool_ptr
+ %10 = load i32, i32* %cx_ptr
+ %11 = load i32, i32* %cy_ptr
+ %12 = load i32, i32* %n_ptr
+ call void @particles_px_emit(%Lattice* %9, i32 256, i32 %10, i32 %11, i32 16766720, i32 %12, i32 2)
+ br label %if_after_71
+
+if_after_71:
+ %13 = load i32, i32* %skill_id_ptr
+ %14 = icmp eq i32 %13, 2
+ br i1 %14, label %if_then_72, label %if_after_74
+
+if_then_72:
+ %15 = load %Lattice*, %Lattice** %pool_ptr
+ %16 = load i32, i32* %cx_ptr
+ %17 = load i32, i32* %cy_ptr
+ %18 = load i32, i32* %n_ptr
+ call void @particles_px_emit(%Lattice* %15, i32 256, i32 %16, i32 %17, i32 16746564, i32 %18, i32 0)
+ br label %if_after_74
+
+if_after_74:
+ %19 = load i32, i32* %skill_id_ptr
+ %20 = icmp eq i32 %19, 3
+ br i1 %20, label %if_then_75, label %if_after_77
+
+if_then_75:
+ %21 = load %Lattice*, %Lattice** %pool_ptr
+ %22 = load i32, i32* %cx_ptr
+ %23 = load i32, i32* %cy_ptr
+ %24 = load i32, i32* %n_ptr
+ call void @particles_px_emit(%Lattice* %21, i32 256, i32 %22, i32 %23, i32 4521864, i32 %24, i32 5)
+ br label %if_after_77
+
+if_after_77:
+ %25 = load i32, i32* %skill_id_ptr
+ %26 = icmp eq i32 %25, 4
+ br i1 %26, label %if_then_78, label %if_after_80
+
+if_then_78:
+ %27 = load %Lattice*, %Lattice** %pool_ptr
+ %28 = load i32, i32* %cx_ptr
+ %29 = load i32, i32* %cy_ptr
+ %30 = load i32, i32* %n_ptr
+ call void @particles_px_emit(%Lattice* %27, i32 256, i32 %28, i32 %29, i32 13421772, i32 %30, i32 3)
+ br label %if_after_80
+
+if_after_80:
+ %31 = load i32, i32* %skill_id_ptr
+ %32 = icmp eq i32 %31, 5
+ br i1 %32, label %if_then_81, label %if_after_83
+
+if_then_81:
+ %33 = load %Lattice*, %Lattice** %pool_ptr
+ %34 = load i32, i32* %cx_ptr
+ %35 = load i32, i32* %cy_ptr
+ %36 = load i32, i32* %n_ptr
+ call void @particles_px_emit(%Lattice* %33, i32 256, i32 %34, i32 %35, i32 4491519, i32 %36, i32 2)
+ br label %if_after_83
+
+if_after_83:
+ ret void
+}
+
+define void @draw_spirit_icon(i32 %arg0, i32 %arg1, i32 %arg2, i32 %arg3) {
+entry:
+ %cx_ptr = alloca i32
+ %cy_ptr = alloca i32
+ %r_ptr = alloca i32
+ %skill_id_ptr = alloca i32
+ %col_ptr_84 = alloca i32
+ store i32 %arg0, i32* %cx_ptr
+ store i32 %arg1, i32* %cy_ptr
+ store i32 %arg2, i32* %r_ptr
+ store i32 %arg3, i32* %skill_id_ptr
+ %1 = load i32, i32* %skill_id_ptr
+ %2 = call i32 @skill_color(i32 %1)
+ store i32 %2, i32* %col_ptr_84
+ %3 = load i32, i32* %cx_ptr
+ %4 = load i32, i32* %cy_ptr
+ %5 = load i32, i32* %r_ptr
+ %6 = load i32, i32* %r_ptr
+ %7 = load i32, i32* %col_ptr_84
+ call void @qk_cgfx_ellipse(i32 %3, i32 %4, i32 %5, i32 %6, i32 %7)
+ %8 = load i32, i32* %cx_ptr
+ %9 = load i32, i32* %cy_ptr
+ %10 = load i32, i32* %r_ptr
+ %11 = sdiv i32 %10, 2
+ %12 = load i32, i32* %r_ptr
+ %13 = sdiv i32 %12, 2
+ call void @qk_cgfx_ellipse(i32 %8, i32 %9, i32 %11, i32 %13, i32 16777215)
+ ret void
+}
+
+define i32 @quark_main() {
+entry:
+ %size_ptr_85 = alloca i32
+ %mode_ptr_86 = alloca i32
+ %my_color_ptr_87 = alloca i32
+ %quit_ptr_88 = alloca i32
+ %game_over_ptr_89 = alloca i32
+ %selected_skill_ptr_90 = alloca i32
+ %load_frame_ptr_91 = alloca i32
+ %sound_on_ptr_92 = alloca i32
+ %quality_ptr_93 = alloca i32
+ %theme_ptr_94 = alloca i32
+ %win_mode_ptr_95 = alloca i32
+ %ai_type_ptr_96 = alloca i32
+ %replay_index_ptr_97 = alloca i32
+ %auto_play_ptr_98 = alloca i32
+ %auto_frame_ptr_99 = alloca i32
+ %observe_index_ptr_100 = alloca i32
+ %observe_frame_ptr_101 = alloca i32
+ %observe_color_ptr_102 = alloca i32
+ %observe_room_ptr_103 = alloca i32
+ %ai_thinking_ptr_104 = alloca i32
+ %board_state_ptr_105 = alloca %Lattice*
+ %replay_board_ptr_106 = alloca %Lattice*
+ %observe_board_ptr_107 = alloca %Lattice*
+ %move_history_ptr_108 = alloca %Lattice*
+ %move_count_ptr_109 = alloca i32
+ %current_ptr_110 = alloca i32
+ %last_x_ptr_111 = alloca i32
+ %last_y_ptr_112 = alloca i32
+ %pool_ptr_113 = alloca %Lattice*
+ %after_x_ptr_114 = alloca i32
+ %after_y_ptr_115 = alloca i32
+ %after_life_ptr_116 = alloca i32
+ %shake_time_ptr_117 = alloca i32
+ %shake_mag_ptr_118 = alloca i32
+ %my_spirit_ptr_119 = alloca %form.Spirit*
+ %logic_ptr_123 = alloca i1
+ %cell_ptr_127 = alloca i32
+ %prog_ptr_131 = alloca i32
+ %c_ptr_186 = alloca i32
+ %ok_ptr_187 = alloca i32
+ %c_ptr_197 = alloca i32
+ %ok_ptr_198 = alloca i32
+ %mv_ptr_358 = alloca i32
+ %ax_ptr_362 = alloca i32
+ %ay_ptr_363 = alloca i32
+ %ok_ptr_364 = alloca i32
+ %ry_ptr_381 = alloca i32
+ %rx_ptr_386 = alloca i32
+ %k_ptr_391 = alloca i32
+ %bar_x_ptr_392 = alloca i32
+ %bar_y_ptr_393 = alloca i32
+ %bar_w_ptr_394 = alloca i32
+ %bar_h_ptr_395 = alloca i32
+ %fill_ptr_399 = alloca i32
+ %logic_ptr_403 = alloca i1
+ %mx_ptr_407 = alloca i32
+ %logic_ptr_411 = alloca i1
+ %logic_ptr_418 = alloca i1
+ %dx_ptr_452 = alloca i32
+ %dy_ptr_453 = alloca i32
+ %m_ptr_457 = alloca i32
+ %ax_ptr_461 = alloca i32
+ %ay_ptr_462 = alloca i32
+ %aalpha_ptr_463 = alloca i32
+ %cd_total_ptr_464 = alloca i32
+ %cd_left_ptr_468 = alloca i32
+ %cd_fill_ptr_469 = alloca i32
+ %icon_cx_ptr_473 = alloca i32
+ %icon_cy_ptr_474 = alloca i32
+ %sc_ptr_475 = alloca i32
+ %logic_ptr_482 = alloca i1
+ %logic_ptr_489 = alloca i1
+ %logic_ptr_493 = alloca i1
+ %fx_ptr_497 = alloca i32
+ %fcx_ptr_498 = alloca i32
+ %fcy_ptr_499 = alloca i32
+ %logic_ptr_503 = alloca i1
+ %sx_ptr_507 = alloca i32
+ %sy_ptr_508 = alloca i32
+ %logic_ptr_515 = alloca i1
+ %logic_ptr_525 = alloca i1
+ %passive_pos_ptr_529 = alloca i32
+ %ppx_ptr_539 = alloca i32
+ %ppy_ptr_540 = alloca i32
+ %psx_ptr_541 = alloca i32
+ %psy_ptr_542 = alloca i32
+ %fx2_ptr_543 = alloca i32
+ %logic_ptr_547 = alloca i1
+ %logic_ptr_551 = alloca i1
+ %gx_ptr_555 = alloca i32
+ %gy_ptr_556 = alloca i32
+ %logic_ptr_560 = alloca i1
+ %logic_ptr_564 = alloca i1
+ %logic_ptr_568 = alloca i1
+ %ok_ptr_572 = alloca i32
+ %logic_ptr_579 = alloca i1
+ %logic_ptr_583 = alloca i1
+ %scx_ptr_593 = alloca i32
+ %scy_ptr_594 = alloca i32
+ %mv_ptr_601 = alloca i32
+ %ax_ptr_605 = alloca i32
+ %ay_ptr_606 = alloca i32
+ %ok_ptr_607 = alloca i32
+ %scx_ptr_614 = alloca i32
+ %scy_ptr_615 = alloca i32
+ %mv_ptr_616 = alloca i32
+ %ax_ptr_620 = alloca i32
+ %ay_ptr_621 = alloca i32
+ %ok_ptr_622 = alloca i32
+ %1 = getelementptr inbounds [17 x i8], [17 x i8]* @.str.1, i64 0, i64 0
+ %2 = call i32 @qk_cgui_init(i32 760, i32 820, i8* %1)
+ store i32 19, i32* %size_ptr_85
+ %3 = sub i32 0, 2
+ store i32 %3, i32* %mode_ptr_86
+ store i32 1, i32* %my_color_ptr_87
+ store i32 0, i32* %quit_ptr_88
+ store i32 0, i32* %game_over_ptr_89
+ store i32 0, i32* %selected_skill_ptr_90
+ store i32 0, i32* %load_frame_ptr_91
+ store i32 1, i32* %sound_on_ptr_92
+ store i32 1, i32* %quality_ptr_93
+ store i32 0, i32* %theme_ptr_94
+ store i32 2, i32* %win_mode_ptr_95
+ store i32 0, i32* %ai_type_ptr_96
+ store i32 0, i32* %replay_index_ptr_97
+ store i32 0, i32* %auto_play_ptr_98
+ store i32 0, i32* %auto_frame_ptr_99
+ store i32 0, i32* %observe_index_ptr_100
+ store i32 0, i32* %observe_frame_ptr_101
+ store i32 1, i32* %observe_color_ptr_102
+ store i32 1001, i32* %observe_room_ptr_103
+ store i32 0, i32* %ai_thinking_ptr_104
+ %5 = call %Lattice* @qk_lattice_new(i32 2, i32 19, i32 19, i32 0)
+ store %Lattice* %5, %Lattice** %board_state_ptr_105
+ %7 = call %Lattice* @qk_lattice_new(i32 2, i32 19, i32 19, i32 0)
+ store %Lattice* %7, %Lattice** %replay_board_ptr_106
+ %9 = call %Lattice* @qk_lattice_new(i32 2, i32 19, i32 19, i32 0)
+ store %Lattice* %9, %Lattice** %observe_board_ptr_107
+ %11 = call %Lattice* @qk_lattice_new(i32 2, i32 512, i32 3, i32 0)
+ store %Lattice* %11, %Lattice** %move_history_ptr_108
+ store i32 0, i32* %move_count_ptr_109
+ store i32 1, i32* %current_ptr_110
+ %12 = sub i32 0, 1
+ store i32 %12, i32* %last_x_ptr_111
+ %13 = sub i32 0, 1
+ store i32 %13, i32* %last_y_ptr_112
+ %15 = call %Lattice* @qk_lattice_new(i32 2, i32 256, i32 17, i32 0)
+ store %Lattice* %15, %Lattice** %pool_ptr_113
+ %16 = sub i32 0, 1
+ store i32 %16, i32* %after_x_ptr_114
+ %17 = sub i32 0, 1
+ store i32 %17, i32* %after_y_ptr_115
+ store i32 0, i32* %after_life_ptr_116
+ store i32 0, i32* %shake_time_ptr_117
+ store i32 0, i32* %shake_mag_ptr_118
+ %18 = call %form.Spirit* @spirits_spirit_new(i32 0)
+ store %form.Spirit* %18, %form.Spirit** %my_spirit_ptr_119
+ br label %while_cond_120
+
+while_cond_120:
+ %19 = call i32 @qk_cgui_should_close()
+ %20 = icmp eq i32 %19, 0
+ br i1 %20, label %logic_eval_126, label %logic_short_125
+
+logic_short_125:
+ store i1 false, i1* %logic_ptr_123
+ br label %logic_end_124
+
+logic_eval_126:
+ %21 = load i32, i32* %quit_ptr_88
+ %22 = icmp eq i32 %21, 0
+ store i1 %22, i1* %logic_ptr_123
+ br label %logic_end_124
+
+logic_end_124:
+ %23 = load i1, i1* %logic_ptr_123
+ br i1 %23, label %while_body_121, label %while_after_122
+
+while_body_121:
+ call void @qk_cgui_begin_frame()
+ %24 = load i32, i32* %win_mode_ptr_95
+ %25 = load i32, i32* %size_ptr_85
+ %26 = call i32 @calc_cell(i32 %24, i32 %25)
+ store i32 %26, i32* %cell_ptr_127
+ %27 = load i32, i32* %mode_ptr_86
+ %28 = sub i32 0, 2
+ %29 = icmp eq i32 %27, %28
+ br i1 %29, label %if_then_128, label %if_else_129
+
+if_then_128:
+ call void @qk_cgfx_rect(i32 0, i32 0, i32 760, i32 820, i32 921108)
+ %30 = getelementptr inbounds [8 x i8], [8 x i8]* @.str.2, i64 0, i64 0
+ call void @qk_cgui_panel(i32 260, i32 340, i32 240, i32 140, i8* %30)
+ call void @qk_cgui_row(i32 1, i32 36)
+ %31 = getelementptr inbounds [17 x i8], [17 x i8]* @.str.1, i64 0, i64 0
+ call void @qk_cgui_text(i8* %31)
+ call void @qk_cgui_row(i32 1, i32 24)
+ %32 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.3, i64 0, i64 0
+ call void @qk_cgui_text(i8* %32)
+ call void @qk_cgui_row(i32 1, i32 20)
+ %33 = getelementptr inbounds [11 x i8], [11 x i8]* @.str.4, i64 0, i64 0
+ call void @qk_cgui_text(i8* %33)
+ call void @qk_cgui_panel_end()
+ %34 = load i32, i32* %load_frame_ptr_91
+ %35 = mul i32 %34, 100
+ %36 = sdiv i32 %35, 90
+ store i32 %36, i32* %prog_ptr_131
+ %37 = load i32, i32* %prog_ptr_131
+ %38 = icmp sgt i32 %37, 100
+ br i1 %38, label %if_then_132, label %if_after_134
+
+if_then_132:
+ store i32 100, i32* %prog_ptr_131
+ br label %if_after_134
+
+if_after_134:
+ call void @qk_cgfx_rect(i32 280, i32 500, i32 200, i32 6, i32 2763317)
+ %39 = load i32, i32* %prog_ptr_131
+ %40 = mul i32 %39, 2
+ call void @qk_cgfx_rect(i32 280, i32 500, i32 %40, i32 6, i32 6737151)
+ %41 = load %Lattice*, %Lattice** %pool_ptr_113
+ call void @particles_px_emit(%Lattice* %41, i32 256, i32 380, i32 410, i32 6737151, i32 3, i32 1)
+ %42 = load %Lattice*, %Lattice** %pool_ptr_113
+ call void @particles_px_update(%Lattice* %42, i32 256)
+ %43 = load %Lattice*, %Lattice** %pool_ptr_113
+ call void @particles_px_render(%Lattice* %43, i32 256)
+ %44 = load i32, i32* %load_frame_ptr_91
+ %45 = add i32 %44, 1
+ store i32 %45, i32* %load_frame_ptr_91
+ %46 = load i32, i32* %load_frame_ptr_91
+ %47 = srem i32 %46, 30
+ %48 = icmp eq i32 %47, 0
+ br i1 %48, label %if_then_135, label %if_after_137
+
+if_then_135:
+ call void @qk_cgui_beep(i32 200, i32 20)
+ br label %if_after_137
+
+if_after_137:
+ %49 = load i32, i32* %load_frame_ptr_91
+ %50 = icmp sge i32 %49, 90
+ br i1 %50, label %if_then_138, label %if_after_140
+
+if_then_138:
+ %51 = sub i32 0, 1
+ store i32 %51, i32* %mode_ptr_86
+ call void @qk_cgui_beep(i32 600, i32 100)
+ br label %if_after_140
+
+if_after_140:
+ br label %if_after_130
+
+if_else_129:
+ %52 = load i32, i32* %mode_ptr_86
+ %53 = sub i32 0, 1
+ %54 = icmp eq i32 %52, %53
+ br i1 %54, label %if_then_141, label %if_else_142
+
+if_then_141:
+ call void @qk_cgfx_rect(i32 0, i32 0, i32 760, i32 820, i32 921108)
+ %55 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.5, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 0, i32 760, i32 60, i8* %55)
+ call void @qk_cgui_row(i32 1, i32 32)
+ %56 = getelementptr inbounds [38 x i8], [38 x i8]* @.str.6, i64 0, i64 0
+ call void @qk_cgui_text(i8* %56)
+ call void @qk_cgui_panel_end()
+ %57 = getelementptr inbounds [8 x i8], [8 x i8]* @.str.7, i64 0, i64 0
+ call void @qk_cgui_panel(i32 40, i32 80, i32 400, i32 400, i8* %57)
+ call void @qk_cgui_row(i32 1, i32 28)
+ %58 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.8, i64 0, i64 0
+ call void @qk_cgui_text(i8* %58)
+ %59 = load i32, i32* %selected_skill_ptr_90
+ call void @draw_spirit_icon(i32 410, i32 104, i32 16, i32 %59)
+ call void @qk_cgui_row(i32 2, i32 34)
+ %60 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.9, i64 0, i64 0
+ %61 = call i32 @qk_cgui_button(i8* %60)
+ %62 = icmp eq i32 %61, 1
+ br i1 %62, label %if_then_144, label %if_after_146
+
+if_then_144:
+ store i32 0, i32* %selected_skill_ptr_90
+ br label %if_after_146
+
+if_after_146:
+ %63 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.10, i64 0, i64 0
+ %64 = call i32 @qk_cgui_button(i8* %63)
+ %65 = icmp eq i32 %64, 1
+ br i1 %65, label %if_then_147, label %if_after_149
+
+if_then_147:
+ store i32 1, i32* %selected_skill_ptr_90
+ br label %if_after_149
+
+if_after_149:
+ call void @qk_cgui_row(i32 2, i32 34)
+ %66 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.11, i64 0, i64 0
+ %67 = call i32 @qk_cgui_button(i8* %66)
+ %68 = icmp eq i32 %67, 1
+ br i1 %68, label %if_then_150, label %if_after_152
+
+if_then_150:
+ store i32 2, i32* %selected_skill_ptr_90
+ br label %if_after_152
+
+if_after_152:
+ %69 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.12, i64 0, i64 0
+ %70 = call i32 @qk_cgui_button(i8* %69)
+ %71 = icmp eq i32 %70, 1
+ br i1 %71, label %if_then_153, label %if_after_155
+
+if_then_153:
+ store i32 3, i32* %selected_skill_ptr_90
+ br label %if_after_155
+
+if_after_155:
+ call void @qk_cgui_row(i32 2, i32 34)
+ %72 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.13, i64 0, i64 0
+ %73 = call i32 @qk_cgui_button(i8* %72)
+ %74 = icmp eq i32 %73, 1
+ br i1 %74, label %if_then_156, label %if_after_158
+
+if_then_156:
+ store i32 4, i32* %selected_skill_ptr_90
+ br label %if_after_158
+
+if_after_158:
+ %75 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.14, i64 0, i64 0
+ %76 = call i32 @qk_cgui_button(i8* %75)
+ %77 = icmp eq i32 %76, 1
+ br i1 %77, label %if_then_159, label %if_after_161
+
+if_then_159:
+ store i32 5, i32* %selected_skill_ptr_90
+ br label %if_after_161
+
+if_after_161:
+ call void @qk_cgui_row(i32 1, i32 26)
+ %78 = load i32, i32* %selected_skill_ptr_90
+ %79 = icmp eq i32 %78, 0
+ br i1 %79, label %if_then_162, label %if_after_164
+
+if_then_162:
+ %80 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.15, i64 0, i64 0
+ call void @qk_cgui_text(i8* %80)
+ br label %if_after_164
+
+if_after_164:
+ %81 = load i32, i32* %selected_skill_ptr_90
+ %82 = icmp eq i32 %81, 1
+ br i1 %82, label %if_then_165, label %if_after_167
+
+if_then_165:
+ %83 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.16, i64 0, i64 0
+ call void @qk_cgui_text(i8* %83)
+ br label %if_after_167
+
+if_after_167:
+ %84 = load i32, i32* %selected_skill_ptr_90
+ %85 = icmp eq i32 %84, 2
+ br i1 %85, label %if_then_168, label %if_after_170
+
+if_then_168:
+ %86 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.17, i64 0, i64 0
+ call void @qk_cgui_text(i8* %86)
+ br label %if_after_170
+
+if_after_170:
+ %87 = load i32, i32* %selected_skill_ptr_90
+ %88 = icmp eq i32 %87, 3
+ br i1 %88, label %if_then_171, label %if_after_173
+
+if_then_171:
+ %89 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.18, i64 0, i64 0
+ call void @qk_cgui_text(i8* %89)
+ br label %if_after_173
+
+if_after_173:
+ %90 = load i32, i32* %selected_skill_ptr_90
+ %91 = icmp eq i32 %90, 4
+ br i1 %91, label %if_then_174, label %if_after_176
+
+if_then_174:
+ %92 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.19, i64 0, i64 0
+ call void @qk_cgui_text(i8* %92)
+ br label %if_after_176
+
+if_after_176:
+ %93 = load i32, i32* %selected_skill_ptr_90
+ %94 = icmp eq i32 %93, 5
+ br i1 %94, label %if_then_177, label %if_after_179
+
+if_then_177:
+ %95 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.20, i64 0, i64 0
+ call void @qk_cgui_text(i8* %95)
+ br label %if_after_179
+
+if_after_179:
+ call void @qk_cgui_panel_end()
+ %96 = getelementptr inbounds [6 x i8], [6 x i8]* @.str.21, i64 0, i64 0
+ call void @qk_cgui_panel(i32 460, i32 80, i32 260, i32 400, i8* %96)
+ call void @qk_cgui_row(i32 1, i32 28)
+ %97 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.22, i64 0, i64 0
+ call void @qk_cgui_text(i8* %97)
+ call void @qk_cgui_row(i32 1, i32 34)
+ %98 = getelementptr inbounds [9 x i8], [9 x i8]* @.str.23, i64 0, i64 0
+ %99 = call i32 @qk_cgui_button(i8* %98)
+ %100 = icmp eq i32 %99, 1
+ br i1 %100, label %if_then_180, label %if_after_182
+
+if_then_180:
+ %101 = load i32, i32* %selected_skill_ptr_90
+ %102 = call %form.Spirit* @spirits_spirit_new(i32 %101)
+ store %form.Spirit* %102, %form.Spirit** %my_spirit_ptr_119
+ %104 = load i32, i32* %size_ptr_85
+ %105 = load i32, i32* %size_ptr_85
+ %106 = call %Lattice* @qk_lattice_new(i32 2, i32 %104, i32 %105, i32 0)
+ store %Lattice* %106, %Lattice** %board_state_ptr_105
+ store i32 0, i32* %move_count_ptr_109
+ store i32 1, i32* %current_ptr_110
+ %107 = sub i32 0, 1
+ store i32 %107, i32* %last_x_ptr_111
+ %108 = sub i32 0, 1
+ store i32 %108, i32* %last_y_ptr_112
+ store i32 0, i32* %game_over_ptr_89
+ store i32 0, i32* %after_life_ptr_116
+ %109 = load i32, i32* %selected_skill_ptr_90
+ %110 = icmp eq i32 %109, 2
+ br i1 %110, label %if_then_183, label %if_after_185
+
+if_then_183:
+ %111 = load i32, i32* %size_ptr_85
+ %112 = sdiv i32 %111, 2
+ store i32 %112, i32* %c_ptr_186
+ %113 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %114 = load i32, i32* %size_ptr_85
+ %115 = load i32, i32* %c_ptr_186
+ %116 = load i32, i32* %c_ptr_186
+ %117 = load i32, i32* %my_color_ptr_87
+ %118 = sub i32 0, 1
+ %119 = sub i32 0, 1
+ %120 = call i32 @rules_place_stone(%Lattice* %113, i32 %114, i32 %115, i32 %116, i32 %117, i32 %118, i32 %119)
+ store i32 %120, i32* %ok_ptr_187
+ %121 = load i32, i32* %ok_ptr_187
+ %122 = icmp eq i32 %121, 1
+ br i1 %122, label %if_then_188, label %if_after_190
+
+if_then_188:
+ %123 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %124 = load i32, i32* %move_count_ptr_109
+ %125 = load i32, i32* %c_ptr_186
+ call void @qk_lattice_set(%Lattice* %123, i32 %124, i32 0, i32 %125)
+ %126 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %127 = load i32, i32* %move_count_ptr_109
+ %128 = load i32, i32* %c_ptr_186
+ call void @qk_lattice_set(%Lattice* %126, i32 %127, i32 1, i32 %128)
+ %129 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %130 = load i32, i32* %move_count_ptr_109
+ %131 = load i32, i32* %my_color_ptr_87
+ call void @qk_lattice_set(%Lattice* %129, i32 %130, i32 2, i32 %131)
+ %132 = load i32, i32* %move_count_ptr_109
+ %133 = add i32 %132, 1
+ store i32 %133, i32* %move_count_ptr_109
+ %134 = load i32, i32* %c_ptr_186
+ store i32 %134, i32* %last_x_ptr_111
+ %135 = load i32, i32* %c_ptr_186
+ store i32 %135, i32* %last_y_ptr_112
+ %136 = load i32, i32* %current_ptr_110
+ %137 = call i32 @rules_opponent(i32 %136)
+ store i32 %137, i32* %current_ptr_110
+ store i32 12, i32* %shake_time_ptr_117
+ store i32 5, i32* %shake_mag_ptr_118
+ %138 = load i32, i32* %sound_on_ptr_92
+ call void @skill_sound(i32 2, i32 %138)
+ br label %if_after_190
+
+if_after_190:
+ br label %if_after_185
+
+if_after_185:
+ store i32 1, i32* %mode_ptr_86
+ br label %if_after_182
+
+if_after_182:
+ call void @qk_cgui_row(i32 1, i32 34)
+ %139 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.24, i64 0, i64 0
+ %140 = call i32 @qk_cgui_button(i8* %139)
+ %141 = icmp eq i32 %140, 1
+ br i1 %141, label %if_then_191, label %if_after_193
+
+if_then_191:
+ %142 = load i32, i32* %selected_skill_ptr_90
+ %143 = call %form.Spirit* @spirits_spirit_new(i32 %142)
+ store %form.Spirit* %143, %form.Spirit** %my_spirit_ptr_119
+ %145 = load i32, i32* %size_ptr_85
+ %146 = load i32, i32* %size_ptr_85
+ %147 = call %Lattice* @qk_lattice_new(i32 2, i32 %145, i32 %146, i32 0)
+ store %Lattice* %147, %Lattice** %board_state_ptr_105
+ store i32 0, i32* %move_count_ptr_109
+ store i32 1, i32* %current_ptr_110
+ %148 = sub i32 0, 1
+ store i32 %148, i32* %last_x_ptr_111
+ %149 = sub i32 0, 1
+ store i32 %149, i32* %last_y_ptr_112
+ store i32 0, i32* %game_over_ptr_89
+ store i32 0, i32* %after_life_ptr_116
+ %150 = load i32, i32* %selected_skill_ptr_90
+ %151 = icmp eq i32 %150, 2
+ br i1 %151, label %if_then_194, label %if_after_196
+
+if_then_194:
+ %152 = load i32, i32* %size_ptr_85
+ %153 = sdiv i32 %152, 2
+ store i32 %153, i32* %c_ptr_197
+ %154 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %155 = load i32, i32* %size_ptr_85
+ %156 = load i32, i32* %c_ptr_197
+ %157 = load i32, i32* %c_ptr_197
+ %158 = load i32, i32* %my_color_ptr_87
+ %159 = sub i32 0, 1
+ %160 = sub i32 0, 1
+ %161 = call i32 @rules_place_stone(%Lattice* %154, i32 %155, i32 %156, i32 %157, i32 %158, i32 %159, i32 %160)
+ store i32 %161, i32* %ok_ptr_198
+ %162 = load i32, i32* %ok_ptr_198
+ %163 = icmp eq i32 %162, 1
+ br i1 %163, label %if_then_199, label %if_after_201
+
+if_then_199:
+ %164 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %165 = load i32, i32* %move_count_ptr_109
+ %166 = load i32, i32* %c_ptr_197
+ call void @qk_lattice_set(%Lattice* %164, i32 %165, i32 0, i32 %166)
+ %167 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %168 = load i32, i32* %move_count_ptr_109
+ %169 = load i32, i32* %c_ptr_197
+ call void @qk_lattice_set(%Lattice* %167, i32 %168, i32 1, i32 %169)
+ %170 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %171 = load i32, i32* %move_count_ptr_109
+ %172 = load i32, i32* %my_color_ptr_87
+ call void @qk_lattice_set(%Lattice* %170, i32 %171, i32 2, i32 %172)
+ %173 = load i32, i32* %move_count_ptr_109
+ %174 = add i32 %173, 1
+ store i32 %174, i32* %move_count_ptr_109
+ %175 = load i32, i32* %c_ptr_197
+ store i32 %175, i32* %last_x_ptr_111
+ %176 = load i32, i32* %c_ptr_197
+ store i32 %176, i32* %last_y_ptr_112
+ %177 = load i32, i32* %current_ptr_110
+ %178 = call i32 @rules_opponent(i32 %177)
+ store i32 %178, i32* %current_ptr_110
+ store i32 12, i32* %shake_time_ptr_117
+ store i32 5, i32* %shake_mag_ptr_118
+ %179 = load i32, i32* %sound_on_ptr_92
+ call void @skill_sound(i32 2, i32 %179)
+ br label %if_after_201
+
+if_after_201:
+ br label %if_after_196
+
+if_after_196:
+ store i32 0, i32* %mode_ptr_86
+ br label %if_after_193
+
+if_after_193:
+ call void @qk_cgui_row(i32 1, i32 34)
+ %180 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.25, i64 0, i64 0
+ %181 = call i32 @qk_cgui_button(i8* %180)
+ %182 = icmp eq i32 %181, 1
+ br i1 %182, label %if_then_202, label %if_after_204
+
+if_then_202:
+ %183 = sub i32 0, 5
+ store i32 %183, i32* %mode_ptr_86
+ br label %if_after_204
+
+if_after_204:
+ call void @qk_cgui_row(i32 1, i32 20)
+ %184 = getelementptr inbounds [1 x i8], [1 x i8]* @.str.26, i64 0, i64 0
+ call void @qk_cgui_text(i8* %184)
+ call void @qk_cgui_row(i32 2, i32 34)
+ %185 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.27, i64 0, i64 0
+ %186 = call i32 @qk_cgui_button(i8* %185)
+ %187 = icmp eq i32 %186, 1
+ br i1 %187, label %if_then_205, label %if_after_207
+
+if_then_205:
+ %188 = sub i32 0, 3
+ store i32 %188, i32* %mode_ptr_86
+ br label %if_after_207
+
+if_after_207:
+ %189 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.28, i64 0, i64 0
+ %190 = call i32 @qk_cgui_button(i8* %189)
+ %191 = icmp eq i32 %190, 1
+ br i1 %191, label %if_then_208, label %if_after_210
+
+if_then_208:
+ %192 = sub i32 0, 4
+ store i32 %192, i32* %mode_ptr_86
+ br label %if_after_210
+
+if_after_210:
+ %193 = load i32, i32* %move_count_ptr_109
+ %194 = icmp sgt i32 %193, 0
+ br i1 %194, label %if_then_211, label %if_after_213
+
+if_then_211:
+ call void @qk_cgui_row(i32 1, i32 34)
+ %195 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.29, i64 0, i64 0
+ %196 = call i32 @qk_cgui_button(i8* %195)
+ %197 = icmp eq i32 %196, 1
+ br i1 %197, label %if_then_214, label %if_after_216
+
+if_then_214:
+ store i32 0, i32* %replay_index_ptr_97
+ store i32 0, i32* %auto_play_ptr_98
+ %198 = sub i32 0, 6
+ store i32 %198, i32* %mode_ptr_86
+ br label %if_after_216
+
+if_after_216:
+ br label %if_after_213
+
+if_after_213:
+ call void @qk_cgui_panel_end()
+ %199 = getelementptr inbounds [5 x i8], [5 x i8]* @.str.30, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 760, i32 760, i32 60, i8* %199)
+ call void @qk_cgui_row(i32 1, i32 34)
+ %200 = getelementptr inbounds [5 x i8], [5 x i8]* @.str.31, i64 0, i64 0
+ %201 = call i32 @qk_cgui_button(i8* %200)
+ %202 = icmp eq i32 %201, 1
+ br i1 %202, label %if_then_217, label %if_after_219
+
+if_then_217:
+ store i32 1, i32* %quit_ptr_88
+ br label %if_after_219
+
+if_after_219:
+ call void @qk_cgui_panel_end()
+ br label %if_after_143
+
+if_else_142:
+ %203 = load i32, i32* %mode_ptr_86
+ %204 = sub i32 0, 3
+ %205 = icmp eq i32 %203, %204
+ br i1 %205, label %if_then_220, label %if_else_221
+
+if_then_220:
+ call void @qk_cgfx_rect(i32 0, i32 0, i32 760, i32 820, i32 921108)
+ %206 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.5, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 0, i32 760, i32 60, i8* %206)
+ call void @qk_cgui_row(i32 1, i32 32)
+ %207 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.27, i64 0, i64 0
+ call void @qk_cgui_text(i8* %207)
+ call void @qk_cgui_panel_end()
+ %208 = getelementptr inbounds [9 x i8], [9 x i8]* @.str.32, i64 0, i64 0
+ call void @qk_cgui_panel(i32 60, i32 80, i32 640, i32 620, i8* %208)
+ call void @qk_cgui_row(i32 1, i32 26)
+ %209 = load i32, i32* %sound_on_ptr_92
+ %210 = icmp eq i32 %209, 1
+ br i1 %210, label %if_then_223, label %if_else_224
+
+if_then_223:
+ %211 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.33, i64 0, i64 0
+ call void @qk_cgui_text(i8* %211)
+ br label %if_after_225
+
+if_else_224:
+ %212 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.34, i64 0, i64 0
+ call void @qk_cgui_text(i8* %212)
+ br label %if_after_225
+
+if_after_225:
+ call void @qk_cgui_row(i32 1, i32 34)
+ %213 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.35, i64 0, i64 0
+ %214 = call i32 @qk_cgui_button(i8* %213)
+ %215 = icmp eq i32 %214, 1
+ br i1 %215, label %if_then_226, label %if_after_228
+
+if_then_226:
+ %216 = load i32, i32* %sound_on_ptr_92
+ %217 = sub i32 1, %216
+ store i32 %217, i32* %sound_on_ptr_92
+ br label %if_after_228
+
+if_after_228:
+ call void @qk_cgui_row(i32 1, i32 26)
+ %218 = load i32, i32* %quality_ptr_93
+ %219 = icmp eq i32 %218, 0
+ br i1 %219, label %if_then_229, label %if_after_231
+
+if_then_229:
+ %220 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.36, i64 0, i64 0
+ call void @qk_cgui_text(i8* %220)
+ br label %if_after_231
+
+if_after_231:
+ %221 = load i32, i32* %quality_ptr_93
+ %222 = icmp eq i32 %221, 1
+ br i1 %222, label %if_then_232, label %if_after_234
+
+if_then_232:
+ %223 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.37, i64 0, i64 0
+ call void @qk_cgui_text(i8* %223)
+ br label %if_after_234
+
+if_after_234:
+ %224 = load i32, i32* %quality_ptr_93
+ %225 = icmp eq i32 %224, 2
+ br i1 %225, label %if_then_235, label %if_after_237
+
+if_then_235:
+ %226 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.38, i64 0, i64 0
+ call void @qk_cgui_text(i8* %226)
+ br label %if_after_237
+
+if_after_237:
+ call void @qk_cgui_row(i32 3, i32 34)
+ %227 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.39, i64 0, i64 0
+ %228 = call i32 @qk_cgui_button(i8* %227)
+ %229 = icmp eq i32 %228, 1
+ br i1 %229, label %if_then_238, label %if_after_240
+
+if_then_238:
+ store i32 0, i32* %quality_ptr_93
+ br label %if_after_240
+
+if_after_240:
+ %230 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.40, i64 0, i64 0
+ %231 = call i32 @qk_cgui_button(i8* %230)
+ %232 = icmp eq i32 %231, 1
+ br i1 %232, label %if_then_241, label %if_after_243
+
+if_then_241:
+ store i32 1, i32* %quality_ptr_93
+ br label %if_after_243
+
+if_after_243:
+ %233 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.41, i64 0, i64 0
+ %234 = call i32 @qk_cgui_button(i8* %233)
+ %235 = icmp eq i32 %234, 1
+ br i1 %235, label %if_then_244, label %if_after_246
+
+if_then_244:
+ store i32 2, i32* %quality_ptr_93
+ br label %if_after_246
+
+if_after_246:
+ call void @qk_cgui_row(i32 1, i32 26)
+ %236 = load i32, i32* %theme_ptr_94
+ %237 = icmp eq i32 %236, 0
+ br i1 %237, label %if_then_247, label %if_after_249
+
+if_then_247:
+ %238 = getelementptr inbounds [21 x i8], [21 x i8]* @.str.42, i64 0, i64 0
+ call void @qk_cgui_text(i8* %238)
+ br label %if_after_249
+
+if_after_249:
+ %239 = load i32, i32* %theme_ptr_94
+ %240 = icmp eq i32 %239, 1
+ br i1 %240, label %if_then_250, label %if_after_252
+
+if_then_250:
+ %241 = getelementptr inbounds [21 x i8], [21 x i8]* @.str.43, i64 0, i64 0
+ call void @qk_cgui_text(i8* %241)
+ br label %if_after_252
+
+if_after_252:
+ %242 = load i32, i32* %theme_ptr_94
+ %243 = icmp eq i32 %242, 2
+ br i1 %243, label %if_then_253, label %if_after_255
+
+if_then_253:
+ %244 = getelementptr inbounds [24 x i8], [24 x i8]* @.str.44, i64 0, i64 0
+ call void @qk_cgui_text(i8* %244)
+ br label %if_after_255
+
+if_after_255:
+ call void @qk_cgui_row(i32 3, i32 34)
+ %245 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.45, i64 0, i64 0
+ %246 = call i32 @qk_cgui_button(i8* %245)
+ %247 = icmp eq i32 %246, 1
+ br i1 %247, label %if_then_256, label %if_after_258
+
+if_then_256:
+ store i32 0, i32* %theme_ptr_94
+ br label %if_after_258
+
+if_after_258:
+ %248 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.46, i64 0, i64 0
+ %249 = call i32 @qk_cgui_button(i8* %248)
+ %250 = icmp eq i32 %249, 1
+ br i1 %250, label %if_then_259, label %if_after_261
+
+if_then_259:
+ store i32 1, i32* %theme_ptr_94
+ br label %if_after_261
+
+if_after_261:
+ %251 = getelementptr inbounds [10 x i8], [10 x i8]* @.str.47, i64 0, i64 0
+ %252 = call i32 @qk_cgui_button(i8* %251)
+ %253 = icmp eq i32 %252, 1
+ br i1 %253, label %if_then_262, label %if_after_264
+
+if_then_262:
+ store i32 2, i32* %theme_ptr_94
+ br label %if_after_264
+
+if_after_264:
+ call void @qk_cgui_row(i32 1, i32 26)
+ %254 = getelementptr inbounds [14 x i8], [14 x i8]* @.str.48, i64 0, i64 0
+ call void @qk_cgui_text(i8* %254)
+ call void @qk_cgui_row(i32 3, i32 34)
+ %255 = getelementptr inbounds [5 x i8], [5 x i8]* @.str.49, i64 0, i64 0
+ %256 = call i32 @qk_cgui_button(i8* %255)
+ %257 = icmp eq i32 %256, 1
+ br i1 %257, label %if_then_265, label %if_after_267
+
+if_then_265:
+ store i32 9, i32* %size_ptr_85
+ br label %if_after_267
+
+if_after_267:
+ %258 = getelementptr inbounds [6 x i8], [6 x i8]* @.str.50, i64 0, i64 0
+ %259 = call i32 @qk_cgui_button(i8* %258)
+ %260 = icmp eq i32 %259, 1
+ br i1 %260, label %if_then_268, label %if_after_270
+
+if_then_268:
+ store i32 13, i32* %size_ptr_85
+ br label %if_after_270
+
+if_after_270:
+ %261 = getelementptr inbounds [6 x i8], [6 x i8]* @.str.51, i64 0, i64 0
+ %262 = call i32 @qk_cgui_button(i8* %261)
+ %263 = icmp eq i32 %262, 1
+ br i1 %263, label %if_then_271, label %if_after_273
+
+if_then_271:
+ store i32 19, i32* %size_ptr_85
+ br label %if_after_273
+
+if_after_273:
+ call void @qk_cgui_row(i32 1, i32 26)
+ %264 = load i32, i32* %ai_type_ptr_96
+ %265 = icmp eq i32 %264, 0
+ br i1 %265, label %if_then_274, label %if_after_276
+
+if_then_274:
+ %266 = getelementptr inbounds [27 x i8], [27 x i8]* @.str.52, i64 0, i64 0
+ call void @qk_cgui_text(i8* %266)
+ br label %if_after_276
+
+if_after_276:
+ %267 = load i32, i32* %ai_type_ptr_96
+ %268 = icmp eq i32 %267, 1
+ br i1 %268, label %if_then_277, label %if_after_279
+
+if_then_277:
+ %269 = getelementptr inbounds [23 x i8], [23 x i8]* @.str.53, i64 0, i64 0
+ call void @qk_cgui_text(i8* %269)
+ br label %if_after_279
+
+if_after_279:
+ %270 = load i32, i32* %ai_type_ptr_96
+ %271 = icmp eq i32 %270, 2
+ br i1 %271, label %if_then_280, label %if_after_282
+
+if_then_280:
+ %272 = getelementptr inbounds [27 x i8], [27 x i8]* @.str.54, i64 0, i64 0
+ call void @qk_cgui_text(i8* %272)
+ br label %if_after_282
+
+if_after_282:
+ call void @qk_cgui_row(i32 3, i32 34)
+ %273 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.55, i64 0, i64 0
+ %274 = call i32 @qk_cgui_button(i8* %273)
+ %275 = icmp eq i32 %274, 1
+ br i1 %275, label %if_then_283, label %if_after_285
+
+if_then_283:
+ store i32 0, i32* %ai_type_ptr_96
+ br label %if_after_285
+
+if_after_285:
+ %276 = getelementptr inbounds [11 x i8], [11 x i8]* @.str.56, i64 0, i64 0
+ %277 = call i32 @qk_cgui_button(i8* %276)
+ %278 = icmp eq i32 %277, 1
+ br i1 %278, label %if_then_286, label %if_after_288
+
+if_then_286:
+ store i32 1, i32* %ai_type_ptr_96
+ br label %if_after_288
+
+if_after_288:
+ %279 = getelementptr inbounds [15 x i8], [15 x i8]* @.str.57, i64 0, i64 0
+ %280 = call i32 @qk_cgui_button(i8* %279)
+ %281 = icmp eq i32 %280, 1
+ br i1 %281, label %if_then_289, label %if_after_291
+
+if_then_289:
+ store i32 2, i32* %ai_type_ptr_96
+ br label %if_after_291
+
+if_after_291:
+ call void @qk_cgui_row(i32 1, i32 26)
+ %282 = load i32, i32* %win_mode_ptr_95
+ %283 = icmp eq i32 %282, 0
+ br i1 %283, label %if_then_292, label %if_after_294
+
+if_then_292:
+ %284 = getelementptr inbounds [18 x i8], [18 x i8]* @.str.58, i64 0, i64 0
+ call void @qk_cgui_text(i8* %284)
+ br label %if_after_294
+
+if_after_294:
+ %285 = load i32, i32* %win_mode_ptr_95
+ %286 = icmp eq i32 %285, 1
+ br i1 %286, label %if_then_295, label %if_after_297
+
+if_then_295:
+ %287 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.59, i64 0, i64 0
+ call void @qk_cgui_text(i8* %287)
+ br label %if_after_297
+
+if_after_297:
+ %288 = load i32, i32* %win_mode_ptr_95
+ %289 = icmp eq i32 %288, 2
+ br i1 %289, label %if_then_298, label %if_after_300
+
+if_then_298:
+ %290 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.60, i64 0, i64 0
+ call void @qk_cgui_text(i8* %290)
+ br label %if_after_300
+
+if_after_300:
+ %291 = load i32, i32* %win_mode_ptr_95
+ %292 = icmp eq i32 %291, 3
+ br i1 %292, label %if_then_301, label %if_after_303
+
+if_then_301:
+ %293 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.61, i64 0, i64 0
+ call void @qk_cgui_text(i8* %293)
+ br label %if_after_303
+
+if_after_303:
+ call void @qk_cgui_row(i32 4, i32 34)
+ %294 = getelementptr inbounds [10 x i8], [10 x i8]* @.str.62, i64 0, i64 0
+ %295 = call i32 @qk_cgui_button(i8* %294)
+ %296 = icmp eq i32 %295, 1
+ br i1 %296, label %if_then_304, label %if_after_306
+
+if_then_304:
+ store i32 0, i32* %win_mode_ptr_95
+ br label %if_after_306
+
+if_after_306:
+ %297 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.63, i64 0, i64 0
+ %298 = call i32 @qk_cgui_button(i8* %297)
+ %299 = icmp eq i32 %298, 1
+ br i1 %299, label %if_then_307, label %if_after_309
+
+if_then_307:
+ store i32 1, i32* %win_mode_ptr_95
+ br label %if_after_309
+
+if_after_309:
+ %300 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.40, i64 0, i64 0
+ %301 = call i32 @qk_cgui_button(i8* %300)
+ %302 = icmp eq i32 %301, 1
+ br i1 %302, label %if_then_310, label %if_after_312
+
+if_then_310:
+ store i32 2, i32* %win_mode_ptr_95
+ br label %if_after_312
+
+if_after_312:
+ %303 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.64, i64 0, i64 0
+ %304 = call i32 @qk_cgui_button(i8* %303)
+ %305 = icmp eq i32 %304, 1
+ br i1 %305, label %if_then_313, label %if_after_315
+
+if_then_313:
+ store i32 3, i32* %win_mode_ptr_95
+ br label %if_after_315
+
+if_after_315:
+ call void @qk_cgui_row(i32 1, i32 34)
+ %306 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.65, i64 0, i64 0
+ %307 = call i32 @qk_cgui_button(i8* %306)
+ %308 = icmp eq i32 %307, 1
+ br i1 %308, label %if_then_316, label %if_after_318
+
+if_then_316:
+ %309 = sub i32 0, 1
+ store i32 %309, i32* %mode_ptr_86
+ br label %if_after_318
+
+if_after_318:
+ call void @qk_cgui_panel_end()
+ br label %if_after_222
+
+if_else_221:
+ %310 = load i32, i32* %mode_ptr_86
+ %311 = sub i32 0, 4
+ %312 = icmp eq i32 %310, %311
+ br i1 %312, label %if_then_319, label %if_else_320
+
+if_then_319:
+ call void @qk_cgfx_rect(i32 0, i32 0, i32 760, i32 820, i32 921108)
+ %313 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.5, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 0, i32 760, i32 60, i8* %313)
+ call void @qk_cgui_row(i32 1, i32 32)
+ %314 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.28, i64 0, i64 0
+ call void @qk_cgui_text(i8* %314)
+ call void @qk_cgui_panel_end()
+ %315 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.66, i64 0, i64 0
+ call void @qk_cgui_panel(i32 80, i32 90, i32 600, i32 600, i8* %315)
+ call void @qk_cgui_row(i32 1, i32 30)
+ %316 = getelementptr inbounds [46 x i8], [46 x i8]* @.str.67, i64 0, i64 0
+ call void @qk_cgui_text(i8* %316)
+ call void @qk_cgui_row(i32 1, i32 30)
+ %317 = getelementptr inbounds [46 x i8], [46 x i8]* @.str.68, i64 0, i64 0
+ call void @qk_cgui_text(i8* %317)
+ call void @qk_cgui_row(i32 1, i32 30)
+ %318 = getelementptr inbounds [46 x i8], [46 x i8]* @.str.69, i64 0, i64 0
+ call void @qk_cgui_text(i8* %318)
+ call void @qk_cgui_row(i32 1, i32 30)
+ %319 = getelementptr inbounds [46 x i8], [46 x i8]* @.str.70, i64 0, i64 0
+ call void @qk_cgui_text(i8* %319)
+ call void @qk_cgui_row(i32 1, i32 30)
+ %320 = getelementptr inbounds [43 x i8], [43 x i8]* @.str.71, i64 0, i64 0
+ call void @qk_cgui_text(i8* %320)
+ call void @qk_cgui_row(i32 1, i32 30)
+ %321 = getelementptr inbounds [43 x i8], [43 x i8]* @.str.72, i64 0, i64 0
+ call void @qk_cgui_text(i8* %321)
+ call void @qk_cgui_row(i32 1, i32 40)
+ %322 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.65, i64 0, i64 0
+ %323 = call i32 @qk_cgui_button(i8* %322)
+ %324 = icmp eq i32 %323, 1
+ br i1 %324, label %if_then_322, label %if_after_324
+
+if_then_322:
+ %325 = sub i32 0, 1
+ store i32 %325, i32* %mode_ptr_86
+ br label %if_after_324
+
+if_after_324:
+ call void @qk_cgui_panel_end()
+ br label %if_after_321
+
+if_else_320:
+ %326 = load i32, i32* %mode_ptr_86
+ %327 = sub i32 0, 5
+ %328 = icmp eq i32 %326, %327
+ br i1 %328, label %if_then_325, label %if_else_326
+
+if_then_325:
+ call void @qk_cgfx_rect(i32 0, i32 0, i32 760, i32 820, i32 921108)
+ %329 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.5, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 0, i32 760, i32 60, i8* %329)
+ call void @qk_cgui_row(i32 1, i32 32)
+ %330 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.73, i64 0, i64 0
+ call void @qk_cgui_text(i8* %330)
+ call void @qk_cgui_panel_end()
+ %331 = getelementptr inbounds [6 x i8], [6 x i8]* @.str.74, i64 0, i64 0
+ call void @qk_cgui_panel(i32 80, i32 90, i32 600, i32 600, i8* %331)
+ call void @qk_cgui_row(i32 1, i32 34)
+ %332 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.75, i64 0, i64 0
+ %333 = call i32 @qk_cgui_button(i8* %332)
+ %334 = icmp eq i32 %333, 1
+ br i1 %334, label %if_then_328, label %if_after_330
+
+if_then_328:
+ %335 = load i32, i32* %selected_skill_ptr_90
+ %336 = call %form.Spirit* @spirits_spirit_new(i32 %335)
+ store %form.Spirit* %336, %form.Spirit** %my_spirit_ptr_119
+ %337 = call i32 @steam_steam_init()
+ %338 = call i32 @steam_steam_lobby_create()
+ %340 = load i32, i32* %size_ptr_85
+ %341 = load i32, i32* %size_ptr_85
+ %342 = call %Lattice* @qk_lattice_new(i32 2, i32 %340, i32 %341, i32 0)
+ store %Lattice* %342, %Lattice** %board_state_ptr_105
+ store i32 0, i32* %move_count_ptr_109
+ store i32 1, i32* %current_ptr_110
+ %343 = sub i32 0, 1
+ store i32 %343, i32* %last_x_ptr_111
+ %344 = sub i32 0, 1
+ store i32 %344, i32* %last_y_ptr_112
+ store i32 0, i32* %game_over_ptr_89
+ store i32 2, i32* %mode_ptr_86
+ br label %if_after_330
+
+if_after_330:
+ call void @qk_cgui_row(i32 1, i32 28)
+ %345 = getelementptr inbounds [14 x i8], [14 x i8]* @.str.76, i64 0, i64 0
+ call void @qk_cgui_text(i8* %345)
+ call void @qk_cgui_row(i32 1, i32 34)
+ %346 = getelementptr inbounds [19 x i8], [19 x i8]* @.str.77, i64 0, i64 0
+ %347 = call i32 @qk_cgui_button(i8* %346)
+ %348 = icmp eq i32 %347, 1
+ br i1 %348, label %if_then_331, label %if_after_333
+
+if_then_331:
+ %349 = load i32, i32* %selected_skill_ptr_90
+ %350 = call %form.Spirit* @spirits_spirit_new(i32 %349)
+ store %form.Spirit* %350, %form.Spirit** %my_spirit_ptr_119
+ %351 = call i32 @steam_steam_lobby_join()
+ %353 = load i32, i32* %size_ptr_85
+ %354 = load i32, i32* %size_ptr_85
+ %355 = call %Lattice* @qk_lattice_new(i32 2, i32 %353, i32 %354, i32 0)
+ store %Lattice* %355, %Lattice** %board_state_ptr_105
+ store i32 0, i32* %move_count_ptr_109
+ store i32 1, i32* %current_ptr_110
+ %356 = sub i32 0, 1
+ store i32 %356, i32* %last_x_ptr_111
+ %357 = sub i32 0, 1
+ store i32 %357, i32* %last_y_ptr_112
+ store i32 0, i32* %game_over_ptr_89
+ store i32 2, i32* %mode_ptr_86
+ br label %if_after_333
+
+if_after_333:
+ call void @qk_cgui_row(i32 1, i32 34)
+ %358 = getelementptr inbounds [19 x i8], [19 x i8]* @.str.78, i64 0, i64 0
+ %359 = call i32 @qk_cgui_button(i8* %358)
+ %360 = icmp eq i32 %359, 1
+ br i1 %360, label %if_then_334, label %if_after_336
+
+if_then_334:
+ call void @qk_cgui_beep(i32 300, i32 80)
+ br label %if_after_336
+
+if_after_336:
+ call void @qk_cgui_row(i32 1, i32 34)
+ %361 = getelementptr inbounds [19 x i8], [19 x i8]* @.str.79, i64 0, i64 0
+ %362 = call i32 @qk_cgui_button(i8* %361)
+ %363 = icmp eq i32 %362, 1
+ br i1 %363, label %if_then_337, label %if_after_339
+
+if_then_337:
+ %364 = load i32, i32* %selected_skill_ptr_90
+ %365 = call %form.Spirit* @spirits_spirit_new(i32 %364)
+ store %form.Spirit* %365, %form.Spirit** %my_spirit_ptr_119
+ %366 = call i32 @steam_steam_lobby_join()
+ %368 = load i32, i32* %size_ptr_85
+ %369 = load i32, i32* %size_ptr_85
+ %370 = call %Lattice* @qk_lattice_new(i32 2, i32 %368, i32 %369, i32 0)
+ store %Lattice* %370, %Lattice** %board_state_ptr_105
+ store i32 0, i32* %move_count_ptr_109
+ store i32 1, i32* %current_ptr_110
+ %371 = sub i32 0, 1
+ store i32 %371, i32* %last_x_ptr_111
+ %372 = sub i32 0, 1
+ store i32 %372, i32* %last_y_ptr_112
+ store i32 0, i32* %game_over_ptr_89
+ store i32 2, i32* %mode_ptr_86
+ br label %if_after_339
+
+if_after_339:
+ call void @qk_cgui_row(i32 1, i32 20)
+ %373 = getelementptr inbounds [8 x i8], [8 x i8]* @.str.80, i64 0, i64 0
+ call void @qk_cgui_text(i8* %373)
+ call void @qk_cgui_row(i32 3, i32 34)
+ %374 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.81, i64 0, i64 0
+ %375 = call i32 @qk_cgui_button(i8* %374)
+ %376 = icmp eq i32 %375, 1
+ br i1 %376, label %if_then_340, label %if_after_342
+
+if_then_340:
+ store i32 1001, i32* %observe_room_ptr_103
+ %378 = load i32, i32* %size_ptr_85
+ %379 = load i32, i32* %size_ptr_85
+ %380 = call %Lattice* @qk_lattice_new(i32 2, i32 %378, i32 %379, i32 0)
+ store %Lattice* %380, %Lattice** %observe_board_ptr_107
+ store i32 1, i32* %observe_color_ptr_102
+ store i32 0, i32* %observe_index_ptr_100
+ store i32 0, i32* %observe_frame_ptr_101
+ %381 = sub i32 0, 7
+ store i32 %381, i32* %mode_ptr_86
+ br label %if_after_342
+
+if_after_342:
+ %382 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.82, i64 0, i64 0
+ %383 = call i32 @qk_cgui_button(i8* %382)
+ %384 = icmp eq i32 %383, 1
+ br i1 %384, label %if_then_343, label %if_after_345
+
+if_then_343:
+ store i32 1002, i32* %observe_room_ptr_103
+ %386 = load i32, i32* %size_ptr_85
+ %387 = load i32, i32* %size_ptr_85
+ %388 = call %Lattice* @qk_lattice_new(i32 2, i32 %386, i32 %387, i32 0)
+ store %Lattice* %388, %Lattice** %observe_board_ptr_107
+ store i32 1, i32* %observe_color_ptr_102
+ store i32 0, i32* %observe_index_ptr_100
+ store i32 0, i32* %observe_frame_ptr_101
+ %389 = sub i32 0, 7
+ store i32 %389, i32* %mode_ptr_86
+ br label %if_after_345
+
+if_after_345:
+ %390 = getelementptr inbounds [12 x i8], [12 x i8]* @.str.83, i64 0, i64 0
+ %391 = call i32 @qk_cgui_button(i8* %390)
+ %392 = icmp eq i32 %391, 1
+ br i1 %392, label %if_then_346, label %if_after_348
+
+if_then_346:
+ store i32 1003, i32* %observe_room_ptr_103
+ %394 = load i32, i32* %size_ptr_85
+ %395 = load i32, i32* %size_ptr_85
+ %396 = call %Lattice* @qk_lattice_new(i32 2, i32 %394, i32 %395, i32 0)
+ store %Lattice* %396, %Lattice** %observe_board_ptr_107
+ store i32 1, i32* %observe_color_ptr_102
+ store i32 0, i32* %observe_index_ptr_100
+ store i32 0, i32* %observe_frame_ptr_101
+ %397 = sub i32 0, 7
+ store i32 %397, i32* %mode_ptr_86
+ br label %if_after_348
+
+if_after_348:
+ call void @qk_cgui_row(i32 1, i32 34)
+ %398 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.65, i64 0, i64 0
+ %399 = call i32 @qk_cgui_button(i8* %398)
+ %400 = icmp eq i32 %399, 1
+ br i1 %400, label %if_then_349, label %if_after_351
+
+if_then_349:
+ %401 = sub i32 0, 1
+ store i32 %401, i32* %mode_ptr_86
+ br label %if_after_351
+
+if_after_351:
+ call void @qk_cgui_panel_end()
+ br label %if_after_327
+
+if_else_326:
+ %402 = load i32, i32* %mode_ptr_86
+ %403 = sub i32 0, 7
+ %404 = icmp eq i32 %402, %403
+ br i1 %404, label %if_then_352, label %if_else_353
+
+if_then_352:
+ call void @qk_cgfx_rect(i32 0, i32 0, i32 760, i32 820, i32 921108)
+ %405 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.5, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 0, i32 760, i32 56, i8* %405)
+ call void @qk_cgui_row(i32 1, i32 28)
+ %406 = getelementptr inbounds [22 x i8], [22 x i8]* @.str.84, i64 0, i64 0
+ call void @qk_cgui_text(i8* %406)
+ call void @qk_cgui_panel_end()
+ %407 = load %Lattice*, %Lattice** %observe_board_ptr_107
+ %408 = load i32, i32* %size_ptr_85
+ %409 = load i32, i32* %cell_ptr_127
+ %410 = load i32, i32* %theme_ptr_94
+ call void @board_draw_board(%Lattice* %407, i32 %408, i32 %409, i32 0, i32 0, i32 %410)
+ %411 = load i32, i32* %observe_frame_ptr_101
+ %412 = add i32 %411, 1
+ store i32 %412, i32* %observe_frame_ptr_101
+ %413 = load i32, i32* %observe_frame_ptr_101
+ %414 = icmp sge i32 %413, 30
+ br i1 %414, label %if_then_355, label %if_after_357
+
+if_then_355:
+ store i32 0, i32* %observe_frame_ptr_101
+ %415 = load %Lattice*, %Lattice** %observe_board_ptr_107
+ %416 = load i32, i32* %size_ptr_85
+ %417 = load i32, i32* %observe_color_ptr_102
+ %418 = call i32 @ai_choose(%Lattice* %415, i32 %416, i32 %417, i32 0)
+ store i32 %418, i32* %mv_ptr_358
+ %419 = load i32, i32* %mv_ptr_358
+ %420 = icmp sge i32 %419, 0
+ br i1 %420, label %if_then_359, label %if_after_361
+
+if_then_359:
+ %421 = load i32, i32* %mv_ptr_358
+ %422 = sdiv i32 %421, 100
+ store i32 %422, i32* %ax_ptr_362
+ %423 = load i32, i32* %mv_ptr_358
+ %424 = srem i32 %423, 100
+ store i32 %424, i32* %ay_ptr_363
+ %425 = load %Lattice*, %Lattice** %observe_board_ptr_107
+ %426 = load i32, i32* %size_ptr_85
+ %427 = load i32, i32* %ax_ptr_362
+ %428 = load i32, i32* %ay_ptr_363
+ %429 = load i32, i32* %observe_color_ptr_102
+ %430 = sub i32 0, 1
+ %431 = sub i32 0, 1
+ %432 = call i32 @rules_place_stone(%Lattice* %425, i32 %426, i32 %427, i32 %428, i32 %429, i32 %430, i32 %431)
+ store i32 %432, i32* %ok_ptr_364
+ %433 = load i32, i32* %ok_ptr_364
+ %434 = icmp eq i32 %433, 1
+ br i1 %434, label %if_then_365, label %if_after_367
+
+if_then_365:
+ %435 = load i32, i32* %observe_color_ptr_102
+ %436 = call i32 @rules_opponent(i32 %435)
+ store i32 %436, i32* %observe_color_ptr_102
+ %437 = load i32, i32* %observe_index_ptr_100
+ %438 = add i32 %437, 1
+ store i32 %438, i32* %observe_index_ptr_100
+ %439 = load i32, i32* %sound_on_ptr_92
+ %440 = icmp eq i32 %439, 1
+ br i1 %440, label %if_then_368, label %if_after_370
+
+if_then_368:
+ call void @qk_cgui_beep(i32 500, i32 40)
+ br label %if_after_370
+
+if_after_370:
+ br label %if_after_367
+
+if_after_367:
+ br label %if_after_361
+
+if_after_361:
+ br label %if_after_357
+
+if_after_357:
+ %441 = getelementptr inbounds [10 x i8], [10 x i8]* @.str.85, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 636, i32 760, i32 184, i8* %441)
+ call void @qk_cgui_row(i32 1, i32 40)
+ %442 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.86, i64 0, i64 0
+ %443 = call i32 @qk_cgui_button(i8* %442)
+ %444 = icmp eq i32 %443, 1
+ br i1 %444, label %if_then_371, label %if_after_373
+
+if_then_371:
+ %445 = sub i32 0, 1
+ store i32 %445, i32* %mode_ptr_86
+ br label %if_after_373
+
+if_after_373:
+ call void @qk_cgui_panel_end()
+ br label %if_after_354
+
+if_else_353:
+ %446 = load i32, i32* %mode_ptr_86
+ %447 = sub i32 0, 6
+ %448 = icmp eq i32 %446, %447
+ br i1 %448, label %if_then_374, label %if_else_375
+
+if_then_374:
+ call void @qk_cgfx_rect(i32 0, i32 0, i32 760, i32 820, i32 921108)
+ %449 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.5, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 0, i32 760, i32 56, i8* %449)
+ call void @qk_cgui_row(i32 1, i32 28)
+ %450 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.29, i64 0, i64 0
+ call void @qk_cgui_text(i8* %450)
+ call void @qk_cgui_panel_end()
+ store i32 0, i32* %ry_ptr_381
+ br label %for_cond_377
+
+for_cond_377:
+ %451 = load i32, i32* %ry_ptr_381
+ %452 = load i32, i32* %size_ptr_85
+ %453 = icmp slt i32 %451, %452
+ br i1 %453, label %for_body_378, label %for_after_380
+
+for_body_378:
+ store i32 0, i32* %rx_ptr_386
+ br label %for_cond_382
+
+for_cond_382:
+ %454 = load i32, i32* %rx_ptr_386
+ %455 = load i32, i32* %size_ptr_85
+ %456 = icmp slt i32 %454, %455
+ br i1 %456, label %for_body_383, label %for_after_385
+
+for_body_383:
+ %457 = load %Lattice*, %Lattice** %replay_board_ptr_106
+ %458 = load i32, i32* %rx_ptr_386
+ %459 = load i32, i32* %ry_ptr_381
+ call void @qk_lattice_set(%Lattice* %457, i32 %458, i32 %459, i32 0)
+ br label %for_update_384
+
+for_update_384:
+ %460 = load i32, i32* %rx_ptr_386
+ %461 = add i32 %460, 1
+ store i32 %461, i32* %rx_ptr_386
+ br label %for_cond_382
+
+for_after_385:
+ br label %for_update_379
+
+for_update_379:
+ %462 = load i32, i32* %ry_ptr_381
+ %463 = add i32 %462, 1
+ store i32 %463, i32* %ry_ptr_381
+ br label %for_cond_377
+
+for_after_380:
+ store i32 0, i32* %k_ptr_391
+ br label %for_cond_387
+
+for_cond_387:
+ %464 = load i32, i32* %k_ptr_391
+ %465 = load i32, i32* %replay_index_ptr_97
+ %466 = icmp slt i32 %464, %465
+ br i1 %466, label %for_body_388, label %for_after_390
+
+for_body_388:
+ %467 = load %Lattice*, %Lattice** %replay_board_ptr_106
+ %468 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %469 = load i32, i32* %k_ptr_391
+ %470 = call i32 @qk_lattice_ref(%Lattice* %468, i32 %469, i32 0)
+ %471 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %472 = load i32, i32* %k_ptr_391
+ %473 = call i32 @qk_lattice_ref(%Lattice* %471, i32 %472, i32 1)
+ %474 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %475 = load i32, i32* %k_ptr_391
+ %476 = call i32 @qk_lattice_ref(%Lattice* %474, i32 %475, i32 2)
+ call void @qk_lattice_set(%Lattice* %467, i32 %470, i32 %473, i32 %476)
+ br label %for_update_389
+
+for_update_389:
+ %477 = load i32, i32* %k_ptr_391
+ %478 = add i32 %477, 1
+ store i32 %478, i32* %k_ptr_391
+ br label %for_cond_387
+
+for_after_390:
+ %479 = load %Lattice*, %Lattice** %replay_board_ptr_106
+ %480 = load i32, i32* %size_ptr_85
+ %481 = load i32, i32* %cell_ptr_127
+ %482 = load i32, i32* %theme_ptr_94
+ call void @board_draw_board(%Lattice* %479, i32 %480, i32 %481, i32 0, i32 0, i32 %482)
+ store i32 200, i32* %bar_x_ptr_392
+ store i32 56, i32* %bar_y_ptr_393
+ store i32 360, i32* %bar_w_ptr_394
+ store i32 10, i32* %bar_h_ptr_395
+ %483 = load i32, i32* %bar_x_ptr_392
+ %484 = load i32, i32* %bar_y_ptr_393
+ %485 = load i32, i32* %bar_w_ptr_394
+ %486 = load i32, i32* %bar_h_ptr_395
+ call void @qk_cgfx_rect(i32 %483, i32 %484, i32 %485, i32 %486, i32 3355443)
+ %487 = load i32, i32* %move_count_ptr_109
+ %488 = icmp sgt i32 %487, 0
+ br i1 %488, label %if_then_396, label %if_after_398
+
+if_then_396:
+ %489 = load i32, i32* %bar_w_ptr_394
+ %490 = load i32, i32* %replay_index_ptr_97
+ %491 = mul i32 %489, %490
+ %492 = load i32, i32* %move_count_ptr_109
+ %493 = sdiv i32 %491, %492
+ store i32 %493, i32* %fill_ptr_399
+ %494 = load i32, i32* %bar_x_ptr_392
+ %495 = load i32, i32* %bar_y_ptr_393
+ %496 = load i32, i32* %fill_ptr_399
+ %497 = load i32, i32* %bar_h_ptr_395
+ call void @qk_cgfx_rect(i32 %494, i32 %495, i32 %496, i32 %497, i32 6737151)
+ br label %if_after_398
+
+if_after_398:
+ %498 = load i32, i32* %move_count_ptr_109
+ %499 = icmp sgt i32 %498, 0
+ br i1 %499, label %logic_eval_406, label %logic_short_405
+
+logic_short_405:
+ store i1 false, i1* %logic_ptr_403
+ br label %logic_end_404
+
+logic_eval_406:
+ %500 = call i32 @qk_cgui_mouse_left_clicked()
+ %501 = icmp eq i32 %500, 1
+ store i1 %501, i1* %logic_ptr_403
+ br label %logic_end_404
+
+logic_end_404:
+ %502 = load i1, i1* %logic_ptr_403
+ br i1 %502, label %if_then_400, label %if_after_402
+
+if_then_400:
+ %503 = call i32 @qk_cgui_mouse_x()
+ store i32 %503, i32* %mx_ptr_407
+ %504 = load i32, i32* %mx_ptr_407
+ %505 = load i32, i32* %bar_x_ptr_392
+ %506 = icmp sge i32 %504, %505
+ br i1 %506, label %logic_eval_414, label %logic_short_413
+
+logic_short_413:
+ store i1 false, i1* %logic_ptr_411
+ br label %logic_end_412
+
+logic_eval_414:
+ %507 = load i32, i32* %mx_ptr_407
+ %508 = load i32, i32* %bar_x_ptr_392
+ %509 = load i32, i32* %bar_w_ptr_394
+ %510 = add i32 %508, %509
+ %511 = icmp sle i32 %507, %510
+ store i1 %511, i1* %logic_ptr_411
+ br label %logic_end_412
+
+logic_end_412:
+ %512 = load i1, i1* %logic_ptr_411
+ br i1 %512, label %if_then_408, label %if_after_410
+
+if_then_408:
+ %513 = load i32, i32* %mx_ptr_407
+ %514 = load i32, i32* %bar_x_ptr_392
+ %515 = sub i32 %513, %514
+ %516 = load i32, i32* %move_count_ptr_109
+ %517 = mul i32 %515, %516
+ %518 = load i32, i32* %bar_w_ptr_394
+ %519 = sdiv i32 %517, %518
+ store i32 %519, i32* %replay_index_ptr_97
+ store i32 0, i32* %auto_play_ptr_98
+ br label %if_after_410
+
+if_after_410:
+ br label %if_after_402
+
+if_after_402:
+ %520 = load i32, i32* %auto_play_ptr_98
+ %521 = icmp eq i32 %520, 1
+ br i1 %521, label %logic_eval_421, label %logic_short_420
+
+logic_short_420:
+ store i1 false, i1* %logic_ptr_418
+ br label %logic_end_419
+
+logic_eval_421:
+ %522 = load i32, i32* %replay_index_ptr_97
+ %523 = load i32, i32* %move_count_ptr_109
+ %524 = icmp slt i32 %522, %523
+ store i1 %524, i1* %logic_ptr_418
+ br label %logic_end_419
+
+logic_end_419:
+ %525 = load i1, i1* %logic_ptr_418
+ br i1 %525, label %if_then_415, label %if_after_417
+
+if_then_415:
+ %526 = load i32, i32* %auto_frame_ptr_99
+ %527 = add i32 %526, 1
+ store i32 %527, i32* %auto_frame_ptr_99
+ %528 = load i32, i32* %auto_frame_ptr_99
+ %529 = icmp sge i32 %528, 15
+ br i1 %529, label %if_then_422, label %if_after_424
+
+if_then_422:
+ store i32 0, i32* %auto_frame_ptr_99
+ %530 = load i32, i32* %replay_index_ptr_97
+ %531 = add i32 %530, 1
+ store i32 %531, i32* %replay_index_ptr_97
+ %532 = load i32, i32* %sound_on_ptr_92
+ %533 = icmp eq i32 %532, 1
+ br i1 %533, label %if_then_425, label %if_after_427
+
+if_then_425:
+ call void @qk_cgui_beep(i32 400, i32 40)
+ br label %if_after_427
+
+if_after_427:
+ br label %if_after_424
+
+if_after_424:
+ br label %if_after_417
+
+if_after_417:
+ %534 = getelementptr inbounds [11 x i8], [11 x i8]* @.str.87, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 636, i32 760, i32 184, i8* %534)
+ call void @qk_cgui_row(i32 4, i32 40)
+ %535 = getelementptr inbounds [10 x i8], [10 x i8]* @.str.88, i64 0, i64 0
+ %536 = call i32 @qk_cgui_button(i8* %535)
+ %537 = icmp eq i32 %536, 1
+ br i1 %537, label %if_then_428, label %if_after_430
+
+if_then_428:
+ store i32 0, i32* %auto_play_ptr_98
+ %538 = load i32, i32* %replay_index_ptr_97
+ %539 = icmp sgt i32 %538, 0
+ br i1 %539, label %if_then_431, label %if_after_433
+
+if_then_431:
+ %540 = load i32, i32* %replay_index_ptr_97
+ %541 = sub i32 %540, 1
+ store i32 %541, i32* %replay_index_ptr_97
+ br label %if_after_433
+
+if_after_433:
+ br label %if_after_430
+
+if_after_430:
+ %542 = getelementptr inbounds [10 x i8], [10 x i8]* @.str.89, i64 0, i64 0
+ %543 = call i32 @qk_cgui_button(i8* %542)
+ %544 = icmp eq i32 %543, 1
+ br i1 %544, label %if_then_434, label %if_after_436
+
+if_then_434:
+ store i32 0, i32* %auto_play_ptr_98
+ %545 = load i32, i32* %replay_index_ptr_97
+ %546 = load i32, i32* %move_count_ptr_109
+ %547 = icmp slt i32 %545, %546
+ br i1 %547, label %if_then_437, label %if_after_439
+
+if_then_437:
+ %548 = load i32, i32* %replay_index_ptr_97
+ %549 = add i32 %548, 1
+ store i32 %549, i32* %replay_index_ptr_97
+ br label %if_after_439
+
+if_after_439:
+ br label %if_after_436
+
+if_after_436:
+ %550 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.90, i64 0, i64 0
+ %551 = call i32 @qk_cgui_button(i8* %550)
+ %552 = icmp eq i32 %551, 1
+ br i1 %552, label %if_then_440, label %if_after_442
+
+if_then_440:
+ %553 = load i32, i32* %auto_play_ptr_98
+ %554 = sub i32 1, %553
+ store i32 %554, i32* %auto_play_ptr_98
+ br label %if_after_442
+
+if_after_442:
+ %555 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.65, i64 0, i64 0
+ %556 = call i32 @qk_cgui_button(i8* %555)
+ %557 = icmp eq i32 %556, 1
+ br i1 %557, label %if_then_443, label %if_after_445
+
+if_then_443:
+ store i32 0, i32* %auto_play_ptr_98
+ %558 = sub i32 0, 1
+ store i32 %558, i32* %mode_ptr_86
+ br label %if_after_445
+
+if_after_445:
+ call void @qk_cgui_panel_end()
+ br label %if_after_376
+
+if_else_375:
+ call void @qk_cgfx_rect(i32 0, i32 0, i32 760, i32 820, i32 921108)
+ %559 = getelementptr inbounds [4 x i8], [4 x i8]* @.str.5, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 0, i32 760, i32 56, i8* %559)
+ call void @qk_cgui_row(i32 2, i32 28)
+ %560 = load i32, i32* %current_ptr_110
+ %561 = icmp eq i32 %560, 1
+ br i1 %561, label %if_then_446, label %if_else_447
+
+if_then_446:
+ %562 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.91, i64 0, i64 0
+ call void @qk_cgui_text(i8* %562)
+ br label %if_after_448
+
+if_else_447:
+ %563 = getelementptr inbounds [13 x i8], [13 x i8]* @.str.92, i64 0, i64 0
+ call void @qk_cgui_text(i8* %563)
+ br label %if_after_448
+
+if_after_448:
+ %564 = load i32, i32* %ai_thinking_ptr_104
+ %565 = icmp sgt i32 %564, 0
+ br i1 %565, label %if_then_449, label %if_else_450
+
+if_then_449:
+ %566 = getelementptr inbounds [16 x i8], [16 x i8]* @.str.93, i64 0, i64 0
+ call void @qk_cgui_text(i8* %566)
+ br label %if_after_451
+
+if_else_450:
+ %567 = getelementptr inbounds [1 x i8], [1 x i8]* @.str.26, i64 0, i64 0
+ call void @qk_cgui_text(i8* %567)
+ br label %if_after_451
+
+if_after_451:
+ call void @qk_cgui_panel_end()
+ store i32 0, i32* %dx_ptr_452
+ store i32 0, i32* %dy_ptr_453
+ %568 = load i32, i32* %shake_time_ptr_117
+ %569 = icmp sgt i32 %568, 0
+ br i1 %569, label %if_then_454, label %if_after_456
+
+if_then_454:
+ %570 = load i32, i32* %shake_mag_ptr_118
+ store i32 %570, i32* %m_ptr_457
+ %571 = load i32, i32* %shake_time_ptr_117
+ %572 = mul i32 %571, 37
+ %573 = load i32, i32* %m_ptr_457
+ %574 = mul i32 %573, 2
+ %575 = add i32 %574, 1
+ %576 = srem i32 %572, %575
+ %577 = load i32, i32* %m_ptr_457
+ %578 = sub i32 %576, %577
+ store i32 %578, i32* %dx_ptr_452
+ %579 = load i32, i32* %shake_time_ptr_117
+ %580 = mul i32 %579, 53
+ %581 = load i32, i32* %m_ptr_457
+ %582 = mul i32 %581, 2
+ %583 = add i32 %582, 1
+ %584 = srem i32 %580, %583
+ %585 = load i32, i32* %m_ptr_457
+ %586 = sub i32 %584, %585
+ store i32 %586, i32* %dy_ptr_453
+ %587 = load i32, i32* %shake_time_ptr_117
+ %588 = sub i32 %587, 1
+ store i32 %588, i32* %shake_time_ptr_117
+ br label %if_after_456
+
+if_after_456:
+ %589 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %590 = load i32, i32* %size_ptr_85
+ %591 = load i32, i32* %cell_ptr_127
+ %592 = load i32, i32* %dx_ptr_452
+ %593 = load i32, i32* %dy_ptr_453
+ %594 = load i32, i32* %theme_ptr_94
+ call void @board_draw_board(%Lattice* %589, i32 %590, i32 %591, i32 %592, i32 %593, i32 %594)
+ %595 = load i32, i32* %after_life_ptr_116
+ %596 = icmp sgt i32 %595, 0
+ br i1 %596, label %if_then_458, label %if_after_460
+
+if_then_458:
+ %597 = load i32, i32* %after_x_ptr_114
+ %598 = load i32, i32* %after_y_ptr_115
+ %599 = load i32, i32* %cell_ptr_127
+ %600 = call i32 @gx_to_screen(i32 %597, i32 %598, i32 %599)
+ %601 = load i32, i32* %dx_ptr_452
+ %602 = add i32 %600, %601
+ store i32 %602, i32* %ax_ptr_461
+ %603 = load i32, i32* %after_y_ptr_115
+ %604 = load i32, i32* %cell_ptr_127
+ %605 = call i32 @gy_to_screen(i32 %603, i32 %604)
+ %606 = load i32, i32* %dy_ptr_453
+ %607 = add i32 %605, %606
+ store i32 %607, i32* %ay_ptr_462
+ %608 = load i32, i32* %after_life_ptr_116
+ %609 = mul i32 %608, 255
+ %610 = sdiv i32 %609, 60
+ store i32 %610, i32* %aalpha_ptr_463
+ %611 = load i32, i32* %ax_ptr_461
+ %612 = load i32, i32* %ay_ptr_462
+ %613 = load i32, i32* %cell_ptr_127
+ %614 = sdiv i32 %613, 2
+ %615 = load i32, i32* %cell_ptr_127
+ %616 = sdiv i32 %615, 2
+ %617 = load i32, i32* %aalpha_ptr_463
+ %618 = sdiv i32 %617, 2
+ call void @qk_cgfx_ellipse_a(i32 %611, i32 %612, i32 %614, i32 %616, i32 16777215, i32 %618)
+ %619 = load i32, i32* %ax_ptr_461
+ %620 = load i32, i32* %ay_ptr_462
+ %621 = load i32, i32* %cell_ptr_127
+ %622 = sdiv i32 %621, 3
+ %623 = load i32, i32* %cell_ptr_127
+ %624 = sdiv i32 %623, 3
+ %625 = load i32, i32* %aalpha_ptr_463
+ call void @qk_cgfx_ellipse_a(i32 %619, i32 %620, i32 %622, i32 %624, i32 13421772, i32 %625)
+ %626 = load i32, i32* %after_life_ptr_116
+ %627 = sub i32 %626, 1
+ store i32 %627, i32* %after_life_ptr_116
+ br label %if_after_460
+
+if_after_460:
+ %628 = load %Lattice*, %Lattice** %pool_ptr_113
+ call void @particles_px_update(%Lattice* %628, i32 256)
+ %629 = load %Lattice*, %Lattice** %pool_ptr_113
+ call void @particles_px_render(%Lattice* %629, i32 256)
+ %630 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.94, i64 0, i64 0
+ call void @qk_cgui_panel(i32 0, i32 636, i32 760, i32 184, i8* %630)
+ %631 = load %form.Spirit*, %form.Spirit** %my_spirit_ptr_119
+ %632 = call i32 @spirits_spirit_cooldown_total(%form.Spirit* %631)
+ store i32 %632, i32* %cd_total_ptr_464
+ %633 = load i32, i32* %cd_total_ptr_464
+ %634 = icmp sle i32 %633, 0
+ br i1 %634, label %if_then_465, label %if_after_467
+
+if_then_465:
+ store i32 5, i32* %cd_total_ptr_464
+ br label %if_after_467
+
+if_after_467:
+ %635 = load %form.Spirit*, %form.Spirit** %my_spirit_ptr_119
+ %636 = call i32 @spirits_spirit_cooldown_left(%form.Spirit* %635)
+ store i32 %636, i32* %cd_left_ptr_468
+ %637 = load i32, i32* %cd_total_ptr_464
+ %638 = load i32, i32* %cd_left_ptr_468
+ %639 = sub i32 %637, %638
+ %640 = mul i32 160, %639
+ %641 = load i32, i32* %cd_total_ptr_464
+ %642 = sdiv i32 %640, %641
+ store i32 %642, i32* %cd_fill_ptr_469
+ call void @qk_cgfx_rect(i32 20, i32 656, i32 160, i32 8, i32 3355443)
+ %643 = load i32, i32* %cd_left_ptr_468
+ %644 = icmp sle i32 %643, 0
+ br i1 %644, label %if_then_470, label %if_else_471
+
+if_then_470:
+ call void @qk_cgfx_rect(i32 20, i32 656, i32 160, i32 8, i32 4521864)
+ br label %if_after_472
+
+if_else_471:
+ %645 = load i32, i32* %cd_fill_ptr_469
+ call void @qk_cgfx_rect(i32 20, i32 656, i32 %645, i32 8, i32 16746564)
+ br label %if_after_472
+
+if_after_472:
+ store i32 210, i32* %icon_cx_ptr_473
+ store i32 660, i32* %icon_cy_ptr_474
+ %646 = load i32, i32* %selected_skill_ptr_90
+ %647 = call i32 @skill_color(i32 %646)
+ store i32 %647, i32* %sc_ptr_475
+ %648 = load i32, i32* %cd_left_ptr_468
+ %649 = icmp sle i32 %648, 0
+ br i1 %649, label %if_then_476, label %if_else_477
+
+if_then_476:
+ %650 = load i32, i32* %icon_cx_ptr_473
+ %651 = load i32, i32* %icon_cy_ptr_474
+ call void @qk_cgfx_ellipse_a(i32 %650, i32 %651, i32 16, i32 16, i32 16777215, i32 70)
+ %652 = load i32, i32* %icon_cx_ptr_473
+ %653 = load i32, i32* %icon_cy_ptr_474
+ %654 = load i32, i32* %sc_ptr_475
+ call void @qk_cgfx_ellipse(i32 %652, i32 %653, i32 12, i32 12, i32 %654)
+ br label %if_after_478
+
+if_else_477:
+ %655 = load i32, i32* %icon_cx_ptr_473
+ %656 = load i32, i32* %icon_cy_ptr_474
+ call void @qk_cgfx_ellipse(i32 %655, i32 %656, i32 12, i32 12, i32 4473924)
+ br label %if_after_478
+
+if_after_478:
+ call void @qk_cgui_row(i32 4, i32 40)
+ %657 = getelementptr inbounds [5 x i8], [5 x i8]* @.str.95, i64 0, i64 0
+ %658 = call i32 @qk_cgui_button(i8* %657)
+ %659 = icmp eq i32 %658, 1
+ br i1 %659, label %logic_eval_485, label %logic_short_484
+
+logic_short_484:
+ store i1 false, i1* %logic_ptr_482
+ br label %logic_end_483
+
+logic_eval_485:
+ %660 = load i32, i32* %game_over_ptr_89
+ %661 = icmp eq i32 %660, 0
+ store i1 %661, i1* %logic_ptr_482
+ br label %logic_end_483
+
+logic_end_483:
+ %662 = load i1, i1* %logic_ptr_482
+ br i1 %662, label %if_then_479, label %if_after_481
+
+if_then_479:
+ %663 = load i32, i32* %current_ptr_110
+ %664 = call i32 @rules_opponent(i32 %663)
+ store i32 %664, i32* %current_ptr_110
+ br label %if_after_481
+
+if_after_481:
+ %665 = getelementptr inbounds [10 x i8], [10 x i8]* @.str.96, i64 0, i64 0
+ %666 = call i32 @qk_cgui_button(i8* %665)
+ %667 = icmp eq i32 %666, 1
+ br i1 %667, label %logic_eval_496, label %logic_short_495
+
+logic_short_495:
+ store i1 false, i1* %logic_ptr_493
+ br label %logic_end_494
+
+logic_eval_496:
+ %668 = load i32, i32* %game_over_ptr_89
+ %669 = icmp eq i32 %668, 0
+ store i1 %669, i1* %logic_ptr_493
+ br label %logic_end_494
+
+logic_end_494:
+ %670 = load i1, i1* %logic_ptr_493
+ br i1 %670, label %logic_eval_492, label %logic_short_491
+
+logic_short_491:
+ store i1 false, i1* %logic_ptr_489
+ br label %logic_end_490
+
+logic_eval_492:
+ %671 = load %form.Spirit*, %form.Spirit** %my_spirit_ptr_119
+ %672 = call i32 @spirits_spirit_can_use(%form.Spirit* %671)
+ %673 = icmp eq i32 %672, 1
+ store i1 %673, i1* %logic_ptr_489
+ br label %logic_end_490
+
+logic_end_490:
+ %674 = load i1, i1* %logic_ptr_489
+ br i1 %674, label %if_then_486, label %if_after_488
+
+if_then_486:
+ %675 = load %form.Spirit*, %form.Spirit** %my_spirit_ptr_119
+ %676 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %677 = load i32, i32* %size_ptr_85
+ %678 = load i32, i32* %my_color_ptr_87
+ %679 = call i32 @spirits_spirit_use(%form.Spirit* %675, %Lattice* %676, i32 %677, i32 0, i32 0, i32 %678)
+ store i32 %679, i32* %fx_ptr_497
+ %680 = load i32, i32* %size_ptr_85
+ %681 = sdiv i32 %680, 2
+ store i32 %681, i32* %fcx_ptr_498
+ %682 = load i32, i32* %size_ptr_85
+ %683 = sdiv i32 %682, 2
+ store i32 %683, i32* %fcy_ptr_499
+ %684 = load i32, i32* %last_x_ptr_111
+ %685 = icmp sge i32 %684, 0
+ br i1 %685, label %logic_eval_506, label %logic_short_505
+
+logic_short_505:
+ store i1 false, i1* %logic_ptr_503
+ br label %logic_end_504
+
+logic_eval_506:
+ %686 = load i32, i32* %last_y_ptr_112
+ %687 = icmp sge i32 %686, 0
+ store i1 %687, i1* %logic_ptr_503
+ br label %logic_end_504
+
+logic_end_504:
+ %688 = load i1, i1* %logic_ptr_503
+ br i1 %688, label %if_then_500, label %if_after_502
+
+if_then_500:
+ %689 = load i32, i32* %last_x_ptr_111
+ store i32 %689, i32* %fcx_ptr_498
+ %690 = load i32, i32* %last_y_ptr_112
+ store i32 %690, i32* %fcy_ptr_499
+ br label %if_after_502
+
+if_after_502:
+ %691 = load i32, i32* %fcx_ptr_498
+ %692 = load i32, i32* %fcy_ptr_499
+ %693 = load i32, i32* %cell_ptr_127
+ %694 = call i32 @gx_to_screen(i32 %691, i32 %692, i32 %693)
+ store i32 %694, i32* %sx_ptr_507
+ %695 = load i32, i32* %fcy_ptr_499
+ %696 = load i32, i32* %cell_ptr_127
+ %697 = call i32 @gy_to_screen(i32 %695, i32 %696)
+ store i32 %697, i32* %sy_ptr_508
+ %698 = load i32, i32* %selected_skill_ptr_90
+ %699 = icmp eq i32 %698, 4
+ br i1 %699, label %if_then_509, label %if_after_511
+
+if_then_509:
+ %700 = load i32, i32* %fcx_ptr_498
+ store i32 %700, i32* %after_x_ptr_114
+ %701 = load i32, i32* %fcy_ptr_499
+ store i32 %701, i32* %after_y_ptr_115
+ store i32 60, i32* %after_life_ptr_116
+ br label %if_after_511
+
+if_after_511:
+ %702 = load %Lattice*, %Lattice** %pool_ptr_113
+ %703 = load i32, i32* %selected_skill_ptr_90
+ %704 = load i32, i32* %sx_ptr_507
+ %705 = load i32, i32* %sy_ptr_508
+ %706 = load i32, i32* %quality_ptr_93
+ %707 = call i32 @particle_count(i32 %706)
+ call void @trigger_skill_fx(%Lattice* %702, i32 %703, i32 %704, i32 %705, i32 %707)
+ %708 = load i32, i32* %selected_skill_ptr_90
+ %709 = load i32, i32* %sound_on_ptr_92
+ call void @skill_sound(i32 %708, i32 %709)
+ store i32 12, i32* %shake_time_ptr_117
+ store i32 5, i32* %shake_mag_ptr_118
+ br label %if_after_488
+
+if_after_488:
+ %710 = getelementptr inbounds [7 x i8], [7 x i8]* @.str.97, i64 0, i64 0
+ %711 = call i32 @qk_cgui_button(i8* %710)
+ %712 = icmp eq i32 %711, 1
+ br i1 %712, label %logic_eval_518, label %logic_short_517
+
+logic_short_517:
+ store i1 false, i1* %logic_ptr_515
+ br label %logic_end_516
+
+logic_eval_518:
+ %713 = load i32, i32* %game_over_ptr_89
+ %714 = icmp eq i32 %713, 0
+ store i1 %714, i1* %logic_ptr_515
+ br label %logic_end_516
+
+logic_end_516:
+ %715 = load i1, i1* %logic_ptr_515
+ br i1 %715, label %if_then_512, label %if_after_514
+
+if_then_512:
+ store i32 1, i32* %game_over_ptr_89
+ br label %if_after_514
+
+if_after_514:
+ %716 = getelementptr inbounds [5 x i8], [5 x i8]* @.str.98, i64 0, i64 0
+ %717 = call i32 @qk_cgui_button(i8* %716)
+ %718 = icmp eq i32 %717, 1
+ br i1 %718, label %if_then_519, label %if_after_521
+
+if_then_519:
+ %719 = sub i32 0, 1
+ store i32 %719, i32* %mode_ptr_86
+ store i32 0, i32* %game_over_ptr_89
+ %721 = load i32, i32* %size_ptr_85
+ %722 = load i32, i32* %size_ptr_85
+ %723 = call %Lattice* @qk_lattice_new(i32 2, i32 %721, i32 %722, i32 0)
+ store %Lattice* %723, %Lattice** %board_state_ptr_105
+ store i32 1, i32* %current_ptr_110
+ %724 = sub i32 0, 1
+ store i32 %724, i32* %last_x_ptr_111
+ %725 = sub i32 0, 1
+ store i32 %725, i32* %last_y_ptr_112
+ store i32 0, i32* %after_life_ptr_116
+ store i32 0, i32* %shake_time_ptr_117
+ br label %if_after_521
+
+if_after_521:
+ call void @qk_cgui_panel_end()
+ %726 = load i32, i32* %game_over_ptr_89
+ %727 = icmp eq i32 %726, 0
+ br i1 %727, label %logic_eval_528, label %logic_short_527
+
+logic_short_527:
+ store i1 false, i1* %logic_ptr_525
+ br label %logic_end_526
+
+logic_eval_528:
+ %728 = load %form.Spirit*, %form.Spirit** %my_spirit_ptr_119
+ %729 = call i32 @spirits_spirit_can_use(%form.Spirit* %728)
+ %730 = icmp eq i32 %729, 1
+ store i1 %730, i1* %logic_ptr_525
+ br label %logic_end_526
+
+logic_end_526:
+ %731 = load i1, i1* %logic_ptr_525
+ br i1 %731, label %if_then_522, label %if_after_524
+
+if_then_522:
+ %732 = sub i32 0, 1
+ store i32 %732, i32* %passive_pos_ptr_529
+ %733 = load i32, i32* %selected_skill_ptr_90
+ %734 = icmp eq i32 %733, 1
+ br i1 %734, label %if_then_530, label %if_after_532
+
+if_then_530:
+ %735 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %736 = load i32, i32* %size_ptr_85
+ %737 = load i32, i32* %my_color_ptr_87
+ %738 = call i32 @spirits_spirit_find_ko(%Lattice* %735, i32 %736, i32 %737)
+ store i32 %738, i32* %passive_pos_ptr_529
+ br label %if_after_532
+
+if_after_532:
+ %739 = load i32, i32* %selected_skill_ptr_90
+ %740 = icmp eq i32 %739, 3
+ br i1 %740, label %if_then_533, label %if_after_535
+
+if_then_533:
+ %741 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %742 = load i32, i32* %size_ptr_85
+ %743 = load i32, i32* %my_color_ptr_87
+ %744 = call i32 @spirits_spirit_find_dying(%Lattice* %741, i32 %742, i32 %743)
+ store i32 %744, i32* %passive_pos_ptr_529
+ br label %if_after_535
+
+if_after_535:
+ %745 = load i32, i32* %passive_pos_ptr_529
+ %746 = icmp sge i32 %745, 0
+ br i1 %746, label %if_then_536, label %if_after_538
+
+if_then_536:
+ %747 = load i32, i32* %passive_pos_ptr_529
+ %748 = sdiv i32 %747, 100
+ store i32 %748, i32* %ppx_ptr_539
+ %749 = load i32, i32* %passive_pos_ptr_529
+ %750 = srem i32 %749, 100
+ store i32 %750, i32* %ppy_ptr_540
+ %751 = load i32, i32* %ppx_ptr_539
+ %752 = load i32, i32* %ppy_ptr_540
+ %753 = load i32, i32* %cell_ptr_127
+ %754 = call i32 @gx_to_screen(i32 %751, i32 %752, i32 %753)
+ store i32 %754, i32* %psx_ptr_541
+ %755 = load i32, i32* %ppy_ptr_540
+ %756 = load i32, i32* %cell_ptr_127
+ %757 = call i32 @gy_to_screen(i32 %755, i32 %756)
+ store i32 %757, i32* %psy_ptr_542
+ %758 = load %form.Spirit*, %form.Spirit** %my_spirit_ptr_119
+ %759 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %760 = load i32, i32* %size_ptr_85
+ %761 = load i32, i32* %ppx_ptr_539
+ %762 = load i32, i32* %ppy_ptr_540
+ %763 = load i32, i32* %my_color_ptr_87
+ %764 = call i32 @spirits_spirit_use(%form.Spirit* %758, %Lattice* %759, i32 %760, i32 %761, i32 %762, i32 %763)
+ store i32 %764, i32* %fx2_ptr_543
+ %765 = load %Lattice*, %Lattice** %pool_ptr_113
+ %766 = load i32, i32* %selected_skill_ptr_90
+ %767 = load i32, i32* %psx_ptr_541
+ %768 = load i32, i32* %psy_ptr_542
+ %769 = load i32, i32* %quality_ptr_93
+ %770 = call i32 @particle_count(i32 %769)
+ call void @trigger_skill_fx(%Lattice* %765, i32 %766, i32 %767, i32 %768, i32 %770)
+ %771 = load i32, i32* %selected_skill_ptr_90
+ %772 = load i32, i32* %sound_on_ptr_92
+ call void @skill_sound(i32 %771, i32 %772)
+ store i32 12, i32* %shake_time_ptr_117
+ store i32 5, i32* %shake_mag_ptr_118
+ br label %if_after_538
+
+if_after_538:
+ br label %if_after_524
+
+if_after_524:
+ %773 = load i32, i32* %game_over_ptr_89
+ %774 = icmp eq i32 %773, 0
+ br i1 %774, label %logic_eval_554, label %logic_short_553
+
+logic_short_553:
+ store i1 false, i1* %logic_ptr_551
+ br label %logic_end_552
+
+logic_eval_554:
+ %775 = load i32, i32* %current_ptr_110
+ %776 = load i32, i32* %my_color_ptr_87
+ %777 = icmp eq i32 %775, %776
+ store i1 %777, i1* %logic_ptr_551
+ br label %logic_end_552
+
+logic_end_552:
+ %778 = load i1, i1* %logic_ptr_551
+ br i1 %778, label %logic_eval_550, label %logic_short_549
+
+logic_short_549:
+ store i1 false, i1* %logic_ptr_547
+ br label %logic_end_548
+
+logic_eval_550:
+ %779 = call i32 @qk_cgui_mouse_left_clicked()
+ %780 = icmp eq i32 %779, 1
+ store i1 %780, i1* %logic_ptr_547
+ br label %logic_end_548
+
+logic_end_548:
+ %781 = load i1, i1* %logic_ptr_547
+ br i1 %781, label %if_then_544, label %if_after_546
+
+if_then_544:
+ %782 = call i32 @qk_cgui_mouse_x()
+ %783 = load i32, i32* %cell_ptr_127
+ %784 = sdiv i32 %782, %783
+ store i32 %784, i32* %gx_ptr_555
+ %785 = call i32 @qk_cgui_mouse_y()
+ %786 = sub i32 %785, 150
+ %787 = load i32, i32* %cell_ptr_127
+ %788 = sdiv i32 %786, %787
+ store i32 %788, i32* %gy_ptr_556
+ %789 = load i32, i32* %gx_ptr_555
+ %790 = icmp sge i32 %789, 0
+ br i1 %790, label %logic_eval_571, label %logic_short_570
+
+logic_short_570:
+ store i1 false, i1* %logic_ptr_568
+ br label %logic_end_569
+
+logic_eval_571:
+ %791 = load i32, i32* %gx_ptr_555
+ %792 = load i32, i32* %size_ptr_85
+ %793 = icmp slt i32 %791, %792
+ store i1 %793, i1* %logic_ptr_568
+ br label %logic_end_569
+
+logic_end_569:
+ %794 = load i1, i1* %logic_ptr_568
+ br i1 %794, label %logic_eval_567, label %logic_short_566
+
+logic_short_566:
+ store i1 false, i1* %logic_ptr_564
+ br label %logic_end_565
+
+logic_eval_567:
+ %795 = load i32, i32* %gy_ptr_556
+ %796 = icmp sge i32 %795, 0
+ store i1 %796, i1* %logic_ptr_564
+ br label %logic_end_565
+
+logic_end_565:
+ %797 = load i1, i1* %logic_ptr_564
+ br i1 %797, label %logic_eval_563, label %logic_short_562
+
+logic_short_562:
+ store i1 false, i1* %logic_ptr_560
+ br label %logic_end_561
+
+logic_eval_563:
+ %798 = load i32, i32* %gy_ptr_556
+ %799 = load i32, i32* %size_ptr_85
+ %800 = icmp slt i32 %798, %799
+ store i1 %800, i1* %logic_ptr_560
+ br label %logic_end_561
+
+logic_end_561:
+ %801 = load i1, i1* %logic_ptr_560
+ br i1 %801, label %if_then_557, label %if_after_559
+
+if_then_557:
+ %802 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %803 = load i32, i32* %size_ptr_85
+ %804 = load i32, i32* %gx_ptr_555
+ %805 = load i32, i32* %gy_ptr_556
+ %806 = load i32, i32* %current_ptr_110
+ %807 = load i32, i32* %last_x_ptr_111
+ %808 = load i32, i32* %last_y_ptr_112
+ %809 = call i32 @rules_place_stone(%Lattice* %802, i32 %803, i32 %804, i32 %805, i32 %806, i32 %807, i32 %808)
+ store i32 %809, i32* %ok_ptr_572
+ %810 = load i32, i32* %ok_ptr_572
+ %811 = icmp eq i32 %810, 1
+ br i1 %811, label %if_then_573, label %if_after_575
+
+if_then_573:
+ %812 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %813 = load i32, i32* %move_count_ptr_109
+ %814 = load i32, i32* %gx_ptr_555
+ call void @qk_lattice_set(%Lattice* %812, i32 %813, i32 0, i32 %814)
+ %815 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %816 = load i32, i32* %move_count_ptr_109
+ %817 = load i32, i32* %gy_ptr_556
+ call void @qk_lattice_set(%Lattice* %815, i32 %816, i32 1, i32 %817)
+ %818 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %819 = load i32, i32* %move_count_ptr_109
+ %820 = load i32, i32* %current_ptr_110
+ call void @qk_lattice_set(%Lattice* %818, i32 %819, i32 2, i32 %820)
+ %821 = load i32, i32* %move_count_ptr_109
+ %822 = add i32 %821, 1
+ store i32 %822, i32* %move_count_ptr_109
+ %823 = load i32, i32* %gx_ptr_555
+ store i32 %823, i32* %last_x_ptr_111
+ %824 = load i32, i32* %gy_ptr_556
+ store i32 %824, i32* %last_y_ptr_112
+ %825 = load i32, i32* %current_ptr_110
+ %826 = call i32 @rules_opponent(i32 %825)
+ store i32 %826, i32* %current_ptr_110
+ %827 = load %form.Spirit*, %form.Spirit** %my_spirit_ptr_119
+ call void @spirits_spirit_tick(%form.Spirit* %827)
+ br label %if_after_575
+
+if_after_575:
+ br label %if_after_559
+
+if_after_559:
+ br label %if_after_546
+
+if_after_546:
+ %828 = load i32, i32* %game_over_ptr_89
+ %829 = icmp eq i32 %828, 0
+ br i1 %829, label %logic_eval_586, label %logic_short_585
+
+logic_short_585:
+ store i1 false, i1* %logic_ptr_583
+ br label %logic_end_584
+
+logic_eval_586:
+ %830 = load i32, i32* %mode_ptr_86
+ %831 = icmp eq i32 %830, 1
+ store i1 %831, i1* %logic_ptr_583
+ br label %logic_end_584
+
+logic_end_584:
+ %832 = load i1, i1* %logic_ptr_583
+ br i1 %832, label %logic_eval_582, label %logic_short_581
+
+logic_short_581:
+ store i1 false, i1* %logic_ptr_579
+ br label %logic_end_580
+
+logic_eval_582:
+ %833 = load i32, i32* %current_ptr_110
+ %834 = load i32, i32* %my_color_ptr_87
+ %835 = icmp ne i32 %833, %834
+ store i1 %835, i1* %logic_ptr_579
+ br label %logic_end_580
+
+logic_end_580:
+ %836 = load i1, i1* %logic_ptr_579
+ br i1 %836, label %if_then_576, label %if_after_578
+
+if_then_576:
+ %837 = load i32, i32* %ai_type_ptr_96
+ %838 = icmp eq i32 %837, 2
+ br i1 %838, label %if_then_587, label %if_else_588
+
+if_then_587:
+ %839 = load i32, i32* %ai_thinking_ptr_104
+ %840 = icmp eq i32 %839, 0
+ br i1 %840, label %if_then_590, label %if_else_591
+
+if_then_590:
+ store i32 30, i32* %ai_thinking_ptr_104
+ %841 = load i32, i32* %size_ptr_85
+ %842 = sdiv i32 %841, 2
+ %843 = load i32, i32* %size_ptr_85
+ %844 = sdiv i32 %843, 2
+ %845 = load i32, i32* %cell_ptr_127
+ %846 = call i32 @gx_to_screen(i32 %842, i32 %844, i32 %845)
+ store i32 %846, i32* %scx_ptr_593
+ %847 = load i32, i32* %size_ptr_85
+ %848 = sdiv i32 %847, 2
+ %849 = load i32, i32* %cell_ptr_127
+ %850 = call i32 @gy_to_screen(i32 %848, i32 %849)
+ store i32 %850, i32* %scy_ptr_594
+ %851 = load %Lattice*, %Lattice** %pool_ptr_113
+ %852 = load i32, i32* %scx_ptr_593
+ %853 = load i32, i32* %scy_ptr_594
+ call void @particles_px_emit(%Lattice* %851, i32 256, i32 %852, i32 %853, i32 6737151, i32 48, i32 1)
+ %854 = load i32, i32* %sound_on_ptr_92
+ %855 = icmp eq i32 %854, 1
+ br i1 %855, label %if_then_595, label %if_after_597
+
+if_then_595:
+ call void @qk_cgui_beep(i32 300, i32 60)
+ br label %if_after_597
+
+if_after_597:
+ br label %if_after_592
+
+if_else_591:
+ %856 = load i32, i32* %ai_thinking_ptr_104
+ %857 = icmp eq i32 %856, 1
+ br i1 %857, label %if_then_598, label %if_else_599
+
+if_then_598:
+ store i32 0, i32* %ai_thinking_ptr_104
+ %858 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %859 = load i32, i32* %size_ptr_85
+ %860 = load i32, i32* %current_ptr_110
+ %861 = load i32, i32* %ai_type_ptr_96
+ %862 = call i32 @ai_choose(%Lattice* %858, i32 %859, i32 %860, i32 %861)
+ store i32 %862, i32* %mv_ptr_601
+ %863 = load i32, i32* %mv_ptr_601
+ %864 = icmp sge i32 %863, 0
+ br i1 %864, label %if_then_602, label %if_after_604
+
+if_then_602:
+ %865 = load i32, i32* %mv_ptr_601
+ %866 = sdiv i32 %865, 100
+ store i32 %866, i32* %ax_ptr_605
+ %867 = load i32, i32* %mv_ptr_601
+ %868 = srem i32 %867, 100
+ store i32 %868, i32* %ay_ptr_606
+ %869 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %870 = load i32, i32* %size_ptr_85
+ %871 = load i32, i32* %ax_ptr_605
+ %872 = load i32, i32* %ay_ptr_606
+ %873 = load i32, i32* %current_ptr_110
+ %874 = load i32, i32* %last_x_ptr_111
+ %875 = load i32, i32* %last_y_ptr_112
+ %876 = call i32 @rules_place_stone(%Lattice* %869, i32 %870, i32 %871, i32 %872, i32 %873, i32 %874, i32 %875)
+ store i32 %876, i32* %ok_ptr_607
+ %877 = load i32, i32* %ok_ptr_607
+ %878 = icmp eq i32 %877, 1
+ br i1 %878, label %if_then_608, label %if_after_610
+
+if_then_608:
+ %879 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %880 = load i32, i32* %move_count_ptr_109
+ %881 = load i32, i32* %ax_ptr_605
+ call void @qk_lattice_set(%Lattice* %879, i32 %880, i32 0, i32 %881)
+ %882 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %883 = load i32, i32* %move_count_ptr_109
+ %884 = load i32, i32* %ay_ptr_606
+ call void @qk_lattice_set(%Lattice* %882, i32 %883, i32 1, i32 %884)
+ %885 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %886 = load i32, i32* %move_count_ptr_109
+ %887 = load i32, i32* %current_ptr_110
+ call void @qk_lattice_set(%Lattice* %885, i32 %886, i32 2, i32 %887)
+ %888 = load i32, i32* %move_count_ptr_109
+ %889 = add i32 %888, 1
+ store i32 %889, i32* %move_count_ptr_109
+ %890 = load i32, i32* %ax_ptr_605
+ store i32 %890, i32* %last_x_ptr_111
+ %891 = load i32, i32* %ay_ptr_606
+ store i32 %891, i32* %last_y_ptr_112
+ %892 = load i32, i32* %current_ptr_110
+ %893 = call i32 @rules_opponent(i32 %892)
+ store i32 %893, i32* %current_ptr_110
+ %894 = load %form.Spirit*, %form.Spirit** %my_spirit_ptr_119
+ call void @spirits_spirit_tick(%form.Spirit* %894)
+ br label %if_after_610
+
+if_after_610:
+ br label %if_after_604
+
+if_after_604:
+ br label %if_after_600
+
+if_else_599:
+ %895 = load i32, i32* %ai_thinking_ptr_104
+ %896 = sub i32 %895, 1
+ store i32 %896, i32* %ai_thinking_ptr_104
+ %897 = load i32, i32* %ai_thinking_ptr_104
+ %898 = srem i32 %897, 8
+ %899 = icmp eq i32 %898, 0
+ br i1 %899, label %if_then_611, label %if_after_613
+
+if_then_611:
+ %900 = load i32, i32* %size_ptr_85
+ %901 = sdiv i32 %900, 2
+ %902 = load i32, i32* %size_ptr_85
+ %903 = sdiv i32 %902, 2
+ %904 = load i32, i32* %cell_ptr_127
+ %905 = call i32 @gx_to_screen(i32 %901, i32 %903, i32 %904)
+ store i32 %905, i32* %scx_ptr_614
+ %906 = load i32, i32* %size_ptr_85
+ %907 = sdiv i32 %906, 2
+ %908 = load i32, i32* %cell_ptr_127
+ %909 = call i32 @gy_to_screen(i32 %907, i32 %908)
+ store i32 %909, i32* %scy_ptr_615
+ %910 = load %Lattice*, %Lattice** %pool_ptr_113
+ %911 = load i32, i32* %scx_ptr_614
+ %912 = load i32, i32* %scy_ptr_615
+ call void @particles_px_emit(%Lattice* %910, i32 256, i32 %911, i32 %912, i32 6737151, i32 8, i32 1)
+ br label %if_after_613
+
+if_after_613:
+ br label %if_after_600
+
+if_after_600:
+ br label %if_after_592
+
+if_after_592:
+ br label %if_after_589
+
+if_else_588:
+ %913 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %914 = load i32, i32* %size_ptr_85
+ %915 = load i32, i32* %current_ptr_110
+ %916 = load i32, i32* %ai_type_ptr_96
+ %917 = call i32 @ai_choose(%Lattice* %913, i32 %914, i32 %915, i32 %916)
+ store i32 %917, i32* %mv_ptr_616
+ %918 = load i32, i32* %mv_ptr_616
+ %919 = icmp sge i32 %918, 0
+ br i1 %919, label %if_then_617, label %if_after_619
+
+if_then_617:
+ %920 = load i32, i32* %mv_ptr_616
+ %921 = sdiv i32 %920, 100
+ store i32 %921, i32* %ax_ptr_620
+ %922 = load i32, i32* %mv_ptr_616
+ %923 = srem i32 %922, 100
+ store i32 %923, i32* %ay_ptr_621
+ %924 = load %Lattice*, %Lattice** %board_state_ptr_105
+ %925 = load i32, i32* %size_ptr_85
+ %926 = load i32, i32* %ax_ptr_620
+ %927 = load i32, i32* %ay_ptr_621
+ %928 = load i32, i32* %current_ptr_110
+ %929 = load i32, i32* %last_x_ptr_111
+ %930 = load i32, i32* %last_y_ptr_112
+ %931 = call i32 @rules_place_stone(%Lattice* %924, i32 %925, i32 %926, i32 %927, i32 %928, i32 %929, i32 %930)
+ store i32 %931, i32* %ok_ptr_622
+ %932 = load i32, i32* %ok_ptr_622
+ %933 = icmp eq i32 %932, 1
+ br i1 %933, label %if_then_623, label %if_after_625
+
+if_then_623:
+ %934 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %935 = load i32, i32* %move_count_ptr_109
+ %936 = load i32, i32* %ax_ptr_620
+ call void @qk_lattice_set(%Lattice* %934, i32 %935, i32 0, i32 %936)
+ %937 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %938 = load i32, i32* %move_count_ptr_109
+ %939 = load i32, i32* %ay_ptr_621
+ call void @qk_lattice_set(%Lattice* %937, i32 %938, i32 1, i32 %939)
+ %940 = load %Lattice*, %Lattice** %move_history_ptr_108
+ %941 = load i32, i32* %move_count_ptr_109
+ %942 = load i32, i32* %current_ptr_110
+ call void @qk_lattice_set(%Lattice* %940, i32 %941, i32 2, i32 %942)
+ %943 = load i32, i32* %move_count_ptr_109
+ %944 = add i32 %943, 1
+ store i32 %944, i32* %move_count_ptr_109
+ %945 = load i32, i32* %ax_ptr_620
+ store i32 %945, i32* %last_x_ptr_111
+ %946 = load i32, i32* %ay_ptr_621
+ store i32 %946, i32* %last_y_ptr_112
+ %947 = load i32, i32* %current_ptr_110
+ %948 = call i32 @rules_opponent(i32 %947)
+ store i32 %948, i32* %current_ptr_110
+ %949 = load %form.Spirit*, %form.Spirit** %my_spirit_ptr_119
+ call void @spirits_spirit_tick(%form.Spirit* %949)
+ br label %if_after_625
+
+if_after_625:
+ br label %if_after_619
+
+if_after_619:
+ br label %if_after_589
+
+if_after_589:
+ br label %if_after_578
+
+if_after_578:
+ br label %if_after_376
+
+if_after_376:
+ br label %if_after_354
+
+if_after_354:
+ br label %if_after_327
+
+if_after_327:
+ br label %if_after_321
+
+if_after_321:
+ br label %if_after_222
+
+if_after_222:
+ br label %if_after_143
+
+if_after_143:
+ br label %if_after_130
+
+if_after_130:
+ call void @qk_cgui_end_frame()
+ br label %while_cond_120
+
+while_after_122:
+ ret i32 0
+}

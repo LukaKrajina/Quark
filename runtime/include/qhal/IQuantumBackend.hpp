@@ -35,6 +35,14 @@ namespace qhal
 
         virtual void apply_h(size_t qubit_id) {}
         virtual void apply_x(size_t qubit_id) = 0;
+        // 精确 Z 门。默认用 Z = H·X·H（无全局相位）；
+        // 维护态矢量的后端（如 QVM）应重写为直接相位翻转以获得更高效率。
+        virtual void apply_z(size_t qubit_id)
+        {
+            apply_h(qubit_id);
+            apply_x(qubit_id);
+            apply_h(qubit_id);
+        }
         virtual void apply_rz(size_t qubit_id, double angle) = 0;
         virtual void apply_cnot(size_t control, size_t target) = 0;
         virtual void apply_toffoli(size_t control1, size_t control2, size_t target) = 0;

@@ -7,6 +7,7 @@
 #include "../include/qhal/Compiler.hpp"
 #include "../include/qhal/MMI.hpp"
 #include "../include/qml/Inference.hpp"
+#include "../include/qml/QrcAbi.hpp"
 #include "../include/gui/protocol.hpp"
 #include "../include/verify/IntervalAbstract.hpp"
 
@@ -34,6 +35,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <cerrno>
+#endif
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dlfcn.h>
 #endif
 
 qhal::IQuantumBackend *global_qm = nullptr;
@@ -149,6 +156,8 @@ struct quark_runtime
     std::unique_ptr<qhal::IQuantumBackend> backend;
     std::unique_ptr<qhal::JIT> jit;
     std::unique_ptr<qhal::VisualizationService> viz;
+    // 已绑定的 .mmi 模块（保持生命周期，避免导出符号地址悬垂）
+    std::vector<std::shared_ptr<qhal::MMIModule>> bound_mmis;
     std::mutex mutex;
 };
 
@@ -177,6 +186,7 @@ quark_runtime *quark_runtime_create(void)
             qhal::HardwareModality modality = qhal::HardwareModality::Superconducting;
             if (m == "ion" || m == "trappedion") modality = qhal::HardwareModality::TrappedIon;
             else if (m == "atom" || m == "neutralatom") modality = qhal::HardwareModality::NeutralAtom;
+            else if (m == "photon" || m == "photonic") modality = qhal::HardwareModality::Photonic;
             size_t node = node_env ? static_cast<size_t>(std::strtoul(node_env, nullptr, 10)) : 0;
             std::cout << "[Quark JIT] Backend forced to QM (" << m << ", node " << node << ")." << std::endl;
             rt->backend = std::make_unique<qhal::QM>(modality, node);
@@ -445,19 +455,150 @@ const char *quark_runtime_verify(quark_runtime *rt, const char *vc_protocol)
     return out.c_str();
 }
 
+// ─── QChain 量子区块链服务 ABI ───────────────────────────────────────────
+// 内部复用 qchain_bridge 的单例 QChainService（绑定 global_qm 后端）。
+
+const char *quark_runtime_qchain_wallet(quark_runtime *rt)
+{
+    std::string &out = result_buffer();
+    out.clear();
+    if (!rt)
+    {
+        out = "RESPONSE: ERROR - Invalid Runtime Instance\n";
+        return out.c_str();
+    }
+    std::lock_guard<std::mutex> lock(rt->mutex);
+    auto &w = qchain_bridge::service().create_wallet();
+    out = qchain::to_hex(w.address);
+    return out.c_str();
+}
+
+const char *quark_runtime_qchain_mint(quark_runtime *rt, const char *addr, uint64_t amount)
+{
+    std::string &out = result_buffer();
+    out.clear();
+    if (!rt || !addr)
+    {
+        out = "RESPONSE: ERROR - Invalid arguments\n";
+        return out.c_str();
+    }
+    std::lock_guard<std::mutex> lock(rt->mutex);
+    qchain_bridge::service().mint_to_address(qchain_bridge::parse_address(addr), amount);
+    out = "RESPONSE: SUCCESS - Minted " + std::to_string(amount) + " to " + std::string(addr) + "\n";
+    return out.c_str();
+}
+
+const char *quark_runtime_qchain_transfer(quark_runtime *rt, const char *from, const char *to, uint64_t amount)
+{
+    std::string &out = result_buffer();
+    out.clear();
+    if (!rt || !from || !to)
+    {
+        out = "RESPONSE: ERROR - Invalid arguments\n";
+        return out.c_str();
+    }
+    std::lock_guard<std::mutex> lock(rt->mutex);
+    bool ok = qchain_bridge::service().transfer_addresses(
+        qchain_bridge::parse_address(from), qchain_bridge::parse_address(to), amount);
+    out = ok ? "RESPONSE: SUCCESS - Transferred\n"
+             : "RESPONSE: ERROR - Transfer failed (insufficient balance)\n";
+    return out.c_str();
+}
+
+const char *quark_runtime_qchain_balance(quark_runtime *rt, const char *addr)
+{
+    std::string &out = result_buffer();
+    out.clear();
+    if (!rt || !addr)
+    {
+        out = "RESPONSE: ERROR - Invalid arguments\n";
+        return out.c_str();
+    }
+    std::lock_guard<std::mutex> lock(rt->mutex);
+    uint64_t bal = qchain_bridge::service().balance_of_address(qchain_bridge::parse_address(addr));
+    out = std::to_string(bal);
+    return out.c_str();
+}
+
+const char *quark_runtime_qchain_mine(quark_runtime *rt)
+{
+    std::string &out = result_buffer();
+    out.clear();
+    if (!rt)
+    {
+        out = "RESPONSE: ERROR - Invalid Runtime Instance\n";
+        return out.c_str();
+    }
+    std::lock_guard<std::mutex> lock(rt->mutex);
+    qchain_bridge::service().mine_block();
+    out = std::to_string(qchain_bridge::service().get_chain().height());
+    return out.c_str();
+}
+
+const char *quark_runtime_qchain_height(quark_runtime *rt)
+{
+    std::string &out = result_buffer();
+    out.clear();
+    if (!rt)
+    {
+        out = "RESPONSE: ERROR - Invalid Runtime Instance\n";
+        return out.c_str();
+    }
+    std::lock_guard<std::mutex> lock(rt->mutex);
+    out = std::to_string(qchain_bridge::service().get_chain().height());
+    return out.c_str();
+}
+
+const char *quark_runtime_qchain_verify(quark_runtime *rt)
+{
+    std::string &out = result_buffer();
+    out.clear();
+    if (!rt)
+    {
+        out = "RESPONSE: ERROR - Invalid Runtime Instance\n";
+        return out.c_str();
+    }
+    std::lock_guard<std::mutex> lock(rt->mutex);
+    out = qchain_bridge::service().verify_chain()
+              ? "RESPONSE: SUCCESS - Chain valid\n"
+              : "RESPONSE: ERROR - Chain invalid\n";
+    return out.c_str();
+}
+
+const char *quark_runtime_qchain_qkd(quark_runtime *rt, int32_t rounds)
+{
+    std::string &out = result_buffer();
+    out.clear();
+    if (!rt)
+    {
+        out = "RESPONSE: ERROR - Invalid Runtime Instance\n";
+        return out.c_str();
+    }
+    std::lock_guard<std::mutex> lock(rt->mutex);
+    auto res = qchain_bridge::service().establish_qkd(static_cast<size_t>(rounds > 0 ? rounds : 64));
+    out = qchain::to_hex(res.shared_key);
+    return out.c_str();
+}
+
+const char *quark_runtime_qchain_qdba(quark_runtime *rt, int32_t parties)
+{
+    std::string &out = result_buffer();
+    out.clear();
+    if (!rt)
+    {
+        out = "RESPONSE: ERROR - Invalid Runtime Instance\n";
+        return out.c_str();
+    }
+    std::lock_guard<std::mutex> lock(rt->mutex);
+    auto res = qchain_bridge::service().run_qdba(static_cast<size_t>(parties), {}, 20);
+    out = res.agreement ? "1" : "0";
+    return out.c_str();
+}
+
 struct quark_mmi
 {
     std::shared_ptr<qhal::MMIModule> module;
 };
-
-static uint32_t write_u32_le(std::string &buf, uint32_t v)
-{
-    buf.push_back((char)(v & 0xFF));
-    buf.push_back((char)((v >> 8) & 0xFF));
-    buf.push_back((char)((v >> 16) & 0xFF));
-    buf.push_back((char)((v >> 24) & 0xFF));
-    return v;
-}
 
 const char *quark_runtime_export_mmi(quark_runtime *rt,
                                      const char *header_json,
@@ -475,14 +616,12 @@ const char *quark_runtime_export_mmi(quark_runtime *rt,
 
     std::lock_guard<std::mutex> lock(rt->mutex);
 
-    std::string header(header_json);
-    std::string payload(ir);
-    std::string data;
-    data += "QKMM";
-    write_u32_le(data, 1);
-    write_u32_le(data, (uint32_t)header.size());
-    data += header;
-    data += payload;
+    // QOBF v2：二进制 header + ChaCha20 流加密 + HMAC 完整性（打开为乱码）。
+    std::string module_name;
+    qhal::qcrypt::Bytes binary_payload = qhal::mmi_header_to_binary(header_json, module_name);
+    const char *ir_data = ir;
+    binary_payload.insert(binary_payload.end(), ir_data, ir_data + std::strlen(ir_data));
+    qhal::qcrypt::Bytes data = qhal::qcrypt::pack_mmi_v2(module_name, binary_payload);
 
     std::ofstream ofs(output_path, std::ios::binary);
     if (!ofs)
@@ -490,10 +629,10 @@ const char *quark_runtime_export_mmi(quark_runtime *rt,
         out = "RESPONSE: ERROR - Cannot open output file\n";
         return out.c_str();
     }
-    ofs.write(data.data(), (std::streamsize)data.size());
+    ofs.write((const char *)data.data(), (std::streamsize)data.size());
     ofs.close();
 
-    out = "RESPONSE: SUCCESS - Exported MMI (" + std::string(output_path) + ")\n";
+    out = "RESPONSE: SUCCESS - Exported encrypted MMI (" + std::string(output_path) + ")\n";
     return out.c_str();
 }
 
@@ -542,8 +681,8 @@ quark_mmi *quark_runtime_load_mmi(quark_runtime *rt, const char *path)
 
     try
     {
-        std::string top_dir = dir_of(path);
-        auto mod = load(path, top_dir);
+        // path 可为相对/绝对路径；相对路径以当前工作目录为基准（避免目录重复拼接）
+        auto mod = load(path, ".");
         if (!mod)
             return nullptr;
 
@@ -556,6 +695,74 @@ quark_mmi *quark_runtime_load_mmi(quark_runtime *rt, const char *path)
         std::cerr << "[MMI] load failed: " << e.what() << "\n";
         return nullptr;
     }
+}
+
+int32_t quark_runtime_load_native(quark_runtime *rt, const char *path)
+{
+    (void)rt;
+    if (!path)
+        return 0;
+#ifdef _WIN32
+    HMODULE h = LoadLibraryA(path);
+    return h ? 1 : 0;
+#else
+    void *h = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
+    return h ? 1 : 0;
+#endif
+}
+
+void quark_runtime_register_native_symbol(quark_runtime *rt, const char *name, void *addr)
+{
+    (void)rt;
+    if (name && addr)
+        qhal::register_native_symbol(name, addr);
+}
+
+const char *quark_runtime_bind_mmi(quark_runtime *rt, const char *alias, const char *path)
+{
+    std::string &out = result_buffer();
+    out.clear();
+    if (!rt || !alias || !path)
+    {
+        out = "RESPONSE: ERROR - Invalid arguments\n";
+        return out.c_str();
+    }
+    try
+    {
+        std::ifstream ifs(path, std::ios::binary);
+        if (!ifs)
+        {
+            out = "RESPONSE: ERROR - bind_mmi: cannot open file\n";
+            return out.c_str();
+        }
+        std::stringstream ss;
+        ss << ifs.rdbuf();
+
+        std::lock_guard<std::mutex> lock(rt->mutex);
+        auto mod = std::make_shared<qhal::MMIModule>(ss.str(), dir_of(path), nullptr);
+        rt->bound_mmis.push_back(mod); // 保持生命周期，避免导出地址悬垂
+        int bound = 0;
+        std::string detail;
+        detail += "exports=" + std::to_string(mod->exports().size());
+        for (const auto &ex : mod->exports())
+        {
+            void *addr = mod->lookup_export_address(ex.name);
+            detail += std::string(" ") + ex.name + (addr ? ":ok" : ":MISS");
+            if (addr)
+            {
+                rt->jit->bind_symbol(std::string(alias) + "_" + ex.name, addr);
+                bound++;
+            }
+        }
+        out = "RESPONSE: MMI_BOUND " + std::to_string(bound) + " (" + detail + ")\n";
+    }
+    catch (const std::exception &e)
+    {
+        out = "RESPONSE: ERROR - bind_mmi failed: ";
+        out += e.what();
+        out += "\n";
+    }
+    return out.c_str();
 }
 
 const char *quark_runtime_mmi_invoke(quark_mmi *m,

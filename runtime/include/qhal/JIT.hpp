@@ -44,6 +44,17 @@
 #include "QcosSyscall.hpp"
 #include "Qms.hpp"
 
+// QChain（qk_qchain_* C ABI）
+#include "../qchain/bridge/qchain_bridge.hpp"
+
+// Lattice（晶格数组 qk_lattice_* C ABI）
+#include "Lattice.hpp"
+
+// 经典 GUI / 图形引擎（cgui_* / cgfx_* C ABI）
+#include "ClassicGui.hpp"
+#include "ClassicGfx.hpp"
+
+
 // --- QHAL Trampolines ---
 static qhal::IQuantumBackend *ActiveBackend = nullptr;
 
@@ -445,6 +456,20 @@ namespace qhal
             };
         }
 
+        // 动态绑定外部符号（供 .mmi 导出函数注入主 JIT，实现主程序 import .mmi）
+        void bind_symbol(const std::string &Name, void *Addr)
+        {
+            auto &Dylib = JIT_ptr->getMainJITDylib();
+            llvm::orc::MangleAndInterner Mangle(JIT_ptr->getExecutionSession(), JIT_ptr->getDataLayout());
+            llvm::orc::SymbolMap Map;
+            Map[Mangle(Name)] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(Addr),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            auto Err = Dylib.define(llvm::orc::absoluteSymbols(Map));
+            if (Err)
+                handle_llvm_error(std::move(Err));
+        }
+
     private:
         void bind_hardware_api()
         {
@@ -606,6 +631,173 @@ namespace qhal
             HostApiMap[Mangle("qk_qms_conc")] = llvm::orc::ExecutorSymbolDef(
                 llvm::orc::ExecutorAddr::fromPtr(&qk_qms_conc),
                 llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+
+            // --- QChain ABI ---
+            HostApiMap[Mangle("qk_qchain_wallet")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_wallet),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_balance")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_balance),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_mint")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_mint),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_transfer")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_transfer),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_mine")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_mine),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_height")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_height),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_verify")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_verify),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_qkd")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_qkd),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_qdba")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_qdba),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_coin_mint")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_coin_mint),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_coin_verify")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_coin_verify),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+                
+            HostApiMap[Mangle("qk_qchain_sha3")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_sha3),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_hmac")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_hmac),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_hash_unicode")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_hash_unicode),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_sign")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_sign),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_sign_verify")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_sign_verify),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_sign_pubkey")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_sign_pubkey),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_mlkem_encaps")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_mlkem_encaps),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_mlkem_decaps")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_mlkem_decaps),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_causal_verify")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_causal_verify),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_cipher_encrypt")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_cipher_encrypt),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_qchain_cipher_decrypt")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_qchain_cipher_decrypt),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+
+            // --- Lattice 晶格数组 ABI ---
+            HostApiMap[Mangle("qk_lattice_new")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_lattice_new),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_lattice_free")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_lattice_free),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_lattice_ref")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_lattice_ref),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_lattice_set")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_lattice_set),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_lattice_rank")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_lattice_rank),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_lattice_size")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_lattice_size),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_lattice_boundary")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_lattice_boundary),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+
+            // --- 经典 GUI / 图形引擎 ABI ---
+            HostApiMap[Mangle("qk_cgui_init")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_init),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_should_close")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_should_close),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_begin_frame")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_begin_frame),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_end_frame")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_end_frame),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_button")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_button),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_text")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_text),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_text_int")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_text_int),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_beep")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_beep),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_width")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_width),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_height")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_height),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_panel")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_panel),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_panel_end")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_panel_end),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_row")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_row),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_mouse_x")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_mouse_x),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_mouse_y")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_mouse_y),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgui_mouse_left_clicked")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgui_mouse_left_clicked),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgfx_rect")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgfx_rect),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgfx_line")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgfx_line),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgfx_ellipse")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgfx_ellipse),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgfx_triangle")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgfx_triangle),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgfx_rect_a")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgfx_rect_a),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgfx_line_a")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgfx_line_a),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgfx_ellipse_a")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgfx_ellipse_a),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+            HostApiMap[Mangle("qk_cgfx_triangle_a")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&qk_cgfx_triangle_a),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+
 
             auto Err = MainDylib.define(llvm::orc::absoluteSymbols(HostApiMap));
             if (Err)

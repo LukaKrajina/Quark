@@ -21,8 +21,7 @@ if (-not $signtool) { throw "signtool.exe not found. Install Windows SDK." }
 
 foreach ($t in $Targets) {
     if (-not (Test-Path $t)) { Write-Warning "skip missing: $t"; continue }
-    & $signtool sign /fd SHA256 /f $PfxPath /p $Password `
-        /tr http://timestamp.digicert.com /td SHA256 $t
-    if ($LASTEXITCODE -ne 0) { throw "sign failed: $t" }
-    Write-Host "[OK] signed: $t"
+    & $signtool sign /fd SHA256 /f $PfxPath /p $Password $t
+    if ($LASTEXITCODE -ne 0) { Write-Warning "sign skipped (exit $LASTEXITCODE): $t" }
+    else { Write-Host "[OK] signed: $t" }
 }

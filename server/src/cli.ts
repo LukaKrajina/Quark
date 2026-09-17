@@ -10,6 +10,7 @@ import { IRGenerator } from './ir';
 import { QuarkApiRouter } from './apiRouter';
 import { VCGenerator } from './vcgen';
 import { Cmd, PROTOCOL_VERSION, encodeFrame, decodeFrames } from './protocol';
+import { packMMI, collectModuleInfo, readMMIExports } from './mmi';
 
 const DAEMON_PORT = 50052;
 const DAEMON_TIMEOUT_MS = 30000; // daemon 响应超时(收到数据即重置)
@@ -49,19 +50,41 @@ function main() {
     let outputName = "";
     let smtMode = false;
     let smtOutput = "";
+    let mmiOutput = "";
+    let nativeLibs: string[] = [];
     
     if (command === 'run') {
         if (args.length < 2) {
-            console.error("Usage: qk run <script.qk>");
+            console.error("Usage: qk run <script.qk> [--native <lib> ...]");
             process.exit(1);
         }
         filePath = path.resolve(args[1]);
+        // 解析 --native <path>：加载原生动态库
+        const nIdx = args.indexOf('--native');
+        if (nIdx !== -1) {
+            for (let i = nIdx + 1; i < args.length; i++) {
+                if (args[i].startsWith('-')) break;
+                nativeLibs.push(path.resolve(args[i]));
+            }
+        }
     } else if (command === 'ir') {
         if (args.length < 2) {
             console.error("Usage: qk ir <script.qk>");
             process.exit(1);
         }
         filePath = path.resolve(args[1]);
+    } else if (command === 'mmi') {
+        if (args.length < 2) {
+            console.error("Usage: qk mmi <script.qk> [-o <out.mmi>]");
+            process.exit(1);
+        }
+        filePath = path.resolve(args[1]);
+        const oIdx = args.indexOf('-o');
+        if (oIdx !== -1 && args[oIdx + 1]) {
+            mmiOutput = path.resolve(args[oIdx + 1]);
+        } else {
+            mmiOutput = path.join(path.dirname(filePath), path.parse(filePath).name + '.mmi');
+        }
     } else if (command === 'compile') {
         if (args.length < 4) {
             console.error("Usage: qk compile <x32|x64|arm64> <-e|-m> <script.qk>");
@@ -155,12 +178,36 @@ function main() {
             process.exit(1);
         }
 
+        // 解析 import：读取 .mmi 导出签名，生成 importSignatures + importList
+        const importSignatures = new Map<string, Map<string, { params: string[]; ret: string }>>();
+        const importList: { alias: string; path: string }[] = [];
+        for (const node of ast.body) {
+            if ((node as any).type === 'ImportDecl') {
+                const imp = node as any;
+                const sigs = readMMIExports(imp.path, path.dirname(filePath));
+                const funcs = new Map<string, { params: string[]; ret: string }>();
+                for (const e of sigs) funcs.set(e.name, { params: e.params, ret: e.ret });
+                importSignatures.set(imp.alias, funcs);
+                importList.push({ alias: imp.alias, path: path.resolve(path.dirname(filePath), imp.path) });
+            }
+        }
+
         const irGen = new IRGenerator();
-        const llvmIR = irGen.generate(ast);
+        const llvmIR = irGen.generate(ast, importSignatures.size > 0 ? importSignatures : undefined);
 
         // IR 导出模式：只输出 LLVM IR 到 stdout，不连接 daemon（供 C++ embedded JIT 消费）
         if (command === 'ir') {
             process.stdout.write(llvmIR);
+            process.exit(0);
+        }
+
+        // MMI 打包模式：qk mmi <script.qk> [-o <out.mmi>]
+        if (command === 'mmi') {
+            const { exports, permissions, imports } = collectModuleInfo(ast);
+            const header = { name: path.parse(filePath).name, version: '1.0.0', exports, permissions, imports };
+            const buffer = packMMI(header, llvmIR);
+            fs.writeFileSync(mmiOutput, buffer);
+            console.log(`[Quark MMI] Packed ${exports.length} export(s) -> ${mmiOutput}`);
             process.exit(0);
         }
 
@@ -187,6 +234,12 @@ function main() {
         const client = net.createConnection({ port: DAEMON_PORT }, () => {
             client.write(encodeFrame(Cmd.HELLO, PROTOCOL_VERSION));
             if (command === 'run') {
+                for (const lib of nativeLibs) {
+                    client.write(encodeFrame(Cmd.LOAD_NATIVE, lib));
+                }
+                for (const imp of importList) {
+                    client.write(encodeFrame(Cmd.BIND_MMI, `${imp.alias} ${imp.path}`));
+                }
                 client.write(encodeFrame(Cmd.COMPILE, llvmIR));
                 if (vcProtocol) {
                     client.write(encodeFrame(Cmd.VERIFY, vcProtocol));

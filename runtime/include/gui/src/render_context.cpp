@@ -5,9 +5,10 @@
 #include "Nuklear/nuklear_glfw_vulkan.h"
 #include <stdexcept>
 #include <iostream>
+#include <cstdio>
 
-#define MAX_VERTEX_BUFFER (512 * 1024)
-#define MAX_INDEX_BUFFER (128 * 1024)
+#define MAX_VERTEX_BUFFER (4 * 1024 * 1024)
+#define MAX_INDEX_BUFFER (1 * 1024 * 1024)
 
 namespace qgui
 {
@@ -47,7 +48,41 @@ namespace qgui
         }
         std::vector<VkPhysicalDevice> devices(deviceCount);
         vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
-        return devices[0];
+
+        // 评分选卡：离散 GPU > 集成 GPU > 虚拟 GPU > CPU 软件渲染器
+        auto typeScore = [](VkPhysicalDeviceType t) -> int {
+            switch (t)
+            {
+            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: return 4;
+            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: return 3;
+            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: return 2;
+            default: return 0; // CPU / software
+            }
+        };
+
+        VkPhysicalDevice best = devices[0];
+        VkPhysicalDeviceProperties bestProps{};
+        vkGetPhysicalDeviceProperties(best, &bestProps);
+        int bestScore = typeScore(bestProps.deviceType);
+        std::fprintf(stderr, "[GUI] Vulkan device[0]: %s (type %d)\n",
+                     bestProps.deviceName, static_cast<int>(bestProps.deviceType));
+
+        for (uint32_t i = 1; i < deviceCount; ++i)
+        {
+            VkPhysicalDeviceProperties p{};
+            vkGetPhysicalDeviceProperties(devices[i], &p);
+            std::fprintf(stderr, "[GUI] Vulkan device[%u]: %s (type %d)\n",
+                         i, p.deviceName, static_cast<int>(p.deviceType));
+            int s = typeScore(p.deviceType);
+            if (s > bestScore)
+            {
+                bestScore = s;
+                best = devices[i];
+                bestProps = p;
+            }
+        }
+        std::fprintf(stderr, "[GUI] Using GPU: %s\n", bestProps.deviceName);
+        return best;
     }
 
     static uint32_t find_graphics_queue_family(VkPhysicalDevice device)
@@ -314,7 +349,8 @@ namespace qgui
     void RenderContext::end_frame()
     {
         uint32_t imageIndex = 0;
-        VkResult acquire = vkAcquireNextImageKHR(device_, swapchain_, UINT64_MAX,
+        // 有限超时（250ms）：避免 semaphore 异常时无限死等导致「无响应」
+        VkResult acquire = vkAcquireNextImageKHR(device_, swapchain_, 250000000ULL,
                                                  image_available_, VK_NULL_HANDLE,
                                                  &imageIndex);
         if (acquire != VK_SUCCESS && acquire != VK_SUBOPTIMAL_KHR)

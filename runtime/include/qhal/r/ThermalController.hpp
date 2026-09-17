@@ -47,6 +47,7 @@ struct ThermalSetpoint {
       0.015;                                            // ~15 mK 稀释制冷机
   static constexpr double TrappedIonChamber_K = 300.0;  // 离子阱真空腔（室温）
   static constexpr double NeutralAtomChamber_K = 300.0; // 中性原子腔（室温）
+  static constexpr double PhotonicChip_K = 300.0;       // 硅光子芯片（室温；SNSPD 探测器另需 ~1K 级）
   static constexpr double CsVaporCell_K = 303.15;       // Cs 气室 30 °C（论文）
 };
 

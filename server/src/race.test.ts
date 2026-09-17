@@ -18,7 +18,7 @@ function d(tid: string, locks: string[] = [], qubits: string[] = []): Digest {
 
 function access(variable: string, isWrite: boolean, digest: Digest,
                 destructive: string[] = []): Access {
-    return { variable, isWrite, digest, destructiveQubits: new Set(destructive) };
+    return { variable, isWrite, digest, destructiveQubits: new Set(destructive), line: 0, column: 0 };
 }
 
 // ---- 经典（锁集 + 线程 id）----

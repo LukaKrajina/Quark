@@ -8,6 +8,7 @@
 #include "NeutralAtomBackend.hpp"
 #include "SuperconductingBackend.hpp"
 #include "TrappedIonBackend.hpp"
+#include "PhotonicBackend.hpp"
 
 #include "r/Karma_real.hpp"
 #include "r/KarmaBus_real.hpp"
@@ -20,7 +21,8 @@ namespace qhal
     {
         Superconducting,
         TrappedIon,
-        NeutralAtom
+        NeutralAtom,
+        Photonic
     };
 
     class QUARK_RT_API QM : public IQuantumBackend
@@ -52,6 +54,10 @@ namespace qhal
                 physical_driver = std::make_unique<NeutralAtomBackend>();
                 std::cout << "[QM] Initialized Neutral Atom Rydberg Blockade Matrix.\n";
                 break;
+            case HardwareModality::Photonic:
+                physical_driver = std::make_unique<PhotonicBackend>();
+                std::cout << "[QM] Initialized Photonic Continuous-Variable Gaussian Pipeline (silicon PIC).\n";
+                break;
             default:
                 throw std::runtime_error("[QM Fatal] Unknown Hardware Modality requested.");
             }
@@ -70,6 +76,9 @@ namespace qhal
                 break;
             case HardwareModality::NeutralAtom:
                 target_kelvin = ThermalSetpoint::NeutralAtomChamber_K;
+                break;
+            case HardwareModality::Photonic:
+                target_kelvin = ThermalSetpoint::PhotonicChip_K;
                 break;
             default:
                 break;

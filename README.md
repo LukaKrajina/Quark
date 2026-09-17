@@ -11,7 +11,7 @@ Quark（`.qk`）是一门面向「量子计算 + 神经接口 + 量子语言模�
 | 特性 | 说明 |
 | --- | --- |
 | 量子编程 | 量子比特分配、量子对象、测量、Bell 态、量子寄存器（`Qubit` / `QObject` / `measure` / `DiracState` / `BellState` / `QuantumRegister`） |
-| 量子硬件抽象 | 自动探测真实量子机（FPGA 超导 / 离子阱 / 中性原子后端），否则回退到本地 QVM 模拟器 |
+| 量子硬件抽象 | 自动探测真实量子机（超导 / 离子阱 / 中性原子 / **光子芯片** 四种物理模态，`QUARK_BACKEND=qm:photon` 选光子后端），否则回退到本地 QVM 模拟器；离线时物理后端以「理想态矢量（`IdealStateCore`）+ 硬件噪声通道（振幅阻尼 / 相位翻转 / 去极化）」桥接，保证 Born 规则坍缩语义 |
 | 量子语言模型 QLM | 变分量子电路训练、模型导出（`.qkm`）、文本 → 量子态编码与解码 |
 | 脑机接口 BCI | `mind_read` / `mind_train` / `mind_feedback`，通过 QbNS Transducer 将神经信号编码为量子态 |
 | QbNS 量子脑网络 | `Transducer`（神经→量子编码）、`Rmx`（分布式混合网络）、`qbw`（脑量子波 / 量子流 / 分布链接） |
@@ -19,7 +19,7 @@ Quark（`.qk`）是一门面向「量子计算 + 神经接口 + 量子语言模�
 | 实时量子可视化 | `qvm_visualizer`：电路网格、态矢量、Bloch 球、量子对象、测量历史、性能指标六窗口实时观察 |
 | JIT 执行 | 基于 LLVM ORC JIT 的即时编译与执行 |
 | AOT 编译 | `qk compile` 将脚本编译为原生二进制（x32 / x64 / arm64） |
-| `.mmi` 模块系统 | `mod` / `use` / `import` / `export` / `requires` 模块声明与导入导出，打包为 `.mmi` 模块（QKMM 格式）动态加载与调用 |
+| `.mmi` 模块系统 | `mod` / `use` / `import` / `export` / `requires` 模块声明与导入导出，打包为 `.mmi` 模块（**QOBF v2 加密二进制**：二进制序列化 + ChaCha20 流加密 + HMAC 防篡改，打开为乱码）动态加载与调用 |
 | Rust 风格类型系统 | `form` / `trait` / `impl` / `template` / `rank` 声明式类型、泛型与 trait 实现 |
 | 量子门原语 | 内置 `x` `h` `rz` `cnot` `toffoli` `swap` `qft` `braid` 门与 `measure_x` / `measure_y` 测量 |
 | HTTP 推理服务 | `qk serve` 提供 OpenAI 兼容的 `chat/completions`、`embeddings`、`models` 接口 |
@@ -31,6 +31,9 @@ Quark（`.qk`）是一门面向「量子计算 + 神经接口 + 量子语言模�
 | 义肢 / 义眼 | 脑意识控制的义肢（`ProstheticLimb`，EMG 肌电）与义眼（`BionicEye`，EEG 脑电），辅以量子强化学习（复用 `QuantumRLAgent` + `ConsciousnessController`），支持物理义肢驱动与义眼相机 |
 | 国产化适配 | 龙芯 LoongArch（LA64）架构检测与 `idle 0`/`dbar 0` 原语适配、LSX/LASX 向量扩展检测；摩尔线程 MUSA GPU 后端检测（类 CUDA，mcc 编译器 + musa 运行时） |
 | QCOS 可启动内核 | 用 qk 编写裸机内核：freestanding 内核核心库 `qcos_core`（无 LLVM/Kokkos/libstdc++）+ 引导源码 `runtime/qcos/`（Multiboot2 汇编 / 链接脚本 / GRUB），经 `build-qcos-*.ps1` 构建可启动 ELF / ISO，QEMU 运行；隶属正式项目 [QuarkOS](https://github.com/LukaKrajina/QuarkOS) |
+| QChain 量子区块链 | 量子加密 + 量子区块链底层（`runtime/include/qchain/`）：后量子密码（格 KEM + 哈希签名）、QKD、QDS、QDBA、量子货币、可编程量子代币；qk 内置函数（`qchain_*`）+ daemon C ABI |
+| 光子量子后端 | `qhal/PhotonicBackend.hpp`：连续变量高斯态 + 完整梳态（GKP 编码，高斯包络叠加），GHZ 纠缠保真度 `Pz=Px=1`、`CHSH=2√2`（Bell 违背）；高斯门（displace/squeeze/beam_splitter）+ 光子噪声 + `bell_verify()` 纠缠验证；`QUARK_BACKEND=qm:photon` 启用 |
+| 抗超时空与抗破解 | 快子场因果哨兵 `CausalityGuard`（能量守恒 + 额外维 KK 对称，防超时空篡改）、`UnicodeHash256` 语义哈希（汉字/符号 → 拼音/英文 → SHA-256，基于 Unihan 全量拼音表）、`SpacetimeCipher` 时空加密（快子场混沌 keystream + SHA-256 OFB/CTR） |
 
 ---
 
@@ -46,7 +49,7 @@ quark-vscode/
 │   ├── qcos/                  可启动 QCOS 内核引导源码（boot_x86_32.S / boot_x86_64.S / kernel_main.cpp / qk_shim.cpp / qcos_syscall.hpp / linker_x86_64.ld / grub 配置）
 │   └── include/
 │       ├── qcos/              内核核心（freestanding）：驯龙系统 DragonPmm（伙伴系统/空闲链表/TLSF/per-CPU 缓存）+ BitmapPmm（v1 位图）、Vmm 虚拟内存、Spinlock/TicketSpinlock、Sched、Serial、Qms 量子数值
-│       ├── qhal/              量子硬件抽象层（QM / QVM / JIT / SandboxJIT / MMI / VisualizationService / 多种物理后端）
+│       ├── qhal/              量子硬件抽象层（QM / QVM / JIT / SandboxJIT / MMI / VisualizationService / IdealStateCore 理想态+噪声桥接 / 多种物理后端：超导 / 离子阱 / 中性原子 / 光子 PhotonicBackend / Karma 量子虚拟化 QVPU / KarmaBus 量子虚拟化 QVPL）
 │       ├── qbNs/              量子脑网络 QbNS（Transducer / Rmx / qbw 脑量子波 / qbNSBridge）
 │       ├── vedaRos/           量子机器人操作系统 VedaROS（core / bridge / algorithm / hardware / quantum）
 │       ├── gui/               实时量子可视化器（protocol / components / windows / src）
@@ -240,6 +243,28 @@ ctest -R quarkRSP_tests                          # 运行测试（87 个用例 /
 | `mind_train` | `mind_train(QObject, int, double)` | `void` | 用脑信号训练 QLM 并导出 |
 | `mind_feedback` | `mind_feedback(QObject)` | `void` | 测量脑状态，闭合神经反馈闭环 |
 | `veda_qlm_train` | `veda_qlm_train(QObject, int, double)` | `void` | 调用 VedaROS QLM 训练 |
+| `qchain_wallet` | `qchain_wallet()` | `string` | 创建后量子钱包，返回量子安全地址 |
+| `qchain_mint` | `qchain_mint(string, uint64)` | `void` | 铸币到指定地址 |
+| `qchain_transfer` | `qchain_transfer(string, string, uint64)` | `int32` | 地址间转账 |
+| `qchain_balance` | `qchain_balance(string)` | `uint64` | 查询余额 |
+| `qchain_mine` | `qchain_mine()` | `int32` | 量子 PoW 出块，返回链高度 |
+| `qchain_height` | `qchain_height()` | `int32` | 链高度 |
+| `qchain_verify` | `qchain_verify()` | `int32` | 验链（哈希链 + 默克尔根自洽） |
+| `qchain_qkd` | `qchain_qkd(int32)` | `string` | BB84 量子密钥分发，返回共享密钥 |
+| `qchain_qdba` | `qchain_qdba(int32)` | `int32` | 量子拜占庭共识（GHZ 态 QDBA） |
+| `qchain_coin_mint` | `qchain_coin_mint(int32)` | `QObject` | 铸不可克隆量子钞票（Wiesner 量子货币） |
+| `qchain_coin_verify` | `qchain_coin_verify(QObject)` | `int32` | 验证量子钞票 |
+| `qchain_sha3` | `qchain_sha3(string)` | `string` | SHA3-256 哈希（返回 hex） |
+| `qchain_hmac` | `qchain_hmac(string, string)` | `string` | HMAC-SHA256（返回 hex） |
+| `qchain_hash_unicode` | `qchain_hash_unicode(string)` | `string` | 语义哈希：汉字→拼音→SHA-256 |
+| `qchain_sign` | `qchain_sign(string)` | `string` | 后量子签名（ML-DSA-65，全局密钥，返回 hex） |
+| `qchain_sign_verify` | `qchain_sign_verify(string, string)` | `int32` | 验证后量子签名 |
+| `qchain_sign_pubkey` | `qchain_sign_pubkey()` | `string` | 全局签名公钥（hex） |
+| `qchain_mlkem_encaps` | `qchain_mlkem_encaps(string)` | `string` | ML-KEM-768 封装（返回 `ct:ss` hex） |
+| `qchain_mlkem_decaps` | `qchain_mlkem_decaps(string, string)` | `string` | ML-KEM-768 解封（返回共享密钥 hex） |
+| `qchain_causal_verify` | `qchain_causal_verify()` | `int32` | 因果哨兵校验（防超时空） |
+| `qchain_cipher_encrypt` | `qchain_cipher_encrypt(uint64, string)` | `string` | 时空加密（OFB，返回 hex） |
+| `qchain_cipher_decrypt` | `qchain_cipher_decrypt(uint64, string)` | `string` | 时空解密（返回文本） |
 
 ### 内置类
 
@@ -269,7 +294,7 @@ let result = math.add(1, 2);
 ```
 
 - 关键字：`mod`（模块）、`use`（路径导入）、`pub`（公开）、`import` + `from`（导入 `.mmi`）、`export`（导出）、`requires`（权限声明）
-- `.mmi` 头信息（`name` / `version` / `exports` / `permissions` / `imports`）由语言服务器（`server/src/mmi.ts`）打包，运行时（`qhal/MMI.hpp`）通过 C ABI（`RuntimeApi.h` 的 `quark_runtime_*_mmi`）加载与调用
+- `.mmi` 采用 **QOBF v2 加密二进制**：由语言服务器（`server/src/mmi.ts`）做「二进制序列化 + ChaCha20 流加密 + HMAC 防篡改」后打包，运行时（`qhal/Qcrypt.hpp` + `qhal/MMI.hpp`）验 HMAC → 解密 → 二进制解析 → JIT，通过 C ABI（`RuntimeApi.h` 的 `quark_runtime_*_mmi`）加载与调用（密钥 = HKDF(内嵌盐 ‖ 模块名)，与加密 DLL 同定位）
 
 ### 类型定义（form / trait / impl）
 
@@ -655,6 +680,7 @@ npm run compile
 | [qk 语言手册](docs/qk-language-manual.md) | qk 语言完整参考：类型、控制流、函数与契约、量子操作、模块系统（`.mmi`）、类型定义（form/trait/impl）、静态验证 |
 | [量子机器人仿真平台手册](docs/quarkrsp-manual.md) | quarkRSP 平台完整参考：物理内核、渲染、蓝图、量子 RL、义肢/义眼、QCDRC 遥操作、安全与临床合规 |
 | [qk 量子学习手册](docs/qk-quantum-learning-manual.md) | QLM / QML / Numqk 量子机器学习：变分电路训练、parameter-shift 反向、流匹配、脑机接口、推理 API |
+| [qchain 量子区块链手册](docs/qk-qchain-manual.md) | qchain 量子加密与量子区块链：后量子密码、QKD、QDBA、量子货币、可编程量子代币、qk 内置函数与 daemon C ABI |
 
 ---
 

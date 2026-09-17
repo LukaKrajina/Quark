@@ -86,6 +86,15 @@ add_executable(qcos_smoke
 target_include_directories(qcos_smoke PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(qcos_smoke PRIVATE cxx_std_20)
 
+# qchain_selftest：量子区块链核心自测（header-only，不依赖 Kokkos/LLVM）。
+# 覆盖 SHA3/HMAC/HKDF、ML-KEM-768、LweKem、Csprng、UnicodeHash256、
+# CausalityGuard、SpacetimeCipher、UTXO 双花检测与签名自包含。
+add_executable(qchain_selftest
+    src/qchain_selftest.cpp
+)
+target_include_directories(qchain_selftest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_features(qchain_selftest PRIVATE cxx_std_20)
+
 # ==========================================
 # 1. DEPENDENCIES
 # ==========================================
@@ -144,6 +153,13 @@ find_package(Kokkos REQUIRED)
 # （与重新编译为 /MD 的 Kokkos 库保持一致）
 if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+endif()
+
+# Quark: 手动 OpenMP（clang-cl 用 -openmp + libomp，绕过 FindOpenMP 对 clang-cl 的缺陷）
+if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-openmp)
+    link_directories("C:/Program Files/LLVM/lib")
+    set(OPENMP_LIB libomp)
 endif()
 set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "")
 set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "")
@@ -214,13 +230,21 @@ endif()
 add_library(quark_rt SHARED
     src/runtime_api.cpp
     src/AtomicVaporORAM.cpp
+    src/ClassicGfx.cpp
+    src/ClassicGui.cpp
+    include/gui/src/render_context.cpp
+    include/gui/src/font_loader.cpp
 )
 target_compile_definitions(quark_rt PRIVATE QUARK_RT_BUILD)
 target_include_directories(quark_rt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+# ClassicGfx 复用 quarkRSP 的 VulkanContext；ClassicGui 复用 gui/src 的 RenderContext
+target_include_directories(quark_rt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../quarkRSP/include)
+target_include_directories(quark_rt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/gui/src)
 target_link_libraries(quark_rt PRIVATE quark_rt_host ${llvm_libs})
 target_link_libraries(quark_rt PRIVATE Kokkos::kokkos)
+target_link_libraries(quark_rt PRIVATE ${Vulkan_LIBRARIES} ${GLFW_LIB})
 if(WIN32)
-    target_link_libraries(quark_rt PRIVATE ws2_32)
+    target_link_libraries(quark_rt PRIVATE ws2_32 ${OPENMP_LIB})
 elseif(UNIX AND NOT APPLE)
     target_link_libraries(quark_rt PRIVATE pthread dl m)
 endif()
@@ -244,6 +268,22 @@ elseif(UNIX AND NOT APPLE)
     target_link_libraries(runtime PRIVATE pthread)
 endif()
 quark_sign_target(runtime)
+
+# ==========================================
+# 游戏启动器：双击启动游戏（加载 game.mmi 调用入口）
+# ==========================================
+add_executable(go_game src/go_game.cpp)
+target_compile_definitions(go_game PRIVATE QUARK_RT_BUILD)
+target_include_directories(go_game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(go_game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../quarkRSP/include)
+target_link_libraries(go_game PRIVATE quark_rt Kokkos::kokkos)
+target_link_libraries(go_game PRIVATE ${Vulkan_LIBRARIES} ${GLFW_LIB})
+if(WIN32)
+    target_link_libraries(go_game PRIVATE ws2_32 advapi32)
+    set_target_properties(go_game PROPERTIES WIN32_EXECUTABLE TRUE)
+    target_link_options(go_game PRIVATE -Xlinker /ENTRY:mainCRTStartup)
+endif()
+quark_sign_target(go_game)
 
 # ==========================================
 # 5. TARGET: QLM TRANSMITTER

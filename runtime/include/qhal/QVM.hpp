@@ -638,8 +638,29 @@ namespace qhal
 
         void apply_ga_rotor(size_t target, int blade_axis, double angle)
         {
-            Multivector3D rotor = Multivector3D::pauli_rotor(blade_axis, angle);
-            apply_rz(target, angle);
+            // geometric-algebra rotor：blade_axis 1=X, 2=Y, 3=Z。
+            //   Rx(θ) = H Rz(θ) H
+            //   Ry(θ) = Rz(π/2) H Rz(θ) H Rz(-π/2)
+            //   Rz(θ) = Rz(θ)
+            switch (blade_axis)
+            {
+            case 1:
+                apply_h(target);
+                apply_rz(target, angle);
+                apply_h(target);
+                break;
+            case 2:
+                apply_rz(target, M_PI / 2.0);
+                apply_h(target);
+                apply_rz(target, angle);
+                apply_h(target);
+                apply_rz(target, -M_PI / 2.0);
+                break;
+            case 3:
+            default:
+                apply_rz(target, angle);
+                break;
+            }
         }
 
         void apply_h(size_t target) override
@@ -677,6 +698,25 @@ namespace qhal
             else
             {
                 apply_x_recursive(root.get(), num_qubits - 1, target);
+            }
+        }
+
+        // Z 门：对 |1⟩ 分量乘 -1（精确，无全局相位）。
+        void apply_z(size_t target) override
+        {
+            check_lock(target);
+            if (active_policy == BackendExecutionPolicy::Dense_StateVector)
+            {
+                size_t total = dense_state.size();
+                size_t mask = 1ULL << target;
+                for (size_t i = 0; i < total; ++i)
+                    if (i & mask)
+                        dense_state[i] = -dense_state[i];
+            }
+            else
+            {
+                apply_rz_recursive(root.get(), static_cast<int>(num_qubits) - 1,
+                                   static_cast<int>(target), {-1.0, 0.0});
             }
         }
 
@@ -731,12 +771,26 @@ namespace qhal
             check_lock(c1);
             check_lock(c2);
             check_lock(target);
-            if (maintains_stabilizer_polytope)
-            {
-                maintains_stabilizer_polytope = false;
-                set_vram_budget(vram_budget); // 出现魔法态，切换到 GPU Dense_StateVector
-            }
-            gv_engine.decompose_magic_states(target);
+
+            // 标准 Toffoli 分解（T = rz(π/4)，T† = rz(-π/4)）。
+            // 直接复用 apply_h/apply_cnot/apply_rz，dense 与 Polyhedral_Graph
+            // 两条路径都能得到正确的 3-qubit 门。rz(π/4) 会触发魔法态检测，
+            // 自动把 maintains_stabilizer_polytope 置 false 并切换执行策略。
+            apply_h(target);
+            apply_cnot(c2, target);
+            apply_rz(target, -M_PI / 4.0);
+            apply_cnot(c1, target);
+            apply_rz(target, M_PI / 4.0);
+            apply_cnot(c2, target);
+            apply_rz(target, -M_PI / 4.0);
+            apply_cnot(c1, target);
+            apply_rz(c2, M_PI / 4.0);
+            apply_rz(target, M_PI / 4.0);
+            apply_h(target);
+            apply_cnot(c1, c2);
+            apply_rz(c1, M_PI / 4.0);
+            apply_rz(c2, -M_PI / 4.0);
+            apply_cnot(c1, c2);
         }
 
         void apply_braid(size_t a, size_t b) override
@@ -746,21 +800,24 @@ namespace qhal
             if (a == b)
                 return;
 
-            if (active_policy == BackendExecutionPolicy::Dense_StateVector)
+            // 编织（Yang-Baxter，√SWAP 类）必须用完整 2-qubit 酉；递归路径没有
+            // 对应的通用 2-qubit 递归应用，因此强制切到 dense 策略并同步态矢量。
+            if (active_policy != BackendExecutionPolicy::Dense_StateVector)
             {
-                const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
-                const std::complex<double> I(0.0, 1.0);
-                std::complex<double> R[4][4] = {
-                    {inv_sqrt2, 0.0, inv_sqrt2 * I, 0.0},
-                    {0.0, inv_sqrt2, 0.0, -inv_sqrt2 * I},
-                    {inv_sqrt2 * I, 0.0, inv_sqrt2, 0.0},
-                    {0.0, -inv_sqrt2 * I, 0.0, inv_sqrt2}};
-                apply_two_qubit_gate_dense(a, b, R);
+                size_t total = 1ULL << num_qubits;
+                for (size_t i = 0; i < total; ++i)
+                    dense_state[i] = peek_state(i);
+                active_policy = BackendExecutionPolicy::Dense_StateVector;
             }
-            else
-            {
-                apply_swap(a, b);
-            }
+
+            const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
+            const std::complex<double> I(0.0, 1.0);
+            std::complex<double> R[4][4] = {
+                {inv_sqrt2, 0.0, inv_sqrt2 * I, 0.0},
+                {0.0, inv_sqrt2, 0.0, -inv_sqrt2 * I},
+                {inv_sqrt2 * I, 0.0, inv_sqrt2, 0.0},
+                {0.0, -inv_sqrt2 * I, 0.0, inv_sqrt2}};
+            apply_two_qubit_gate_dense(a, b, R);
         }
 
         // 任意基构建：把 |0⟩ 旋转到布洛赫方向 (θ, φ) 的 + 本征态
