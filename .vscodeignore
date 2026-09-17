@@ -1,0 +1,41 @@
+# 源码（只打包编译产物）
+client/src/**
+server/src/**
+
+# 测试
+client/out/test/**
+
+# 应用图标（扩展只需 quark-dark/light.svg + icon theme）
+icons/runtime*
+icons/quarkrsp*
+icons/*.ico
+icons/*.rc
+icons/*-512.png
+
+# 无关子项目与大目录
+runtime/**
+quarkRSP/**
+quarkSE/**
+quark-web-ui/**
+docs/**
+examples/**
+installer/**
+scripts/**
+vendor/**
+vcpkg/**
+
+# 杂项
+.git/**
+.vscode/**
+.gitignore
+*.tsbuildinfo
+tsconfig*.json
+build.bat
+
+# 开发工具配置
+.clang-format
+.clang-tidy
+.clangd
+.gitmessage
+.editorconfig
+.github/**

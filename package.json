@@ -3,6 +3,12 @@
   "displayName": "Quark Language Support",
   "description": "Language support for the Quark Quantum Programming Language (.qk)",
   "version": "0.1.0",
+  "publisher": "quarkproject",
+  "icon": "icons/marketplace.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LukaKrajina/Quark.git"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -79,7 +85,6 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
-    "png-to-ico": "^3.0.2",
     "sharp": "^0.35.4",
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver": "^9.0.1",
