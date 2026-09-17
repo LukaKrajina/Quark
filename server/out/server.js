@@ -90,7 +90,7 @@ connection.onCompletion((_textDocumentPosition) => {
 connection.onCompletionResolve((item) => {
     return item;
 });
-// ─── 语义高亮（semantic tokens）：复用 lexer 的 token 分类 ──────────
+// ─── 语义高亮（semantic tokens） ──────────
 connection.onRequest(node_1.SemanticTokensRequest.type, (params) => {
     const document = documents.get(params.textDocument.uri);
     if (!document)
