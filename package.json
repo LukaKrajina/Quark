@@ -28,6 +28,13 @@
         "configuration": "./language-configuration.json"
       }
     ],
+    "iconThemes": [
+      {
+        "id": "quark-icons",
+        "label": "Quark File Icons",
+        "path": "./icons/quark-file-icon-theme.json"
+      }
+    ],
     "grammars": [
       {
         "language": "quark",
@@ -72,13 +79,15 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "png-to-ico": "^3.0.2",
+    "sharp": "^0.35.4",
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
     "@types/mocha": "^10.0.6",
+    "@types/node": "^25.5.0",
     "@types/vscode": "~1.80.0",
     "@vscode/test-electron": "^2.4.0",
     "mocha": "^10.4.0",

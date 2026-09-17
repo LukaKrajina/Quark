@@ -259,6 +259,8 @@ add_executable(runtime
 target_include_directories(runtime PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(runtime PRIVATE quark_rt)
 if(WIN32)
+    # 应用图标（runtime.ico → 嵌入 runtime.exe）
+    target_sources(runtime PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../icons/runtime.rc")
     target_link_libraries(runtime PRIVATE ws2_32 advapi32)
     # 无控制台窗口（后台服务 / 由管道驱动）
     set_target_properties(runtime PROPERTIES WIN32_EXECUTABLE TRUE)

@@ -31,6 +31,8 @@ target_include_directories(quarkRSP PRIVATE
 )
 target_link_libraries(quarkRSP PRIVATE quark_rt Kokkos::kokkos ${Vulkan_LIBRARIES} ${GLFW_LIB})
 if(WIN32)
+    # 应用图标（quarkrsp.ico → 嵌入 quarkRSP.exe）
+    target_sources(quarkRSP PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../icons/quarkrsp.rc")
     target_link_libraries(quarkRSP PRIVATE ws2_32 gdi32)
     # GUI 程序：无控制台窗口
     set_target_properties(quarkRSP PROPERTIES WIN32_EXECUTABLE TRUE)
@@ -221,6 +223,8 @@ if(Qt6_FOUND)
     # 触发 free(): invalid pointer 崩溃。--host-only 让 nvcc_wrapper 改用 g++。
     target_compile_options(quarkRSP_gui PRIVATE --host-only)
     if(WIN32)
+        # 应用图标（quarkrsp.ico → 嵌入 quarkRSP_gui.exe）
+        target_sources(quarkRSP_gui PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../icons/quarkrsp.rc")
         set_target_properties(quarkRSP_gui PROPERTIES WIN32_EXECUTABLE TRUE)
         if(MSVC)
             target_link_options(quarkRSP_gui PRIVATE /ENTRY:mainCRTStartup)
