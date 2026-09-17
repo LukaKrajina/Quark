@@ -5,7 +5,24 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [0.4.0]
+## [0.5.0](vsx 0.1.1)
+
+### Added
+
+- **完整语法高亮**：重写 `quark.tmLanguage.json`，覆盖全部 100+ 个关键字、量子类型（`Qubit`/`QObject`/`QModel` 等）、内置函数（`qchain_*`/`qk_*`/`sync_*`/`cgui_*`/`cgfx_*`/`qrc_*`）、数字（十进制/浮点/十六进制）与单双引号字符串。
+- **语义能力（Language Server）**：新增语义高亮（semanticTokens）、悬停提示（hover）、文档大纲（documentSymbol）、定义跳转（definition），补全从写死的 7 项升级为全量关键字 + 类型 + 内置函数。
+- **扩展图标**：QK 语言图标（亮紫/紫双主题）、文件图标主题（file icon theme，左侧工作区 `.qk` 文件图标）、应用图标（runtime / quarkRSP，含多尺寸 `.ico` 与 512 PNG）。
+
+### Fixed
+
+- 修复语法高亮注释规则：由 SQL 风格 `--` 修正为 lexer 实际使用的 C 风格 `//`。
+- 修复语言图标深/浅主题无区分的问题。
+
+### Changed
+
+- VS Code 扩展打包配置：补充 `publisher`/`icon`/`repository` 元数据与 `.vscodeignore` 精确控制打包内容，移除误装的 `sharp`/`png-to-ico` 依赖。
+
+## [0.4.0] (vsx 0.1.0)
 
 ### Fixed
 
