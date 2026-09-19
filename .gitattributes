@@ -1,0 +1,15 @@
+# 换行符规范化：shell 脚本强制 LF（Linux 可执行），批处理强制 CRLF
+*.sh text eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制文件不转换换行符
+*.png binary
+*.ico binary
+*.dll binary
+*.lib binary
+*.so binary
+*.a binary
+*.exe binary
+*.vsix binary
+*.qkm binary
