@@ -41,6 +41,7 @@ Quark（`.qk`）是一门面向「量子计算 + 神经接口 + 量子语言模�
 | 可逆编织门合成 | `@[gate]`/`@[undo]`/`@[steer]`/`@[unitary]`/`@[measure]` 标签：可逆对偶 U†（门序反转 + 逐门取逆）与相干控制 Λ(U) 的自动合成 |
 | 量子物理特性 | `@[coherence]`/`@[noise]`/`@[basis]`/`@[decoherence_free]`/`@[error_correction]` 标签：噪声模型与相干时间约束，门后自动注入噪声到 QVM 与多硬件后端 |
 | 经典编译属性 | `@[inline]`/`@[noinline]`/`@[pure]`/`@[cold]`/`@[hot]`/`@[noreturn]`/`@[export]`，映射到 LLVM 函数属性 |
+| VS Code 扩展 | vsx 打包：esbuild bundle + runtime 产物（`runtime.exe`/`quark_rt.dll` 等）打包进 `bin/`，**安装即运行/编译/构建 qk**（无需单独安装 runtime）；语法高亮 + 语义感知补全 + 运行/编译/构建命令 |
 | HTTP 推理服务 | `qk serve` 提供 OpenAI 兼容的 `chat/completions`、`embeddings`、`models` 接口 |
 | Web 聊天界面 | 基于 Vite + Tailwind + Dexie 的流式推理聊天界面 |
 | 工具链管理 | Go 编写的 `quarkup` 安装器与版本代理 |

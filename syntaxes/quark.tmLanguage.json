@@ -7,6 +7,7 @@
     { "include": "#strings" },
     { "include": "#numbers" },
     { "include": "#constants" },
+    { "include": "#annotations" },
     { "include": "#types" },
     { "include": "#keywords" },
     { "include": "#functions" }
@@ -15,6 +16,18 @@
     "comments": {
       "name": "comment.line.quark",
       "match": "//.*$"
+    },
+    "annotations": {
+      "patterns": [
+        {
+          "name": "keyword.declaration.quark",
+          "match": "@layer\\b"
+        },
+        {
+          "name": "entity.name.tag.quark",
+          "match": "@\\[[a-z_]+"
+        }
+      ]
     },
     "strings": {
       "patterns": [
@@ -74,7 +87,7 @@
       "patterns": [
         {
           "name": "support.function.quantum.quark",
-          "match": "\\b(alloc|measure|measure_x|measure_y|encode_text|encode_image|qlm_invoke|qlm_load|qlm_forward|mind_read|mind_train|mind_feedback|veda_qlm_train|h|x|rz|cnot|toffoli|swap|qft|braid)\\b"
+          "match": "\\b(alloc|measure|measure_x|measure_y|encode_text|encode_image|qlm_invoke|qlm_load|qlm_forward|mind_read|mind_train|mind_feedback|veda_qlm_train|h|x|rz|cnot|toffoli|swap|qft|iqft|braid|cx|ch|crz|cswap|c_toffoli|cqft|cbraid)\\b"
         },
         {
           "name": "support.function.builtin.quark",

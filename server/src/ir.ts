@@ -276,7 +276,6 @@ export class IRGenerator {
             `declare double @qk_tnorm_godel(double, double)`,
             `declare double @qk_polymer_weight(double, double, double)`,
             `declare double @qk_polymer_mix_bound(double, double)`,
-            `declare i8* @malloc(i64)`,
             ``,
             `; --- 晶格数组 ABI（lattice<T, B>，首版 int32 元素 / 1D-2D）---`,
             `declare %Lattice* @qk_lattice_new(i32, i32, i32, i32)`,
@@ -357,7 +356,6 @@ export class IRGenerator {
             `declare i32 @quark_runtime_run_topology(i8*)`,
             `; --- 并发线程（spawn）ABI ---`,
             `declare void @qk_spawn(i8*, i8*)`,
-            `declare i8* @malloc(i64)`,
             ``
         ];
 
@@ -1295,7 +1293,7 @@ export class IRGenerator {
                 // malloc env 结构 + 填充捕获变量
                 const totalSize = capTypes.reduce((s, t) => s + this.typeSize(t), 0);
                 const mallocRes = this.nextReg();
-                this.emit(`${mallocRes} = call i8* @malloc(i64 ${totalSize})`);
+                this.emit(`${mallocRes} = call i8* @qk_gc_alloc(i64 ${totalSize})`);
                 const envPtr = this.nextReg();
                 this.emit(`${envPtr} = bitcast i8* ${mallocRes} to %${envTypeName}*`);
                 captured.forEach((capName, i) => {
@@ -1535,7 +1533,7 @@ export class IRGenerator {
             // malloc 闭包对象
             const totalSize = 8 + capTypes.reduce((s, t) => s + this.typeSize(t), 0);
             const mallocRes = this.nextReg();
-            this.emit(`${mallocRes} = call i8* @malloc(i64 ${totalSize})`);
+            this.emit(`${mallocRes} = call i8* @qk_gc_alloc(i64 ${totalSize})`);
             const closurePtr = this.nextReg();
             this.emit(`${closurePtr} = bitcast i8* ${mallocRes} to %${closureTypeName}*`);
 

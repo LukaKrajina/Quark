@@ -117,10 +117,10 @@ namespace numqk {
         }
 
         
-        Tensor<T> matmul(const Tensor<T>& other);
+        Tensor<T> matmul(const Tensor<T>& other) const;
         Tensor<T> sigmoid();
 
-        // P0 地基扩展：逐元素 / 归约运算（带自动微分）
+        // 逐元素 / 归约运算（带自动微分）
         Tensor<T> add(const Tensor<T>& other);
         Tensor<T> sub(const Tensor<T>& other);
         Tensor<T> mul(const Tensor<T>& other);
@@ -225,7 +225,7 @@ namespace numqk {
     }
 
     template <typename T>
-    Tensor<T> Tensor<T>::matmul(const Tensor<T>& other) {
+    Tensor<T> Tensor<T>::matmul(const Tensor<T>& other) const {
         size_t M = this->shape[0];
         size_t K = this->shape[1];
         size_t N = other.shape[1];
@@ -253,13 +253,6 @@ namespace numqk {
         return result;
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // P0 地基扩展：逐元素 / 归约运算的自动微分节点与成员函数
-    // ─────────────────────────────────────────────────────────────
-
-    // 二元逐元素运算的通用反传节点。
-    //   grad_a_fn(g, a, b) -> 对左操作数 a 的局部梯度
-    //   grad_b_fn(g, a, b) -> 对右操作数 b 的局部梯度
     template <typename T>
     class ElementwiseBinaryBackward : public AutogradNode<T> {
     private:
@@ -296,7 +289,6 @@ namespace numqk {
         }
     };
 
-    // 一元逐元素运算的反传节点。grad_fn(g, y) -> 对输入的局部梯度，y 为前向输出。
     template <typename T>
     class UnaryBackward : public AutogradNode<T> {
     private:
@@ -320,7 +312,6 @@ namespace numqk {
         }
     };
 
-    // 归约（sum/mean）反传节点：把标量上游梯度广播回输入形状。
     template <typename T>
     class ReduceBackward : public AutogradNode<T> {
     private:

@@ -5,6 +5,7 @@
 #include <iostream>
 #include <functional>
 #include <atomic>
+#include <csignal>
 
 #include "Transducer.hpp"
 #include "rmx.hpp"

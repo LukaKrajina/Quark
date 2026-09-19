@@ -21,6 +21,9 @@
 - **非破坏 `expectation_z`**：`IdealStateCore::expectation_z`（⟨Z⟩ = 1 - 2·P(1)，不坍缩态），超导/离子阱/中性原子三后端重写。
 - **光子去极化**：`PhotonicBackend` 的 depolarizing 从「损耗+相位翻转」近似改为正确的 Pauli 通道（X/Y/Z 以 3p/4 概率）。
 - **新示例**：`examples/reversible_weaving.qk`（可逆编织范式端到端 demo：`@[gate]`+`@[undo]`+`@[steer]`+`@[noise]`）。
+- **VS Code 扩展打包（vsx 0.1.6）**：esbuild bundle client/server 单文件（vsix 从 487 文件 795 KB 降到 22 文件 212 KB）；runtime 产物（`runtime.exe` + `quark_rt.dll` + `libomp.dll` + `zlib.dll`）打包进 `bin/`，`resolveRuntime()` 优先探测扩展自带 runtime，**安装即运行/编译/构建 qk**（无需单独安装 runtime）。
+- **运行/编译/构建命令**：`quark.runScript`（运行）、`quark.compileScript`（AOT 编译为原生二进制）、`quark.buildScript`（生成 LLVM IR 到 `.ll`），注册到编辑器标题栏 + 快捷键（`Ctrl+Alt+N/C/B`）。
+- **语法高亮与语义感知补全**：补全注解标签（`@layer`/`@[gate]`/`@[undo]`/`@[steer]`/`@[coherence]` 等）与受控门（`cx`/`ch`/`crz`/`cswap`/`c_toffoli`/`cqft`/`cbraid`/`iqft`）的 TextMate 高亮 + LSP 补全。
 
 ### Fixed
 
@@ -29,6 +32,9 @@
 - 修复 `rz` 签名检查（原误判为 1 参数，实际为 qubit + angle 2 参数）。
 - 修复受控门不在 `GATE_FNS` 导致 MIR 层误判「消费」参数、`@[gate]` 函数误报 E-TOP001、顺序调用被 Q-Digest 误判为跨线程竞争。
 - 修复 `section`/`naked` 与历史 `place`/`raw` 命名分裂（`@[section]` 现在正确生成 LLVM `section` 属性）。
+- 修复 `ir.ts` 的 `declare i8* @malloc` 与 LLVM ORC JIT 内建 `malloc` 冲突（`invalid redefinition`），改用 `qk_gc_alloc`。
+- 修复 `build.bat`：C/C++ 编译器统一 clang-cl（消除 MSVC 混合报错）、CRT 对齐 `/MD`（`LLVM_DIR` 指向 `/MD` 版 LLVM）、补 CUDA/zlib/zstd 路径与 `CMAKE_C_COMPILER`。
+- 修复 `prepare-vsix-runtime.ps1` 的 `Join-Path` 三参数错误与中文注释编码问题（改纯 ASCII）。
 
 ### Changed
 

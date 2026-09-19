@@ -39,3 +39,12 @@ build.bat
 .gitmessage
 .editorconfig
 .github/**
+
+# node_modules（已 bundle 进 client/out/extension.js 与 server/out/server.js，无需打包）
+node_modules/**
+
+# 编译产物：只保留 esbuild 单文件入口，排除中间产物与测试
+server/out/**
+!server/out/server.js
+client/out/**
+!client/out/extension.js

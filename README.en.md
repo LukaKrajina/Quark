@@ -41,6 +41,7 @@ Quark (`.qk`) is an experimental programming language targeting **quantum comput
 | Reversible Weaving gate synthesis | `@[gate]`/`@[undo]`/`@[steer]`/`@[unitary]`/`@[measure]` tags: automatic synthesis of the reversible dual U† (gate-order reversal + per-gate dagger) and coherent control Λ(U)|
 | Quantum physical traits | `@[coherence]`/`@[noise]`/`@[basis]`/`@[decoherence_free]`/`@[error_correction]` tags: noise models & coherence-time constraints, auto-injecting noise after gates into the QVM and multiple hardware backends |
 | Classic compile attributes | `@[inline]`/`@[noinline]`/`@[pure]`/`@[cold]`/`@[hot]`/`@[noreturn]`/`@[export]`, mapped to LLVM function attributes |
+| VS Code extension | vsx bundle: esbuild bundles + runtime artifacts (`runtime.exe`/`quark_rt.dll` etc.) shipped in `bin/`, **run/compile/build qk out of the box** (no separate runtime install); syntax highlighting + semantic completion + run/compile/build commands |
 | HTTP inference server | `qk serve` exposes OpenAI-compatible `chat/completions`, `embeddings`, `models` endpoints |
 | Web chat UI | Streaming inference chat UI built with Vite + Tailwind + Dexie |
 | Toolchain manager | `quarkup` installer and version proxy written in Go |

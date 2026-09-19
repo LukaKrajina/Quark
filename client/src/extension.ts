@@ -62,7 +62,25 @@ export function activate(context: ExtensionContext) {
         }
     });
 
+    const compileCommand = vscode.commands.registerCommand('quark.compileScript', () => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+            const uri = editor.document.uri.toString();
+            client.sendNotification('quark/compileCode', { uri });
+        }
+    });
+
+    const buildCommand = vscode.commands.registerCommand('quark.buildScript', () => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor) {
+            const uri = editor.document.uri.toString();
+            client.sendNotification('quark/buildCode', { uri });
+        }
+    });
+
     context.subscriptions.push(runCommand);
+    context.subscriptions.push(compileCommand);
+    context.subscriptions.push(buildCommand);
 }
 
 export function deactivate(): Thenable<void> | undefined {

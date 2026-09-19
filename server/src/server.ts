@@ -23,6 +23,8 @@ import {
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { spawn } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Lexer, TokenType } from './lexer';
 import { Parser } from './parser';
 import { SemanticAnalyzer } from './semantic';
@@ -32,6 +34,17 @@ import { VCGenerator } from './vcgen';
 const connection = createConnection(ProposedFeatures.all);
 
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+
+// 定位 runtime：优先扩展目录下的 bin/runtime（随 vsix 打包，开箱即用），
+// 回退到 PATH 中的 quark 命令（用户自行安装的 runtime）。
+// 这样一箭双雕。
+function resolveRuntime(): string {
+    const extRoot = path.resolve(__dirname, '..', '..');
+    const binName = process.platform === 'win32' ? 'runtime.exe' : 'runtime';
+    const bundled = path.join(extRoot, 'bin', binName);
+    if (fs.existsSync(bundled)) return bundled;
+    return 'quark';
+}
 
 // ─── QK 关键字 / 内置函数 / 类型表（用于补全、悬停、语义高亮）──────────
 const CONTROL_KEYWORDS = [
@@ -58,7 +71,8 @@ const BUILTIN_FUNCTIONS = [
     'alloc', 'measure', 'measure_x', 'measure_y', 'encode_text', 'encode_image',
     'qlm_invoke', 'qlm_load', 'qk_encode_string', 'qlm_forward', 'qk_decode_string',
     'mind_read', 'mind_train', 'mind_feedback', 'veda_qlm_train',
-    'h', 'x', 'rz', 'cnot', 'toffoli', 'swap', 'qft', 'braid',
+    'h', 'x', 'rz', 'cnot', 'toffoli', 'swap', 'qft', 'iqft', 'braid',
+    'cx', 'ch', 'crz', 'cswap', 'c_toffoli', 'cqft', 'cbraid',
     'surrogate', 'tanh_quantize', 'lif_step', 'mellowmax2', 'logsumexp2', 'boltzmann2',
     'tnorm_luk', 'tnorm_prod', 'tnorm_godel', 'polymer_weight', 'polymer_mix_bound',
     'qk_sys_call', 'qk_sys_calld', 'qk_sys_log', 'qk_sys_logi', 'qk_sys_callp', 'qk_gc_free',
@@ -69,6 +83,14 @@ const BUILTIN_FUNCTIONS = [
     'qchain_coin_mint', 'qchain_coin_verify', 'qchain_sha3', 'qchain_hmac', 'qchain_hash_unicode',
     'qchain_sign', 'qchain_sign_verify', 'qchain_sign_pubkey', 'qchain_mlkem_encaps',
     'qchain_mlkem_decaps', 'qchain_causal_verify', 'qchain_cipher_encrypt', 'qchain_cipher_decrypt'
+];
+
+// 注解标签：多维拓扑调度（@layer）+ 可逆编织门合成 + 量子物理特性 + 经典编译属性
+const ANNOTATION_KEYWORDS = [
+    '@layer', '@[gate]', '@[undo]', '@[steer]', '@[unitary]', '@[measure]',
+    '@[coherence]', '@[noise]', '@[basis]', '@[decoherence_free]', '@[error_correction]',
+    '@[inline]', '@[noinline]', '@[pure]', '@[readonly]', '@[cold]', '@[hot]',
+    '@[noreturn]', '@[export]', '@[section]', '@[naked]'
 ];
 
 connection.onInitialize((params: InitializeParams) => {
@@ -100,6 +122,20 @@ connection.onNotification('quark/runCode', async (params: { uri: string }) => {
     }
 });
 
+connection.onNotification('quark/compileCode', async (params: { uri: string }) => {
+    const document = documents.get(params.uri);
+    if (document) {
+        await compileToBinary(document);
+    }
+});
+
+connection.onNotification('quark/buildCode', async (params: { uri: string }) => {
+    const document = documents.get(params.uri);
+    if (document) {
+        await buildIR(document);
+    }
+});
+
 connection.onCompletion(
     (_textDocumentPosition): CompletionItem[] => {
         const items: CompletionItem[] = [];
@@ -114,6 +150,9 @@ connection.onCompletion(
         }
         for (const fn of BUILTIN_FUNCTIONS) {
             items.push({ label: fn, kind: CompletionItemKind.Function, detail: 'Built-in function' });
+        }
+        for (const ann of ANNOTATION_KEYWORDS) {
+            items.push({ label: ann, kind: CompletionItemKind.Keyword, detail: 'Annotation tag' });
         }
         return items;
     }
@@ -444,12 +483,15 @@ async function compileAndExecute(textDocument: TextDocument): Promise<void> {
 
         const irGen = new IRGenerator();
         const llvmIR = irGen.generate(ast);
+        // 多维标签函数（@layer）走拓扑入口 qk_topology_entry；否则脚本模式 quark_main
+        const hasLayerFns = ast.body.some(n => (n as any).type === 'FunctionDeclaration' && (n as any).layer);
+        const entryFunc = hasLayerFns ? 'qk_topology_entry' : 'quark_main';
         connection.sendNotification('quark/showConsole');
         connection.sendNotification('quark/clearConsole');
         connection.sendNotification('quark/printConsole', `[Quark JIT] Compiling target: ${textDocument.uri}\n`);
         connection.sendNotification('quark/printConsole', `[Quark JIT] Booting Quantum Hardware Abstraction Layer...\n`);
         connection.sendNotification('quark/printConsole', `--------------------------------------------------------\n`);
-        const backend = spawn('quark', []);
+        const backend = spawn(resolveRuntime(), []);
         backend.on('error', (err) => {
             connection.sendNotification('quark/printConsole', `[Quark JIT] Failed to spawn runtime: ${err.message}\n`);
             connection.sendNotification('quark/printConsole', `[Quark JIT] Ensure 'quark' (Quark Runtime) is installed and on PATH.\n`);
@@ -471,10 +513,81 @@ async function compileAndExecute(textDocument: TextDocument): Promise<void> {
             backend.stdin.write("COMPILE\n");
             backend.stdin.write(llvmIR + "\n");
             backend.stdin.write("END_COMPILE\n");
-            backend.stdin.write("EXECUTE int32 quark_main\n");
+            backend.stdin.write(`EXECUTE int32 ${entryFunc}\n`);
             backend.stdin.write("EXIT\n");
             backend.stdin.end();
         }
+    } catch (error: any) {
+        connection.sendNotification('quark/showConsole');
+        connection.sendNotification('quark/printConsole', `\n[Quark System Error] ${error.message}\n`);
+    }
+}
+
+// ─── 编译（AOT）：生成 IR + AOT 编译为 x64 原生二进制 ──────────
+async function compileToBinary(textDocument: TextDocument): Promise<void> {
+    try {
+        const text = textDocument.getText();
+        const lexer = new Lexer(text);
+        const parser = new Parser(lexer);
+        const ast = parser.parse();
+        const analyzer = new SemanticAnalyzer();
+        analyzer.analyze(ast);
+        if (analyzer.errors.length > 0) {
+            connection.sendNotification('quark/showConsole');
+            connection.sendNotification('quark/printConsole', "[Quark] Compilation aborted due to semantic errors.\n");
+            return;
+        }
+        const irGen = new IRGenerator();
+        const llvmIR = irGen.generate(ast);
+        const filePath = textDocument.uri.replace(/^file:\/\//, '');
+        const baseName = path.basename(filePath).replace(/\.[^.]+$/, '');
+
+        connection.sendNotification('quark/showConsole');
+        connection.sendNotification('quark/clearConsole');
+        connection.sendNotification('quark/printConsole', `[Quark AOT] Compiling to native binary (x64): ${baseName}\n`);
+
+        const backend = spawn(resolveRuntime(), []);
+        backend.on('error', err => connection.sendNotification('quark/printConsole', `[Quark AOT] Failed to spawn runtime: ${err.message}\n`));
+        backend.stdout.on('data', data => connection.sendNotification('quark/printConsole', data.toString()));
+        backend.stderr.on('data', data => connection.sendNotification('quark/printConsole', data.toString()));
+        backend.on('close', code => connection.sendNotification('quark/printConsole', `[Quark AOT] Process exited with code ${code}\n`));
+        if (backend.stdin) {
+            backend.stdin.write(`AOT_COMPILE compile x64 ${baseName}\n`);
+            backend.stdin.write(llvmIR + "\n");
+            backend.stdin.write("END_COMPILE\n");
+            backend.stdin.write("EXIT\n");
+            backend.stdin.end();
+        }
+    } catch (error: any) {
+        connection.sendNotification('quark/showConsole');
+        connection.sendNotification('quark/printConsole', `\n[Quark System Error] ${error.message}\n`);
+    }
+}
+
+// ─── 构建（生成 IR）：生成 LLVM IR 保存到 .ll 文件 ──────────
+async function buildIR(textDocument: TextDocument): Promise<void> {
+    try {
+        const text = textDocument.getText();
+        const lexer = new Lexer(text);
+        const parser = new Parser(lexer);
+        const ast = parser.parse();
+        const analyzer = new SemanticAnalyzer();
+        analyzer.analyze(ast);
+        if (analyzer.errors.length > 0) {
+            connection.sendNotification('quark/showConsole');
+            connection.sendNotification('quark/printConsole', "[Quark] Build aborted due to semantic errors.\n");
+            return;
+        }
+        const irGen = new IRGenerator();
+        const llvmIR = irGen.generate(ast);
+        const filePath = textDocument.uri.replace(/^file:\/\//, '');
+        const outPath = filePath.replace(/\.[^.]+$/, '.ll');
+        fs.writeFileSync(outPath, llvmIR, 'utf-8');
+
+        connection.sendNotification('quark/showConsole');
+        connection.sendNotification('quark/clearConsole');
+        connection.sendNotification('quark/printConsole', `[Quark Build] LLVM IR generated.\n`);
+        connection.sendNotification('quark/printConsole', `[Quark Build] Written to: ${outPath}\n`);
     } catch (error: any) {
         connection.sendNotification('quark/showConsole');
         connection.sendNotification('quark/printConsole', `\n[Quark System Error] ${error.message}\n`);

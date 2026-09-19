@@ -2,7 +2,7 @@
   "name": "quark-lang",
   "displayName": "Quark Language Support",
   "description": "Language support for the Quark Quantum Programming Language (.qk)",
-  "version": "0.1.1",
+  "version": "0.1.6",
   "publisher": "quarkproject",
   "icon": "icons/marketplace.png",
   "repository": {
@@ -53,12 +53,32 @@
         "command": "quark.runScript",
         "title": "Run Quark Script",
         "icon": "$(play)"
+      },
+      {
+        "command": "quark.compileScript",
+        "title": "Compile Quark Script (AOT)",
+        "icon": "$(package)"
+      },
+      {
+        "command": "quark.buildScript",
+        "title": "Build Quark Script (IR)",
+        "icon": "$(tools)"
       }
     ],
     "menus": {
       "editor/title/run": [
         {
           "command": "quark.runScript",
+          "when": "resourceLangId == quark",
+          "group": "navigation"
+        },
+        {
+          "command": "quark.compileScript",
+          "when": "resourceLangId == quark",
+          "group": "navigation"
+        },
+        {
+          "command": "quark.buildScript",
           "when": "resourceLangId == quark",
           "group": "navigation"
         }
@@ -70,22 +90,36 @@
         "key": "ctrl+alt+n",
         "mac": "cmd+alt+n",
         "when": "editorTextFocus && editorLangId == quark"
+      },
+      {
+        "command": "quark.compileScript",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c",
+        "when": "editorTextFocus && editorLangId == quark"
+      },
+      {
+        "command": "quark.buildScript",
+        "key": "ctrl+alt+b",
+        "mac": "cmd+alt+b",
+        "when": "editorTextFocus && editorLangId == quark"
       }
     ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -b client/tsconfig.json server/tsconfig.json",
+    "compile": "tsc --noEmit -p client/tsconfig.json && tsc --noEmit -p server/tsconfig.json && node esbuild.mjs",
     "watch": "tsc -b client/tsconfig.json server/tsconfig.json -w",
     "test": "tsc -b server/tsconfig.json && node --test \"server/out/*.test.js\"",
-    "test:integration": "tsc -b client/tsconfig.json server/tsconfig.json && node client/out/test/runTest.js"
+    "test:integration": "tsc -b client/tsconfig.json server/tsconfig.json && node client/out/test/runTest.js",
+    "prepare:runtime:win": "powershell -ExecutionPolicy Bypass -File scripts/prepare-vsix-runtime.ps1",
+    "prepare:runtime:linux": "bash scripts/prepare-vsix-runtime.sh",
+    "package": "npx @vscode/vsce package"
   },
   "keywords": [],
   "author": "QuarkProject",
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
-    "sharp": "^0.35.4",
     "vscode-languageclient": "^9.0.1",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.12"
@@ -95,6 +129,7 @@
     "@types/node": "^25.5.0",
     "@types/vscode": "~1.80.0",
     "@vscode/test-electron": "^2.4.0",
+    "esbuild": "^0.28.2",
     "mocha": "^10.4.0",
     "typescript": "^6.0.2"
   }

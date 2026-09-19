@@ -149,16 +149,18 @@ if(WIN32 AND NOT Kokkos_DIR)
     set(Kokkos_DIR "C:/Libraries/kokkos/lib/cmake/Kokkos")
 endif()
 find_package(Kokkos REQUIRED)
-# Kokkos 的 find_package 可能覆盖 CRT 运行时，重新强制为动态 /MD
-# （与重新编译为 /MD 的 Kokkos 库保持一致）
-if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
-endif()
+# CRT 运行时（/MT 静态）通过 build.bat 的 -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+# 传入（必须在 project() 之前，命令行参数方式最可靠），此处不再重复设置。
 
 # Quark: 手动 OpenMP（clang-cl 用 -openmp + libomp，绕过 FindOpenMP 对 clang-cl 的缺陷）
 if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-openmp)
     link_directories("C:/Program Files/LLVM/lib")
+    set(OPENMP_LIB libomp)
+elseif(MSVC)
+    # MSVC 用 /openmp:llvm（LLVM OpenMP 运行时，支持 OpenMP 3.0+，含 omp_get_level）
+    add_compile_options(/openmp:llvm)
+    link_directories("C:/Libraries/LLVM/lib")
     set(OPENMP_LIB libomp)
 endif()
 set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "")
