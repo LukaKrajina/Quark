@@ -134,12 +134,12 @@ include_directories(${VENDOR_DIR})
 include_directories(${VENDOR_DIR}/GLFW/)
 include_directories(${VENDOR_DIR}/Nuklear/)
 
-# GLFW：Windows 使用 vendor 预编译库，Linux 由 vcpkg x64-linux 提供。
+# GLFW：Windows 使用 vendor 预编译库，Linux 使用系统 libglfw（Ubuntu 为 libglfw.so）。
 if(WIN32)
     link_directories(${VENDOR_DIR}/GLFW/lib-vc2026)
     set(GLFW_LIB glfw3)
 else()
-    set(GLFW_LIB glfw3)
+    set(GLFW_LIB glfw)
 endif()
 
 # Kokkos：Windows 默认从 C:/Libraries/kokkos 查找；Linux 通过 vcpkg 或

@@ -54,19 +54,25 @@ namespace qhal
                                 // LLVM 23: createBareJITDylib 返回 JITDylib&，
                                 // 且 JITDylib 的拷贝构造被删除，必须用引用接收。
                                 auto &JD = ES.createBareJITDylib("<Sandbox Process Symbols>");
+                                // 拒绝特权量子符号，允许 libc 等基础符号
+                                auto AllowSymbol = [](const llvm::orc::SymbolStringPtr &Name) -> bool
+                                {
+                                    std::string n = (*Name).str();
+                                    if (n.rfind("qk_", 0) == 0)
+                                        return false;
+                                    if (n.rfind("__quantum_", 0) == 0)
+                                        return false;
+                                    return true;
+                                };
+#if LLVM_VERSION_MAJOR >= 23
                                 // LLVM 23: GetForTargetProcess 新增了 DylibManager& 参数。
                                 auto G = llvm::orc::EPCDynamicLibrarySearchGenerator::GetForTargetProcess(
-                                    ES, LJ.getDylibMgr(),
-                                     [](const llvm::orc::SymbolStringPtr &Name) -> bool
-                                     {
-                                         std::string n = (*Name).str();
-                                         // 拒绝特权量子符号，允许 libc 等基础符号
-                                         if (n.rfind("qk_", 0) == 0)
-                                             return false;
-                                         if (n.rfind("__quantum_", 0) == 0)
-                                             return false;
-                                         return true;
-                                     });
+                                    ES, LJ.getDylibMgr(), AllowSymbol);
+#else
+                                // LLVM < 23: 仅 (ExecutionSession&, SymbolPredicate) 两参数。
+                                auto G = llvm::orc::EPCDynamicLibrarySearchGenerator::GetForTargetProcess(
+                                    ES, AllowSymbol);
+#endif
                                  if (!G)
                                      return G.takeError();
                                  JD.addGenerator(std::move(*G));

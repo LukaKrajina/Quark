@@ -22,6 +22,7 @@
 #include "ml_kem.hpp"
 #include "ml_dsa.hpp"
 #include "uov.hpp"
+#include <memory>
 #include <utility>
 
 namespace qchain::pqc
