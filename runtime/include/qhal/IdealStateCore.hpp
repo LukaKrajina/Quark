@@ -219,6 +219,26 @@ namespace qhal
             }
         }
 
+        // 统一噪声通道分发（@[noise]/@[coherence] 物理特性 → 各硬件后端复用）。
+        // channel: 0=depolarizing, 1=dephasing(phase_flip), 2=amplitude_damping, 3=bit_flip
+        void apply_noise_channel(size_t q, int channel, double param)
+        {
+            ensure_qubit(q);
+            switch (channel)
+            {
+                case 0: apply_depolarizing(q, param); break;
+                case 1: apply_phase_flip(q, param); break;
+                case 2: apply_amplitude_damping(q, param); break;
+                case 3:
+                {
+                    std::bernoulli_distribution d(param);
+                    if (d(rng_)) apply_x(q);
+                    break;
+                }
+                default: break;
+            }
+        }
+
         int measure(size_t q)
         {
             ensure_qubit(q);
@@ -237,6 +257,18 @@ namespace qhal
                 state_[i] = keep ? state_[i] * norm : std::complex<double>(0.0, 0.0);
             }
             return r;
+        }
+
+        // 非破坏 Z 期望 ⟨Z⟩ = P(0) - P(1) = 1 - 2·P(1)，不坍缩态矢量。
+        double expectation_z(size_t q)
+        {
+            ensure_qubit(q);
+            size_t m = size_t(1) << q;
+            double p1 = 0.0;
+            for (size_t i = 0; i < state_.size(); ++i)
+                if (i & m)
+                    p1 += std::norm(state_[i]);
+            return 1.0 - 2.0 * p1;
         }
 
         size_t size() const { return n_; }

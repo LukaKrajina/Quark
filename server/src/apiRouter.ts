@@ -174,7 +174,13 @@ export class QuarkApiRouter {
                 const client = net.createConnection({ port: DAEMON_PORT }, () => {
                     client.write(encodeFrame(Cmd.HELLO, PROTOCOL_VERSION));
                     client.write(encodeFrame(Cmd.COMPILE, llvmIR));
-                    client.write(encodeFrame(Cmd.EXECUTE, 'int32 quark_main'));
+                    // 多维标签函数：带 @layer 块走拓扑调度入口；否则走脚本模式 quark_main。
+                    const hasLayerFns = ast.body.some(n => (n as any).type === 'FunctionDeclaration' && (n as any).layer);
+                    if (hasLayerFns) {
+                        client.write(encodeFrame(Cmd.EXECUTE_TOPOLOGY, 'int32 qk_topology_entry'));
+                    } else {
+                        client.write(encodeFrame(Cmd.EXECUTE, 'int32 quark_main'));
+                    }
                     client.write(encodeFrame(Cmd.EXIT));
                 });
 

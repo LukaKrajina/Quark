@@ -250,6 +250,21 @@ elseif(UNIX AND NOT APPLE)
 endif()
 
 # ==========================================
+# 3.5 TARGET: MIR_MODULE_TEST
+#     MirModuleBuilder 下沉测试（MIR JSON → LLVM Module → verifyModule）。
+#     仅依赖 LLVM（Core/Support），不依赖 Kokkos/Vulkan/GLFW。
+# ==========================================
+add_executable(mir_module_test
+    src/mir_module_test.cpp
+)
+target_include_directories(mir_module_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_features(mir_module_test PRIVATE cxx_std_20)
+target_link_libraries(mir_module_test PRIVATE ${llvm_libs})
+if(WIN32)
+    target_link_libraries(mir_module_test PRIVATE ws2_32 psapi shell32 ole32 uuid advapi32 ntdll)
+endif()
+
+# ==========================================
 # 4. TARGET: RUNTIME 壳子
 #    仅含 socket daemon + stdin 交互，通过 C ABI 调用 quark_rt
 # ==========================================
@@ -270,22 +285,6 @@ elseif(UNIX AND NOT APPLE)
     target_link_libraries(runtime PRIVATE pthread)
 endif()
 quark_sign_target(runtime)
-
-# ==========================================
-# 游戏启动器：双击启动游戏（加载 game.mmi 调用入口）
-# ==========================================
-add_executable(go_game src/go_game.cpp)
-target_compile_definitions(go_game PRIVATE QUARK_RT_BUILD)
-target_include_directories(go_game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(go_game PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../quarkRSP/include)
-target_link_libraries(go_game PRIVATE quark_rt Kokkos::kokkos)
-target_link_libraries(go_game PRIVATE ${Vulkan_LIBRARIES} ${GLFW_LIB})
-if(WIN32)
-    target_link_libraries(go_game PRIVATE ws2_32 advapi32)
-    set_target_properties(go_game PROPERTIES WIN32_EXECUTABLE TRUE)
-    target_link_options(go_game PRIVATE -Xlinker /ENTRY:mainCRTStartup)
-endif()
-quark_sign_target(go_game)
 
 # ==========================================
 # 5. TARGET: QLM TRANSMITTER

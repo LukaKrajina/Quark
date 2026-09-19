@@ -17,6 +17,7 @@
 //     21 + 11 + 4 + 8 = 44
 // ============================================================================
 
+@layer(time=0, thread=0, coord=(1,0))
 int32 ilog2_ceil(int32 v) {
     int32 r = 0;
     while ((1 << r) < v) {
@@ -25,6 +26,7 @@ int32 ilog2_ceil(int32 v) {
     return r;
 }
 
+@layer(time=0, thread=0, coord=(0,0))
 int32 quark_main() {
     // ---- 1. buddy XOR 恒等式 ----
     int32 s1 = 0;

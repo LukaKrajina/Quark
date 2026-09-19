@@ -14,6 +14,7 @@
 //         qk ir   examples/qcos_hello.qk     （只生成 LLVM IR，不连守护进程）
 // ============================================================================
 
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     // ---- QCOS 控制台输出 ----
     qk_sys_log(2, "QCOS: hello from QK");

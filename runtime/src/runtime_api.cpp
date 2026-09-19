@@ -6,6 +6,7 @@
 #include "../include/qhal/JIT.hpp"
 #include "../include/qhal/Compiler.hpp"
 #include "../include/qhal/MMI.hpp"
+#include "../include/qhal/MirModuleBuilder.hpp"
 #include "../include/qml/Inference.hpp"
 #include "../include/qml/QrcAbi.hpp"
 #include "../include/gui/protocol.hpp"
@@ -24,6 +25,10 @@
 #include <sstream>
 #include <cstring>
 #include <cstdlib>
+#include <thread>
+#include <map>
+#include <vector>
+#include <functional>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -45,6 +50,9 @@
 
 qhal::IQuantumBackend *global_qm = nullptr;
 std::string global_string_buffer;
+
+// 活跃 runtime（供 IR 生成的 qk_topology_entry 经 quark_runtime_run_topology 访问 JIT）
+static quark_runtime *g_active_runtime = nullptr;
 
 namespace
 {
@@ -217,6 +225,7 @@ quark_runtime *quark_runtime_create(void)
         global_qm = rt->backend.get();
         rt->jit = std::make_unique<qhal::JIT>(global_qm);
         rt->viz = std::make_unique<qhal::VisualizationService>(rt->backend.get());
+        g_active_runtime = rt;
 
         return rt;
     }
@@ -237,6 +246,7 @@ void quark_runtime_destroy(quark_runtime *rt)
         rt->jit.reset();
         rt->backend.reset();
         global_qm = nullptr;
+        g_active_runtime = nullptr;
     }
     delete rt;
     if (Kokkos::is_initialized())
@@ -285,6 +295,36 @@ const char *quark_runtime_compile(quark_runtime *rt, const char *ir)
     {
         rt->jit->add_ir_module(std::move(module), std::move(context));
         out = "RESPONSE: SUCCESS - Module Compiled\n";
+    }
+
+    return out.c_str();
+}
+
+const char *quark_runtime_compile_mir(quark_runtime *rt, const char *mir_json)
+{
+    std::string &out = result_buffer();
+    out.clear();
+
+    if (!rt || !mir_json)
+    {
+        out = "RESPONSE: ERROR - Invalid Runtime Instance\n";
+        return out.c_str();
+    }
+
+    std::lock_guard<std::mutex> lock(rt->mutex);
+
+    try
+    {
+        qhal::MirModuleBuilder builder;
+        qhal::BuiltMirModule built = builder.build(mir_json);
+        rt->jit->add_ir_module(std::move(built.module), std::move(built.context));
+        out = "RESPONSE: SUCCESS - MIR Module Compiled\n";
+    }
+    catch (const std::exception &e)
+    {
+        out = "RESPONSE: ERROR - MIR compile failed: ";
+        out += e.what();
+        out += "\n";
     }
 
     return out.c_str();
@@ -794,4 +834,101 @@ const char *quark_runtime_mmi_invoke(quark_mmi *m,
 void quark_runtime_mmi_unload(quark_mmi *m)
 {
     delete m;
+}
+
+// ============================================================================
+// 多维标签函数执行拓扑（@layer）调度器
+//
+// 解析调度表 JSON，通过活跃 runtime 的 JIT 查找各块符号，按 time 分层、
+// 同层并行调度执行。块内调用传播延迟（子函数 = 父时钟 + Δt）已由编译期
+// TopologyBuilder 静态校验，且函数体内部的调用顺序由 CPU 顺序执行自然保证；
+// 运行时只需保证「层间顺序、层内并行」。
+// ============================================================================
+int32_t quark_runtime_run_topology(const char *json)
+{
+    if (!json)
+        return -1;
+
+    quark_runtime *rt = g_active_runtime;
+    if (!rt || !rt->jit)
+        return -1;
+
+    try
+    {
+        qhal::json::Value doc = qhal::json::parse(std::string(json));
+        if (!doc.is_object() || !doc.has("blocks") || !doc.at("blocks").is_array())
+            return -1;
+
+        struct Block
+        {
+            std::string name;
+            int time = 0;
+            int thread = 0;
+        };
+        std::vector<Block> blocks;
+
+        for (const auto &bv : doc.at("blocks").array())
+        {
+            if (!bv.is_object() || !bv.has("name"))
+                continue;
+            Block b;
+            b.name = bv.at("name").string();
+            if (bv.has("time"))
+                b.time = bv.at("time").int_value();
+            if (bv.has("thread"))
+                b.thread = bv.at("thread").int_value();
+            blocks.push_back(std::move(b));
+        }
+
+        if (blocks.empty())
+            return 0;
+
+        // 预查找所有块函数（主线程串行，避免并发 LLJIT lookup）
+        std::map<std::string, std::function<int()>> funcs;
+        for (const auto &b : blocks)
+        {
+            auto fn = rt->jit->get_function<int()>(b.name);
+            if (fn)
+                funcs[b.name] = fn;
+        }
+
+        // 按 time 分组，保证叠加链（同 coord 不同 time）的时序顺序
+        std::map<int, std::vector<const Block *>> by_time;
+        for (const auto &b : blocks)
+            by_time[b.time].push_back(&b);
+
+        for (const auto &entry : by_time)
+        {
+            const std::vector<const Block *> &layer = entry.second;
+            if (layer.size() == 1)
+            {
+                auto it = funcs.find(layer[0]->name);
+                if (it != funcs.end())
+                    it->second();
+            }
+            else
+            {
+                // 同 time 层并行（异 thread / 异 coord 的块）
+                std::vector<std::thread> threads;
+                threads.reserve(layer.size());
+                for (const Block *b : layer)
+                {
+                    threads.emplace_back([&funcs, name = b->name]()
+                    {
+                        auto it = funcs.find(name);
+                        if (it != funcs.end())
+                            it->second();
+                    });
+                }
+                for (auto &th : threads)
+                    th.join();
+            }
+        }
+        return 0;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "[Topology] error: " << e.what() << std::endl;
+        return -1;
+    }
 }

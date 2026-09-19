@@ -1,4 +1,5 @@
 import { Expression, Program, Statement, FunctionDeclaration, ReturnStatement, Item, FormDecl, TraitDecl, ImplDecl, TemplateDecl, FnDecl, FieldDecl, RankBlock, Param } from './ast';
+import { verifyIR } from './irverify';
 
 function isTopLevelItem(node: any): node is Item {
     return ['ModuleDecl', 'UseDecl', 'FormDecl', 'FlavorDecl', 'ImplDecl', 'TraitDecl', 'TemplateDecl', 'ImportDecl', 'RequiresDecl', 'ExternDecl'].includes(node.type);
@@ -31,6 +32,7 @@ export class IRGenerator {
     private labelCount: number = 1;
     private loopStack: { breakLabel: string; continueLabel: string }[] = [];
     private lambdaCount: number = 1;
+    private threadCount: number = 1;
     private lambdaIRs: string[] = [];
     private allocas: string[] = [];
     private isBlockTerminated: boolean = false;
@@ -45,6 +47,8 @@ export class IRGenerator {
     private vtableConsts: string[] = [];
     private formTypeToName: Map<string, string> = new Map();
     private userFunctions: Map<string, FunctionDeclaration> = new Map();
+    /** 当前函数体的噪声通道（@[noise]/@[coherence]），门操作后注入 */
+    private currentNoise: { channel: number; param: number } | null = null;
     private importAliases: Map<string, string> = new Map();
     private importSigs: Map<string, { params: string[]; ret: string }> = new Map();
     private externSigs: Map<string, { params: string[]; ret: string }> = new Map();
@@ -218,7 +222,17 @@ export class IRGenerator {
             `declare void @__quantum__qis__toffoli(%Qubit*, %Qubit*, %Qubit*)`,
             `declare void @__quantum__qis__swap(%Qubit*, %Qubit*)`,
             `declare void @__quantum__qis__qft(i32)`,
+            `declare void @__quantum__qis__iqft(i32)`,
+            `declare void @__quantum__qis__cqft(%Qubit*, i32)`,
             `declare void @__quantum__qis__braid(%Qubit*, %Qubit*)`,
+            `declare void @__quantum__qis__cbraid(%Qubit*, %Qubit*, %Qubit*)`,
+            `; --- 受控门（可逆编织 @[steer]：cx/ch/crz/cswap）---`,
+            `declare void @__quantum__qis__cx(%Qubit*, %Qubit*)`,
+            `declare void @__quantum__qis__ch(%Qubit*, %Qubit*)`,
+            `declare void @__quantum__qis__crz(%Qubit*, %Qubit*, double)`,
+            `declare void @__quantum__qis__cswap(%Qubit*, %Qubit*, %Qubit*)`,
+            `declare void @__quantum__qis__c_toffoli(%Qubit*, %Qubit*, %Qubit*, %Qubit*)`,
+            `declare void @__quantum__qis__apply_noise(%Qubit*, i32, double)`,
             `declare i32 @__quantum__qis__measure_basis(%Qubit*, i8)`,
             `declare i32 @qk_measure_object(%QObject*)`,
             `declare %QObject* @qk_extract_qubit(%QObject*, i32)`,
@@ -338,6 +352,12 @@ export class IRGenerator {
             `declare i32 @qk_qchain_causal_verify()`,
             `declare i8* @qk_qchain_cipher_encrypt(i64, i8*)`,
             `declare i8* @qk_qchain_cipher_decrypt(i64, i8*)`,
+            ``,
+            `; --- 多维标签函数执行拓扑（@layer）调度 ABI ---`,
+            `declare i32 @quark_runtime_run_topology(i8*)`,
+            `; --- 并发线程（spawn）ABI ---`,
+            `declare void @qk_spawn(i8*, i8*)`,
+            `declare i8* @malloc(i64)`,
             ``
         ];
 
@@ -374,7 +394,9 @@ export class IRGenerator {
             }
         }
 
-        return [
+        const topologyIR = this.emitTopologyIR(this.collectLayerFunctions(ast));
+
+        const result = [
             ...header,
             ...types,
             ...this.typeDefs,
@@ -386,8 +408,88 @@ export class IRGenerator {
             ...this.vtableConsts,
             ...this.methodIRs,
             ...this.lambdaIRs,
-            ...this.output
+            ...this.output,
+            ...topologyIR
         ].join('\n');
+
+        // 自校验：捕获 SSA 违反 / 基本块漏终结符 / 寄存器未定义等生成期错误
+        const diagnostics = verifyIR(result);
+        if (diagnostics.length > 0) {
+            throw new Error('IR Verification failed:\n' +
+                diagnostics.map(d => `  line ${d.line}: ${d.message}`).join('\n'));
+        }
+
+        return result;
+    }
+
+    // ---- 多维标签函数：调度表 + 拓扑入口 --------------------------------
+    /** 收集所有携带 @layer 标签的函数（拓扑块） */
+    private collectLayerFunctions(ast: Program): FunctionDeclaration[] {
+        return ast.body.filter(
+            n => n.type === 'FunctionDeclaration' && (n as FunctionDeclaration).layer
+        ) as FunctionDeclaration[];
+    }
+
+    /** 把拓扑块聚合为调度表 JSON（shape + blocks；edges/callGraph 由运行时推导） */
+    private buildTopologyJson(fns: FunctionDeclaration[]): string {
+        let maxTime = 0;
+        let maxThread = 0;
+        const coordMax: number[] = [];
+        const blocks: object[] = [];
+        for (const fn of fns) {
+            const layer = fn.layer!;
+            const t = layer.time ?? 0;
+            if (t > maxTime) maxTime = t;
+            if (layer.thread > maxThread) maxThread = layer.thread;
+            for (let i = 0; i < layer.coord.length; i++) {
+                coordMax[i] = Math.max(coordMax[i] ?? 0, layer.coord[i]);
+            }
+            blocks.push({
+                name: fn.name,
+                time: t,
+                thread: layer.thread,
+                coord: layer.coord,
+                cost: layer.cost ?? 1,
+                deadline: layer.deadline ?? null,
+            });
+        }
+        const shape = {
+            time: maxTime + 1,
+            thread: maxThread + 1,
+            coord: coordMax.map(c => c + 1),
+        };
+        return JSON.stringify({ shape, blocks });
+    }
+
+    /** 生成调度表常量 + 拓扑入口函数（有 @layer 块时才生成） */
+    private emitTopologyIR(fns: FunctionDeclaration[]): string[] {
+        if (fns.length === 0) return [];
+
+        const json = this.buildTopologyJson(fns);
+        const bytes = Buffer.from(json, 'utf8');
+        const n = bytes.length + 1; // +1 for \00
+
+        let llvmStr = '';
+        for (let i = 0; i < bytes.length; i++) {
+            const b = bytes[i];
+            if (b === 34) llvmStr += '\\22';
+            else if (b === 92) llvmStr += '\\5C';
+            else if (b === 10) llvmStr += '\\0A';
+            else if (b === 13) llvmStr += '\\0D';
+            else if (b < 32 || b > 126) llvmStr += '\\' + b.toString(16).padStart(2, '0');
+            else llvmStr += String.fromCharCode(b);
+        }
+
+        return [
+            `; --- 多维标签函数执行拓扑（@layer）---`,
+            `@qk_topology_json = private unnamed_addr constant [${n} x i8] c"${llvmStr}\\00", align 1`,
+            ``,
+            `define i32 @qk_topology_entry() {`,
+            `entry:`,
+            `  %0 = call i32 @quark_runtime_run_topology(i8* getelementptr inbounds ([${n} x i8], [${n} x i8]* @qk_topology_json, i64 0, i64 0))`,
+            `  ret i32 %0`,
+            `}`,
+        ];
     }
 
     private buildImportDecls(): string[] {
@@ -713,6 +815,64 @@ export class IRGenerator {
         if (!this.isBlockTerminated) {
             if (llvmRetType === 'void') this.emit('ret void');
             else this.emit(`ret ${llvmRetType} 0`);
+            this.isBlockTerminated = true;
+        }
+
+        this.output.splice(entryIndex, 0, ...this.allocas);
+        this.lambdaIRs.push(...this.output);
+        this.lambdaIRs.push('}');
+
+        this.output = savedOutput;
+        this.scopes = savedScopes;
+        this.allocas = savedAllocas;
+        this.regCount = savedReg;
+        this.isBlockTerminated = savedTerminated;
+        this.labelCount = savedLabel;
+    }
+
+    // spawn 线程函数：独立函数 @qk_thread_N(i8* %env)，经 qk_spawn 内建以 std::thread 启动。
+    // 捕获变量经 env 闭包结构传递（复用 lambda 的闭包机制）。
+    private generateThreadFunction(name: string, body: Statement[], captured: string[], capTypes: string[]): void {
+        const savedOutput = this.output;
+        const savedScopes = this.scopes;
+        const savedAllocas = this.allocas;
+        const savedReg = this.regCount;
+        const savedTerminated = this.isBlockTerminated;
+        const savedLabel = this.labelCount;
+        this.output = [];
+        this.scopes = [{ symbols: new Map(), temporaries: [] }];
+        this.allocas = [];
+        this.regCount = 1;
+        this.isBlockTerminated = false;
+
+        const envTypeName = 'env.' + name;
+        this.lambdaIRs.push('');
+        this.lambdaIRs.push(`define void @${name}(i8* %env) {`);
+        this.lambdaIRs.push('entry:');
+        const entryIndex = this.output.length;
+
+        // 从 env 读捕获变量
+        if (captured.length > 0) {
+            const envTyped = this.nextReg();
+            this.emit(`${envTyped} = bitcast i8* %env to %${envTypeName}*`);
+            captured.forEach((capName, i) => {
+                const fieldPtr = this.nextReg();
+                this.emit(`${fieldPtr} = getelementptr %${envTypeName}, %${envTypeName}* ${envTyped}, i32 0, i32 ${i}`);
+                const capPtr = '%' + capName + '_cap_ptr';
+                this.allocas.push(` ${capPtr} = alloca ${capTypes[i]}`);
+                const capVal = this.nextReg();
+                this.emit(`${capVal} = load ${capTypes[i]}, ${capTypes[i]}* ${fieldPtr}`);
+                this.emit(`store ${capTypes[i]} ${capVal}, ${capTypes[i]}* ${capPtr}`);
+                this.setSymbol(capName, { ptr: capPtr, type: capTypes[i] });
+            });
+        }
+
+        for (const s of body) {
+            this.visitStatement(s);
+        }
+        this.exitScope();
+        if (!this.isBlockTerminated) {
+            this.emit('ret void');
             this.isBlockTerminated = true;
         }
 
@@ -1117,14 +1277,40 @@ export class IRGenerator {
             this.isBlockTerminated = false;
         }
         else if (stmt.type === 'SpawnStatement') {
-            // 并发线程：宿主 JIT 无并发，串行降级（内联块体）。
-            // 真正的并发语义由 QCOS 调度器承载；此处仅保证 IR 可生成。
-            this.emit(`; spawn { ... } (single-threaded fallback)`);
-            this.enterScope();
-            for (const s of stmt.body) {
-                this.visitStatement(s);
+            // 并发线程：spawn 块编译为独立线程函数 @qk_thread_N(i8* %env)，经 qk_spawn 内建
+            // 以 std::thread 启动（detach）。捕获的外层局部变量经 env 闭包结构传递。
+            const captured = this.collectFreeVariables(stmt.body, []);
+            const capTypes = captured.map(c => this.getSymbol(c)?.type ?? 'i32');
+            const threadName = 'qk_thread_' + (this.threadCount++);
+            const envTypeName = 'env.' + threadName;
+
+            if (capTypes.length > 0) {
+                this.typeDefs.push(`%${envTypeName} = type { ${capTypes.join(', ')} }`);
             }
-            this.exitScope();
+            this.generateThreadFunction(threadName, stmt.body, captured, capTypes);
+
+            if (captured.length === 0) {
+                this.emit(`call void @qk_spawn(i8* bitcast (void (i8*)* @${threadName} to i8*), i8* null)`);
+            } else {
+                // malloc env 结构 + 填充捕获变量
+                const totalSize = capTypes.reduce((s, t) => s + this.typeSize(t), 0);
+                const mallocRes = this.nextReg();
+                this.emit(`${mallocRes} = call i8* @malloc(i64 ${totalSize})`);
+                const envPtr = this.nextReg();
+                this.emit(`${envPtr} = bitcast i8* ${mallocRes} to %${envTypeName}*`);
+                captured.forEach((capName, i) => {
+                    const sym = this.getSymbol(capName);
+                    if (!sym) return;
+                    const capVal = this.nextReg();
+                    this.emit(`${capVal} = load ${capTypes[i]}, ${capTypes[i]}* ${sym.ptr}`);
+                    const fieldPtr = this.nextReg();
+                    this.emit(`${fieldPtr} = getelementptr %${envTypeName}, %${envTypeName}* ${envPtr}, i32 0, i32 ${i}`);
+                    this.emit(`store ${capTypes[i]} ${capVal}, ${capTypes[i]}* ${fieldPtr}`);
+                });
+                const resultPtr = this.nextReg();
+                this.emit(`${resultPtr} = bitcast %${envTypeName}* ${envPtr} to i8*`);
+                this.emit(`call void @qk_spawn(i8* bitcast (void (i8*)* @${threadName} to i8*), i8* ${resultPtr})`);
+            }
         }
         else if (stmt.type === 'EntangleStatement') {
             // 纠缠声明：纯静态信息（供竞争检测），不生成运行时指令。
@@ -1738,7 +1924,7 @@ export class IRGenerator {
                 return { val: resReg, type: 'i32' };
             }
 
-            // QMS 数值内核（算法 4）
+            // QMS 数值内核
             if (expr.name === 'qk_qms_gap') {
                 const args = expr.arguments.map(a => this.visitExpression(a));
                 const resReg = this.nextReg();
@@ -1875,6 +2061,7 @@ export class IRGenerator {
             if (expr.name === 'h' || expr.name === 'x') {
                 const arg = this.visitExpression(expr.arguments[0]);
                 this.emit(`call void @__quantum__qis__${expr.name}(${arg.type} ${arg.val})`);
+                this.emitNoiseIfNeeded(arg.type, arg.val);
                 return { val: 'void', type: 'void' };
             }
 
@@ -1883,6 +2070,7 @@ export class IRGenerator {
                 const angle = this.visitExpression(expr.arguments[1]);
                 const angleVal = angle.type === 'i32' ? `${angle.val}.0` : angle.val;
                 this.emit(`call void @__quantum__qis__rz(double ${angleVal}, ${q.type} ${q.val})`);
+                this.emitNoiseIfNeeded(q.type, q.val);
                 return { val: 'void', type: 'void' };
             }
 
@@ -1901,9 +2089,58 @@ export class IRGenerator {
                 return { val: 'void', type: 'void' };
             }
 
-            if (expr.name === 'qft') {
+            // 受控门（可逆编织 @[steer] 的运行时目标）
+            if (expr.name === 'cx' || expr.name === 'ch') {
+                const c = this.visitExpression(expr.arguments[0]);
+                const t = this.visitExpression(expr.arguments[1]);
+                this.emit(`call void @__quantum__qis__${expr.name}(${c.type} ${c.val}, ${t.type} ${t.val})`);
+                return { val: 'void', type: 'void' };
+            }
+
+            if (expr.name === 'crz') {
+                const c = this.visitExpression(expr.arguments[0]);
+                const t = this.visitExpression(expr.arguments[1]);
+                const angle = this.visitExpression(expr.arguments[2]);
+                const angleVal = angle.type === 'i32' ? `${angle.val}.0` : angle.val;
+                this.emit(`call void @__quantum__qis__crz(${c.type} ${c.val}, ${t.type} ${t.val}, double ${angleVal})`);
+                return { val: 'void', type: 'void' };
+            }
+
+            if (expr.name === 'cswap') {
+                const c = this.visitExpression(expr.arguments[0]);
+                const a = this.visitExpression(expr.arguments[1]);
+                const b = this.visitExpression(expr.arguments[2]);
+                this.emit(`call void @__quantum__qis__cswap(${c.type} ${c.val}, ${a.type} ${a.val}, ${b.type} ${b.val})`);
+                return { val: 'void', type: 'void' };
+            }
+
+            if (expr.name === 'c_toffoli') {
+                const c = this.visitExpression(expr.arguments[0]);
+                const a = this.visitExpression(expr.arguments[1]);
+                const b = this.visitExpression(expr.arguments[2]);
+                const t = this.visitExpression(expr.arguments[3]);
+                this.emit(`call void @__quantum__qis__c_toffoli(${c.type} ${c.val}, ${a.type} ${a.val}, ${b.type} ${b.val}, ${t.type} ${t.val})`);
+                return { val: 'void', type: 'void' };
+            }
+
+            if (expr.name === 'cbraid') {
+                const c = this.visitExpression(expr.arguments[0]);
+                const a = this.visitExpression(expr.arguments[1]);
+                const b = this.visitExpression(expr.arguments[2]);
+                this.emit(`call void @__quantum__qis__cbraid(${c.type} ${c.val}, ${a.type} ${a.val}, ${b.type} ${b.val})`);
+                return { val: 'void', type: 'void' };
+            }
+
+            if (expr.name === 'qft' || expr.name === 'iqft') {
                 const n = this.visitExpression(expr.arguments[0]);
-                this.emit(`call void @__quantum__qis__qft(i32 ${n.val})`);
+                this.emit(`call void @__quantum__qis__${expr.name}(i32 ${n.val})`);
+                return { val: 'void', type: 'void' };
+            }
+
+            if (expr.name === 'cqft') {
+                const c = this.visitExpression(expr.arguments[0]);
+                const n = this.visitExpression(expr.arguments[1]);
+                this.emit(`call void @__quantum__qis__cqft(${c.type} ${c.val}, i32 ${n.val})`);
                 return { val: 'void', type: 'void' };
             }
 
@@ -2385,24 +2622,42 @@ export class IRGenerator {
         this.output.push(``);
         const paramsStr = paramTypes.map((t, i) => `${t} %arg${i}`).join(', ');
 
-        // 函数属性（系统级）：@[section(".text.boot")] -> section "...", @[naked] -> naked
+        // 函数属性：系统级（section/naked）+ 经典编译属性（inline/noinline/pure/cold/noreturn/export）。
+        // 量子门属性（gate/undo/steer/unitary/measure）已在 parser 层分离到 func.quantum，此处不受影响。
+        // 历史：place/raw 曾作为 section/naked 的别名，二者兼容。
         let fnAttrs = '';
+        let fnPrefix = '';
         if (func.attributes && func.attributes.length > 0) {
-            const parts = func.attributes
-                .map(a => {
-                    if (a.name === 'place' && a.value) return `section "${a.value}"`;
-                    if (a.name === 'raw') return 'naked';
-                    return '';
-                })
-                .filter(s => s !== '');
+            const parts: string[] = [];
+            for (const a of func.attributes) {
+                switch (a.name) {
+                    case 'section': case 'place':
+                        if (a.value) parts.push(`section "${a.value}"`);
+                        break;
+                    case 'naked': case 'raw':
+                        parts.push('naked');
+                        break;
+                    case 'inline':       parts.push('alwaysinline'); break;
+                    case 'noinline':     parts.push('noinline');     break;
+                    case 'pure':         parts.push('readnone');     break;
+                    case 'readonly':     parts.push('readonly');     break;
+                    case 'cold':         parts.push('cold');         break;
+                    case 'hot':          parts.push('hot');          break;
+                    case 'noreturn':     parts.push('noreturn');     break;
+                    case 'export':       fnPrefix = 'dllexport ';    break;
+                    default: break;
+                }
+            }
             if (parts.length > 0) fnAttrs = ' ' + parts.join(' ');
         }
-        this.output.push(`define ${llvmRetType} @${func.name}(${paramsStr})${fnAttrs} {`);
+        this.output.push(`define ${fnPrefix}${llvmRetType} @${func.name}(${paramsStr})${fnAttrs} {`);
         this.output.push(`entry:`);
         this.scopes = [{ symbols: new Map(), temporaries: [] }];
         this.regCount = 1;
         this.allocas = [];
         this.isBlockTerminated = false;
+        // 从 @[noise]/@[coherence] 提取噪声通道（门操作后注入）
+        this.currentNoise = this.computeNoise(func.physical);
 
         const entryIndex = this.output.length;
 
@@ -2427,6 +2682,35 @@ export class IRGenerator {
 
         this.output.splice(entryIndex, 0, ...this.allocas);
         this.output.push(`}`);
+
+        // 函数体结束，重置噪声通道
+        this.currentNoise = null;
+    }
+
+    /** 从 @[noise]/@[coherence] 物理特性推导噪声通道（channel + 强度） */
+    private computeNoise(physical?: any): { channel: number; param: number } | null {
+        if (!physical) return null;
+        if (physical.noise) {
+            const chMap: Record<string, number> = {
+                depolarizing: 0, phase_damping: 1, amplitude_damping: 2, bit_flip: 3,
+            };
+            const ch = chMap[physical.noise];
+            if (ch === undefined) return null;
+            return { channel: ch, param: 0.01 }; // 首版默认强度，可后续硬件标定
+        }
+        if (physical.coherence) {
+            // 相干时间：首版映射到振幅阻尼（T1），强度从 t1 粗略推导
+            const t1 = physical.coherence.t1;
+            return { channel: 2, param: Math.min(1.0, 1.0 / Math.max(t1, 1.0)) };
+        }
+        return null;
+    }
+
+    /** 若当前函数带噪声元数据，则在门后注入噪声通道调用 */
+    private emitNoiseIfNeeded(qubitType: string, qubitVal: string): void {
+        if (!this.currentNoise) return;
+        const p = this.currentNoise.param;
+        this.emit(`call void @__quantum__qis__apply_noise(${qubitType} ${qubitVal}, i32 ${this.currentNoise.channel}, double ${p.toFixed(6)})`);
     }
 
     private getLLVMType(quarkType: string): string {

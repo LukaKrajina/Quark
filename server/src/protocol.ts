@@ -15,6 +15,8 @@ export enum Cmd {
     GET_SNAPSHOT = 0x09,
     LOAD_NATIVE = 0x0A,   // payload = path（加载原生动态库，供 JIT 解析符号）
     BIND_MMI = 0x0B,      // payload = "alias path"（加载 .mmi 并绑定到主 JIT）
+    EXECUTE_TOPOLOGY = 0x0C, // payload = "int32 qk_topology_entry"（多维标签函数拓扑调度入口）
+    COMPILE_MIR = 0x0D,      // payload = MIR JSON（下沉 LLVM C++ API：由 daemon 端 MirModuleBuilder 构建）
     EXIT = 0xff
 }
 

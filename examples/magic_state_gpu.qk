@@ -4,6 +4,7 @@
 //
 // 注意：alloc() 使用全局递增计数器（不复用已释放 qubit），
 // 因此这里一次性分配固定数量的 qubit，切勿循环 alloc（会泄漏导致状态向量超 VRAM）。
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     auto a = alloc();
     auto b = alloc();

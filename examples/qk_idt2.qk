@@ -5,10 +5,12 @@
 //  预期返回 1（解包地址 == 原地址低 32 位）。
 // ============================================================================
 
+@layer(time=0, thread=0, coord=(1,0))
 int32 my_handler() {
     return 1;
 }
 
+@layer(time=0, thread=0, coord=(0,0))
 int32 quark_main() {
     cap<int32> idt = qk_gc_alloc(16);
 

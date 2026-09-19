@@ -313,6 +313,7 @@ qchain 以 11 个内置函数暴露给 qk 语言，让开发者用几行 qk 编�
 完整示例见 [`examples/qchain_coin.qk`](../examples/qchain_coin.qk)：
 
 ```qk
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     string alice = qchain_wallet();
     string bob   = qchain_wallet();

@@ -1,3 +1,4 @@
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     // Define the training hyperparameters
     int32 epochs = 10;

@@ -21,7 +21,12 @@ Quark（`.qk`）是一门面向「量子计算 + 神经接口 + 量子语言模�
 | AOT 编译 | `qk compile` 将脚本编译为原生二进制（x32 / x64 / arm64） |
 | `.mmi` 模块系统 | `mod` / `use` / `import` / `export` / `requires` 模块声明与导入导出，打包为 `.mmi` 模块（**QOBF v2 加密二进制**：二进制序列化 + ChaCha20 流加密 + HMAC 防篡改，打开为乱码）动态加载与调用 |
 | Rust 风格类型系统 | `form` / `trait` / `impl` / `template` / `rank` 声明式类型、泛型与 trait 实现 |
-| 量子门原语 | 内置 `x` `h` `rz` `cnot` `toffoli` `swap` `qft` `braid` 门与 `measure_x` / `measure_y` 测量 |
+| 量子门原语 | 内置 `x` `h` `rz` `cnot` `toffoli` `swap` `qft` `iqft` `braid` 门、受控门 `cx` `ch` `crz` `cswap` `c_toffoli` `cqft` `cbraid` 与 `measure_x` / `measure_y` 测量 |
+| 真实并发 | `spawn` 块编译为独立线程函数，经 `qk_spawn` 内建以 `std::thread` 启动（detach），支持闭包捕获外层变量，配合 Q-Digest 静态竞争检测 |
+| 多维标签函数 | `@layer(time, thread, coord[, cost, deadline])` 注解式入口，执行过程映射到「时间 × 线程 × 运行层坐标」多维拓扑，编译期自动推导平行/叠加 + 运行时拓扑调度 |
+| 可逆编织门合成 | `@[gate]`/`@[undo]`/`@[steer]`/`@[unitary]`/`@[measure]` 标签：可逆对偶 U†（门序反转 + 逐门取逆）与相干控制 Λ(U) 的自动合成 |
+| 量子物理特性 | `@[coherence]`/`@[noise]`/`@[basis]`/`@[decoherence_free]`/`@[error_correction]` 标签：噪声模型与相干时间约束，门后自动注入噪声到 QVM 与多硬件后端 |
+| 经典编译属性 | `@[inline]`/`@[noinline]`/`@[pure]`/`@[cold]`/`@[hot]`/`@[noreturn]`/`@[export]`，映射到 LLVM 函数属性 |
 | HTTP 推理服务 | `qk serve` 提供 OpenAI 兼容的 `chat/completions`、`embeddings`、`models` 接口 |
 | Web 聊天界面 | 基于 Vite + Tailwind + Dexie 的流式推理聊天界面 |
 | 工具链管理 | Go 编写的 `quarkup` 安装器与版本代理 |
@@ -231,6 +236,7 @@ ctest -R quarkRSP_tests                          # 运行测试（87 个用例 /
 | `measure` | `measure(<Qubit>)` | `int` | 测量量子比特并坍缩 |
 | `basis_state` | `basis_state(double, double, int)` | `QObject` | 在任意基（布洛赫方向 θ,φ）下构建量子态 |
 | 量子门 | `x` `h` `rz` `cnot` `toffoli` `swap` `qft` `braid` | — | 内置量子门操作 |
+| 受控门 | `cx` `ch` `crz` `cswap` `c_toffoli` | — | 受控门（可逆编织 `@[steer]` 自动合成） |
 | 量子测量 | `measure_x` / `measure_y` | `int` | X / Y 基测量 |
 | `encode_text` | `encode_text(string)` | `QObject` | 文本编码为量子态 |
 | `encode_image` | `encode_image(string)` | `QObject` | 图像编码为量子态 |
@@ -316,15 +322,26 @@ qk 支持裸机 / 内核编程：`cap<T>` 能力指针、`unsafe { ... }` 危险
 
 编译管线内置 **MIR 中间表示**、**Polonius 风格借用检查**（量子线性类型 QLT：no-cloning + 恰好消费一次）、**Q-Digest 静态竞争检测**（`spawn`/`entangle` 构造）与 **VCGen 最弱前置条件演算**（`requires`/`ensures`/`invariant` 契约验证）。
 
-### 入口函数
+### 入口函数（多维标签函数）
 
-每个程序需定义 `quark_main`：
+程序入口不再单一，而是用 `@layer` 标签把执行过程映射到多维拓扑空间：
 
 ```qk
-int32 quark_main() {
-    return 0;
-}
+@layer(time=0, thread=0, coord=(0,0))
+int32 producer() { return 42; }
+
+@layer(time=0, thread=1, coord=(0,1))   // 与 producer 平行（异 coord / 异 thread）
+int32 observer() { return 7; }
+
+@layer(time=1, thread=0, coord=(0,0))   // 与 producer 叠加（同 coord、time+1）
+int32 consumer() { return 0; }
 ```
+
+- `time`：锚点时间（叠加链时序；子函数可省略，运行时继承调用者时钟 + Δt）
+- `thread`：逻辑线程（同线程串行、异线程并行）
+- `coord`：N 维运行层坐标（平行/叠加推导依据）
+
+无标签的顶层脚本仍回退到脚本模式（隐式包裹为 `quark_main`）。详细语法与标签体系见 [qk 语言手册](docs/qk-language-manual.md)。
 
 ### 示例
 

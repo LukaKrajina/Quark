@@ -21,7 +21,12 @@ Quark (`.qk`) is an experimental programming language targeting **quantum comput
 | AOT compilation | `qk compile` compiles scripts to native binaries (x32 / x64 / arm64) |
 | `.mmi` module system | `mod` / `use` / `import` / `export` / `requires` module declarations & imports/exports, packaged as `.mmi` modules (QKMM format) loaded and invoked at runtime |
 | Rust-style type system | `form` / `trait` / `impl` / `template` / `rank` declarative types, generics, and trait implementations |
-| Quantum gate intrinsics | Built-in `x` `h` `rz` `cnot` `toffoli` `swap` `qft` `braid` gates and `measure_x` / `measure_y` measurements |
+| Quantum gate intrinsics | Built-in `x` `h` `rz` `cnot` `toffoli` `swap` `qft` `iqft` `braid` gates, controlled gates `cx` `ch` `crz` `cswap` `c_toffoli` `cqft` `cbraid`, and `measure_x` / `measure_y` measurements |
+| Real concurrency | `spawn` blocks compile to standalone thread functions launched via the `qk_spawn` intrinsic with `std::thread` (detached), supporting closure capture of outer variables, paired with Q-Digest static race detection |
+| Multi-dimensional tagged functions | `@layer(time, thread, coord[, cost, deadline])` annotation-style entry points mapping execution to a "time × thread × runtime-coordinate" topology; parallel/stack relations auto-derived at compile time and scheduled by a runtime topology scheduler |
+| Reversible Weaving gate synthesis | `@[gate]`/`@[undo]`/`@[steer]`/`@[unitary]`/`@[measure]` tags: automatic synthesis of the reversible dual U† (gate-order reversal + per-gate dagger) and coherent control Λ(U)|
+| Quantum physical traits | `@[coherence]`/`@[noise]`/`@[basis]`/`@[decoherence_free]`/`@[error_correction]` tags: noise models & coherence-time constraints, auto-injecting noise after gates into the QVM and multiple hardware backends |
+| Classic compile attributes | `@[inline]`/`@[noinline]`/`@[pure]`/`@[cold]`/`@[hot]`/`@[noreturn]`/`@[export]`, mapped to LLVM function attributes |
 | HTTP inference server | `qk serve` exposes OpenAI-compatible `chat/completions`, `embeddings`, `models` endpoints |
 | Web chat UI | Streaming inference chat UI built with Vite + Tailwind + Dexie |
 | Toolchain manager | `quarkup` installer and version proxy written in Go |
@@ -228,6 +233,7 @@ See [🤖 quarkRSP Simulation Platform](#-quarkrsp-simulation-platform) for arch
 | `measure` | `measure(<Qubit>)` | `int` | Collapse & measure a qubit |
 | `basis_state` | `basis_state(double, double, int)` | `QObject` | Construct a quantum state in an arbitrary basis (Bloch direction θ,φ) |
 | Quantum gates | `x` `h` `rz` `cnot` `toffoli` `swap` `qft` `braid` | — | Built-in quantum gate operations |
+| Controlled gates | `cx` `ch` `crz` `cswap` `c_toffoli` | — | Controlled gates (auto-synthesized by `@[steer]`) |
 | Quantum measurements | `measure_x` / `measure_y` | `int` | X / Y basis measurements |
 | `encode_text` | `encode_text(string)` | `QObject` | Encode text into a quantum state |
 | `encode_image` | `encode_image(string)` | `QObject` | Encode an image into a quantum state |
@@ -291,15 +297,26 @@ qk supports bare-metal / kernel programming: `cap<T>` capability pointers, `unsa
 
 The pipeline includes **MIR** (mid-level IR), a **Polonius-style borrow checker** (quantum linear types QLT: no-cloning + consume-exactly-once), **Q-Digest static race detection** (`spawn`/`entangle` constructs), and **VCGen weakest-precondition calculus** (`requires`/`ensures`/`invariant` contract verification).
 
-### Entry Point
+### Entry Point (multi-dimensional tagged functions)
 
-Every program must define `quark_main`:
+Entry points are no longer a single function — `@layer` tags map execution onto a multi-dimensional topology:
 
 ```qk
-int32 quark_main() {
-    return 0;
-}
+@layer(time=0, thread=0, coord=(0,0))
+int32 producer() { return 42; }
+
+@layer(time=0, thread=1, coord=(0,1))   // parallel with producer (different coord/thread)
+int32 observer() { return 7; }
+
+@layer(time=1, thread=0, coord=(0,0))   // stacked on producer (same coord, time+1)
+int32 consumer() { return 0; }
 ```
+
+- `time`: anchor time (stacking-chain ordering; sub-functions may omit it and inherit the caller clock + Δt)
+- `thread`: logical thread (same thread = serial, different thread = parallel)
+- `coord`: N-dimensional runtime coordinate (basis for parallel/stack derivation)
+
+Untagged top-level scripts still fall back to script mode (implicitly wrapped in `quark_main`). See the [qk language manual](docs/qk-language-manual.md) for the full tag system.
 
 ### Examples
 

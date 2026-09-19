@@ -11,6 +11,9 @@ import { QuarkApiRouter } from './apiRouter';
 import { VCGenerator } from './vcgen';
 import { Cmd, PROTOCOL_VERSION, encodeFrame, decodeFrames } from './protocol';
 import { packMMI, collectModuleInfo, readMMIExports } from './mmi';
+import { CompileCache } from './cache';
+import { buildMir } from './mir';
+import { serializeMir } from './mir-serialize';
 
 const DAEMON_PORT = 50052;
 const DAEMON_TIMEOUT_MS = 30000; // daemon 响应超时(收到数据即重置)
@@ -52,6 +55,7 @@ function main() {
     let smtOutput = "";
     let mmiOutput = "";
     let nativeLibs: string[] = [];
+    let useMir = false; // --mir：走 MIR 下沉路径（COMPILE_MIR），默认字符串 IR
     
     if (command === 'run') {
         if (args.length < 2) {
@@ -67,6 +71,8 @@ function main() {
                 nativeLibs.push(path.resolve(args[i]));
             }
         }
+        // --mir：走 MIR 下沉路径（COMPILE_MIR），默认字符串 IR
+        if (args.includes('--mir')) useMir = true;
     } else if (command === 'ir') {
         if (args.length < 2) {
             console.error("Usage: qk ir <script.qk>");
@@ -192,8 +198,23 @@ function main() {
             }
         }
 
-        const irGen = new IRGenerator();
-        const llvmIR = irGen.generate(ast, importSignatures.size > 0 ? importSignatures : undefined);
+        // 增量编译缓存：以「源内容 + import 依赖 mtime」为 key，命中则复用 IR，
+        // 跳过 IRGenerator 重生成。仅在缓存未命中时全量生成并回写。
+        const cache = new CompileCache(path.join(path.dirname(filePath), '.qk-cache'));
+        const deps: { path: string; mtimeMs: number }[] = [];
+        for (const imp of importList) {
+            try {
+                deps.push({ path: imp.path, mtimeMs: fs.statSync(imp.path).mtimeMs });
+            } catch {
+                deps.push({ path: imp.path, mtimeMs: 0 });
+            }
+        }
+        let llvmIR = cache.get(filePath, sourceCode, deps);
+        if (!llvmIR) {
+            const irGen = new IRGenerator();
+            llvmIR = irGen.generate(ast, importSignatures.size > 0 ? importSignatures : undefined);
+            cache.set(filePath, sourceCode, deps, llvmIR);
+        }
 
         // IR 导出模式：只输出 LLVM IR 到 stdout，不连接 daemon（供 C++ embedded JIT 消费）
         if (command === 'ir') {
@@ -240,11 +261,23 @@ function main() {
                 for (const imp of importList) {
                     client.write(encodeFrame(Cmd.BIND_MMI, `${imp.alias} ${imp.path}`));
                 }
-                client.write(encodeFrame(Cmd.COMPILE, llvmIR));
+                // --mir：走 MIR 下沉路径（daemon 端 MirModuleBuilder 构建 Module）；默认字符串 IR
+                if (useMir) {
+                    const mirJson = serializeMir(buildMir(ast));
+                    client.write(encodeFrame(Cmd.COMPILE_MIR, mirJson));
+                } else {
+                    client.write(encodeFrame(Cmd.COMPILE, llvmIR));
+                }
                 if (vcProtocol) {
                     client.write(encodeFrame(Cmd.VERIFY, vcProtocol));
                 }
-                client.write(encodeFrame(Cmd.EXECUTE, 'int32 quark_main'));
+                // 多维标签函数：带 @layer 块走拓扑调度入口；否则走脚本模式 quark_main。
+                const hasLayerFns = ast.body.some(n => (n as any).type === 'FunctionDeclaration' && (n as any).layer);
+                if (hasLayerFns) {
+                    client.write(encodeFrame(Cmd.EXECUTE_TOPOLOGY, 'int32 qk_topology_entry'));
+                } else {
+                    client.write(encodeFrame(Cmd.EXECUTE, 'int32 quark_main'));
+                }
             } else if (command === 'compile') {
                 client.write(encodeFrame(Cmd.AOT_COMPILE, `${arch} ${mode} ${outputName}\n${llvmIR}`));
             } else if (command === 'verify') {

@@ -418,12 +418,102 @@ export interface FunctionDeclaration extends ASTNode {
     body: Statement[];
     /** 函数属性（系统级）：如 @[section(".text.boot")]、@[naked] */
     attributes?: FunctionAttribute[];
+    /** 运行层标签：@layer(time, thread, coord[, cost][, deadline]) —— 多维拓扑调度标签 */
+    layer?: LayerTag;
+    /** 量子门属性：@[gate]/@[undo]/@[steer]/@[unitary]/@[measure] */
+    quantum?: QuantumAttrs;
+    /** 量子物理特性：@[coherence]/@[noise]/@[basis]/@[decoherence_free]/@[error_correction] */
+    physical?: PhysicalAttrs;
+    /** 编译器合成函数（如 <name>_undo / <name>_steer）：不参与拓扑入口，无需 @layer */
+    synthetic?: boolean;
 }
 
-/** 函数属性：@[name] 或 @[name("value")] */
+/** 函数属性：@[name]、@[name("value")]、@[name(n1, n2, ...)] */
 export interface FunctionAttribute {
     name: string;
     value: string | null;
+    /** 数值参数列表（如 @[coherence(100, 50)] → nums=[100, 50]） */
+    nums?: number[];
+}
+
+/**
+ * 量子物理特性（标注在函数上一行，为 QVM/QM 物理模拟提供约束元数据）：
+ * - `coherence`：@[coherence(t1, t2)] —— 相干时间（T1 弛豫 / T2 退相，单位 μs）
+ * - `noise`：@[noise("depolarizing")] —— 噪声模型
+ * - `basis`：@[basis(X)] —— 指定测量基（X/Y/Z）
+ * - `decoherenceFree`：@[decoherence_free] —— 无退相干子空间（DFS）
+ * - `errorCorrection`：@[error_correction("surface")] —— 纠错码
+ */
+export interface PhysicalAttrs {
+    coherence?: { t1: number; t2: number };
+    noise?: string;
+    basis?: 'X' | 'Y' | 'Z';
+    decoherenceFree?: boolean;
+    errorCorrection?: string;
+}
+
+/**
+ * 量子门属性（标注在函数上一行，驱动量子语义分析与门合成）。
+ *
+ * 命名遵循「可逆编织（Reversible Weaving）」范式:
+ * - `isGate`：@[gate] —— 标记为可组合自定义门（函数体只施加门，不测量/释放）
+ * - `undo`：@[undo] —— 合成可逆对偶 U†（门序反转 + 逐门取逆）。类似 uncomputation
+ *   （Unqomp / Qrisp / Modular Synthesis of Efficient Quantum Uncomputation）的「块级撤销」。
+ * - `steer`：@[steer] —— 合成相干控制版本 Λ(U)（控制位叠加导引目标门）。
+ * 类似coherent control（相干控制）与 ZX-calculus 的图式受控视角，而非「加一个控制位」。
+ * - `unitary`：@[unitary] —— 酉性验证（保证可逆：无测量、无经典分支依赖）
+ * - `measure`：@[measure] —— 标记测量点（消费 Qubit，纳入 QLT 线性消费）
+ */
+export interface QuantumAttrs {
+    isGate: boolean;
+    undo: boolean;
+    steer: boolean;
+    unitary: boolean;
+    measure: boolean;
+}
+
+/**
+ * 运行层标签：@layer(time=T, thread=W, coord=(x,y,...)[, cost=N][, deadline=D])
+ *
+ * 三维维度语义：
+ * - `time`：锚点时间（块在其 coord 时序链上的启动槽位；子函数可省略，运行时继承调用者时钟 + Δt）
+ * - `thread`：逻辑线程 id（同线程串行、异线程可并行）
+ * - `coord`：N 维运行层坐标（块在多维拓扑空间的初始位置）
+ * - `cost`：块自身的执行成本（默认 1，影响父块逻辑时钟推进）
+ * - `deadline`：时间束缚上限（传播延迟超限 → 时序违例）
+ */
+export interface LayerTag {
+    time?: number;
+    thread: number;
+    coord: number[];
+    cost?: number;
+    deadline?: number;
+}
+
+/** 拓扑边：块之间的平行 / 叠加 / 时序关系 */
+export interface TopologyEdge {
+    from: string;
+    to: string;
+    kind: 'stack' | 'parallel' | 'happens-before';
+}
+
+/** 调用传播边：子函数相对父函数锚点的延迟 Δt */
+export interface TopologyCallEdge {
+    caller: string;
+    callee: string;
+    /** 子函数启动时刻（= 父函数锚点 + 前置延迟 Δt） */
+    startAt: number;
+    /** 相对父块锚点的延迟 */
+    deltaT: number;
+}
+
+/** 程序级执行拓扑（语义层聚合产物） */
+export interface Topology {
+    /** 运行形状：(time, thread, coord[0..n-1]) */
+    shape: { time: number; thread: number; coord: number[] };
+    blocks: { name: string; layer: LayerTag }[];
+    edges: TopologyEdge[];
+    callGraph: TopologyCallEdge[];
 }
 
 export interface ReturnStatement extends ASTNode {

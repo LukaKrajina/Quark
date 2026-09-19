@@ -224,6 +224,7 @@ auto feedback = qbns->execute_neural_computation(encoded);
 ### 7.1 文本 → 量子态 → 训练 → 导出
 
 ```qk
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     int32 epochs = 10;
     double lr = 0.1;
@@ -297,6 +298,7 @@ qk serve model.qkm [--port 9080]
 ### 9.1 训练 + 推理全流程
 
 ```qk
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     int32 epochs = 20;
     double lr = 0.05;

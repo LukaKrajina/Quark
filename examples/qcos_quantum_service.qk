@@ -15,6 +15,7 @@
 //  运行：qemu-system-x86_64 -kernel <elf> -display none -serial stdio
 // ============================================================================
 
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     // ---- 串口初始化（16550 UART，COM1 = 0x3F8 = 1016）----
     outb(1019, 0);    // LCR 置 0

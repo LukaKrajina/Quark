@@ -254,6 +254,8 @@ enum ProtocolCommand : uint8_t
     CMD_QCHAIN = 0x10,       // payload[1..] = "op args..."（量子区块链服务）
     CMD_LOAD_NATIVE = 0x0A,  // payload[1..] = path（加载原生动态库，供 JIT 解析符号）
     CMD_BIND_MMI = 0x0B,     // payload[1..] = "alias path"（加载 .mmi 并绑定到主 JIT）
+    CMD_EXECUTE_TOPOLOGY = 0x0C, // payload[1..] = "int32 qk_topology_entry"（多维标签函数拓扑调度入口）
+    CMD_COMPILE_MIR = 0x0D,      // payload[1..] = MIR JSON（下沉 LLVM C++ API 构建 Module）
     CMD_EXIT = 0xFF
 };
 
@@ -277,6 +279,9 @@ void process_command(const std::string &payload, std::string &out, quark_runtime
         break;
     case CMD_COMPILE:
         out += quark_runtime_compile(rt, body.c_str());
+        break;
+    case CMD_COMPILE_MIR:
+        out += quark_runtime_compile_mir(rt, body.c_str());
         break;
     case CMD_VERIFY:
         out += quark_runtime_verify(rt, body.c_str());
@@ -310,6 +315,22 @@ void process_command(const std::string &payload, std::string &out, quark_runtime
             out += quark_runtime_execute_float(rt, func_name.c_str());
         else
             out += "RESPONSE: ERROR - Unsupported return type '" + ret_type + "' for function " + func_name + "\n";
+        break;
+    }
+    case CMD_EXECUTE_TOPOLOGY:
+    {
+        // 多维标签函数拓扑调度入口：payload = "int32 qk_topology_entry"。
+        // 执行 JIT 编译出的 qk_topology_entry，后者内部调用 quark_runtime_run_topology(json)
+        // 完成按 (time, thread, coord) 的分层调度。
+        std::stringstream ss(body);
+        std::string ret_type, func_name;
+        ss >> ret_type >> func_name;
+        if (func_name.empty())
+        {
+            func_name = ret_type;
+            ret_type = "int32";
+        }
+        out += quark_runtime_execute_int(rt, func_name.c_str());
         break;
     }
     case CMD_LOAD_NATIVE:
@@ -803,9 +824,19 @@ int main(int argc, char *argv[])
         quark_mmi *game = quark_runtime_load_mmi(rt, game_path.c_str());
         if (game)
         {
-            std::cerr << "[Quark] invoking quark_main" << std::endl;
-            const char *ret = quark_runtime_mmi_invoke(game, "quark_main", "[]");
-            std::cerr << "[Quark] quark_main returned: " << (ret ? ret : "<null>") << std::endl;
+            // 优先多维标签函数拓扑入口（@layer 程序），失败回退到 quark_main（旧程序）
+            std::cerr << "[Quark] invoking qk_topology_entry" << std::endl;
+            const char *ret = quark_runtime_mmi_invoke(game, "qk_topology_entry", "[]");
+            if (ret && std::string(ret).find("ERROR") == std::string::npos)
+            {
+                std::cerr << "[Quark] qk_topology_entry returned: " << ret << std::endl;
+            }
+            else
+            {
+                std::cerr << "[Quark] topology entry not found, invoking quark_main" << std::endl;
+                const char *ret2 = quark_runtime_mmi_invoke(game, "quark_main", "[]");
+                std::cerr << "[Quark] quark_main returned: " << (ret2 ? ret2 : "<null>") << std::endl;
+            }
             quark_runtime_mmi_unload(game);
         }
         else

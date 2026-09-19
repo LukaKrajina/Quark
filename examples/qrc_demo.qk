@@ -6,6 +6,7 @@
 //
 // 运行前需启动守护进程：./runtime --daemon
 
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     // 1) 创建一个 8-qubit、4 层固定随机电路的量子储备池
     auto res = new QReservoir(8, 4);

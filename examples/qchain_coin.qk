@@ -10,6 +10,7 @@
 //
 // 运行前请先启动守护进程（一般后台永驻）：./runtime --daemon
 
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     // 创建两个后量子钱包（返回量子安全地址）
     string alice = qchain_wallet();

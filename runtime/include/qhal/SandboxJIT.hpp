@@ -176,7 +176,19 @@ namespace qhal
                 add("__quantum__qis__toffoli", (void *)&__quantum__qis__toffoli);
                 add("__quantum__qis__swap", (void *)&__quantum__qis__swap);
                 add("__quantum__qis__qft", (void *)&__quantum__qis__qft);
+                add("__quantum__qis__iqft", (void *)&__quantum__qis__iqft);
+                add("__quantum__qis__cqft", (void *)&__quantum__qis__cqft);
                 add("__quantum__qis__braid", (void *)&__quantum__qis__braid);
+                add("__quantum__qis__cbraid", (void *)&__quantum__qis__cbraid);
+                add("qk_spawn", (void *)&qk_spawn);
+                // 受控门（可逆编织 @[steer]）
+                add("__quantum__qis__cx", (void *)&__quantum__qis__cx);
+                add("__quantum__qis__ch", (void *)&__quantum__qis__ch);
+                add("__quantum__qis__crz", (void *)&__quantum__qis__crz);
+                add("__quantum__qis__cswap", (void *)&__quantum__qis__cswap);
+                add("__quantum__qis__c_toffoli", (void *)&__quantum__qis__c_toffoli);
+                // 噪声通道注入（@[noise]/@[coherence]）
+                add("__quantum__qis__apply_noise", (void *)&__quantum__qis__apply_noise);
                 add("__quantum__qis__measure_basis", (void *)&__quantum__qis__measure_basis);
             }
             if (has("quantum.release"))
@@ -266,6 +278,9 @@ namespace qhal
             {
                 add(name.c_str(), addr);
             }
+
+            // 多维标签函数执行拓扑（@layer）调度入口（供 .mmi 的 qk_topology_entry 调用）
+            add("quark_runtime_run_topology", (void *)&quark_runtime_run_topology);
 
             add("___chkstk_ms", (void *)&quark_chkstk_stub);
 

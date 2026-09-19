@@ -310,6 +310,18 @@ namespace qhal
             ideal_.apply_phase_flip(qubit_id, 0.01);        // T2
         }
 
+        // ─── @[noise]/@[coherence] 噪声通道分发（复用 IdealStateCore 的通道）───
+        void apply_noise(size_t qubit_id, int channel, double param) override
+        {
+            ideal_.apply_noise_channel(qubit_id, channel, param);
+        }
+
+        // 非破坏 Z 期望（不坍缩态矢量）
+        double expectation_z(size_t qubit_id) override
+        {
+            return ideal_.expectation_z(qubit_id);
+        }
+
     public:
         SuperconductingBackend()
         {

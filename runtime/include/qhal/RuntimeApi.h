@@ -67,6 +67,17 @@ extern "C"
   // 登记原生符号（供 SandboxJIT 绑定动态库符号）
   QUARK_RT_API void quark_runtime_register_native_symbol(quark_runtime *rt, const char *name, void *addr);
 
+  // ─── 多维标签函数执行拓扑（@layer）调度入口 ───────────────────────────
+  // 由 IR 生成的 qk_topology_entry 调用：解析调度表 JSON（shape + blocks），
+  // 通过活跃 runtime 的 JIT 查找各块符号，按 (time, thread, coord) 调度执行。
+  // json = { shape: {time, thread, coord[]}, blocks: [{name, time, thread, coord[], cost, deadline}] }
+  QUARK_RT_API int32_t quark_runtime_run_topology(const char *json);
+
+  // ─── MIR 编译（下沉 LLVM C++ API）────────────────────────────────────────
+  // 解析 MIR JSON（server 端 mir-serialize.ts 序列化），用 MirModuleBuilder
+  // 经 LLVM C++ API 构建 Module 并加载进 JIT。payload = MIR JSON。
+  QUARK_RT_API const char *quark_runtime_compile_mir(quark_runtime *rt, const char *mir_json);
+
 #ifdef __cplusplus
 }
 #endif

@@ -9,6 +9,7 @@
 //
 // 运行前请先启动守护进程：./runtime --daemon
 
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     // 哈希原语
     string h1 = qchain_sha3("hello quantum chain");          // SHA3-256（hex）

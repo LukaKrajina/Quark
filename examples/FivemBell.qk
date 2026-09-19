@@ -1,3 +1,4 @@
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     int32 iterations = 50000;
     int32 count = 0;

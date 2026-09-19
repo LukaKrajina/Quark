@@ -397,6 +397,51 @@ namespace qhal
             return result;
         }
 
+        // ─── @[noise]/@[coherence] 噪声通道分发（光子损耗/相位扰动/比特翻转）───
+        void apply_noise(size_t qubit_id, int channel, double param) override
+        {
+            std::lock_guard<std::mutex> lock(optics_mutex);
+            ensure_mode(qubit_id);
+            auto &m = modes[qubit_id];
+            switch (channel)
+            {
+                case 0: // depolarizing：以 3p/4 施加 X/Y/Z 之一（Paulí 通道）
+                {
+                    const double r = uniform_unit();
+                    const double px = param / 4.0;
+                    if (r < px)
+                    {
+                        // X：交换 |0⟩/|1⟩ 振幅
+                        std::swap(m.amp0, m.amp1);
+                    }
+                    else if (r < 2 * px)
+                    {
+                        // Y = iXZ：交换并施加 ±i 相位
+                        const std::complex<double> I(0.0, 1.0);
+                        const std::complex<double> t = m.amp0;
+                        m.amp0 = -I * m.amp1;
+                        m.amp1 = I * t;
+                    }
+                    else if (r < 3 * px)
+                    {
+                        // Z：|1⟩ 振幅相位翻转
+                        m.amp1 *= std::complex<double>(-1.0, 0.0);
+                    }
+                    break;
+                }
+                case 1: // dephasing（相位翻转）
+                    if (bernoulli(param)) m.amp1 *= std::complex<double>(-1.0, 0.0);
+                    break;
+                case 2: // amplitude damping（光子损耗）
+                    if (bernoulli(param)) m.photon_number = 0;
+                    break;
+                case 3: // bit flip（光子数翻转）
+                    if (bernoulli(param)) m.photon_number ^= 1;
+                    break;
+                default: break;
+            }
+        }
+
         // ─── 离散门（单光子编码或 GKP 编码 + 噪声）─────────────────
         // X 门：单光子编码下翻转 2 维复幅度；GKP 编码下位移 √π。
         void apply_x(size_t qubit_id) override

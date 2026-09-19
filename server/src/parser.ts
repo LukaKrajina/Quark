@@ -28,6 +28,9 @@ import {
     Identifier,
     FunctionDeclaration,
     FunctionAttribute,
+    LayerTag,
+    QuantumAttrs,
+    PhysicalAttrs,
     BinaryExpression,
     LogicalExpression,
     UnaryExpression,
@@ -55,6 +58,64 @@ import {
     SpawnStatement,
     EntangleStatement
 } from './ast';
+
+/** 量子门属性名（@[gate] / @[undo] / @[steer] / @[unitary] / @[measure]） */
+const QUANTUM_ATTR_NAMES = new Set(['gate', 'undo', 'steer', 'unitary', 'measure']);
+
+/**
+ * 从函数属性里分离量子门属性，返回结构化 QuantumAttrs（无则 undefined）。
+ * 分离后这些量子属性不再保留在系统属性列表里（它们不属于 LLVM 函数属性）。
+ */
+function extractQuantumAttrs(attributes: FunctionAttribute[]): { quantum?: QuantumAttrs; system: FunctionAttribute[] } {
+    let quantum: QuantumAttrs | undefined;
+    const system: FunctionAttribute[] = [];
+    for (const a of attributes) {
+        if (QUANTUM_ATTR_NAMES.has(a.name)) {
+            if (!quantum) quantum = { isGate: false, undo: false, steer: false, unitary: false, measure: false };
+            if (a.name === 'gate') quantum.isGate = true;
+            else if (a.name === 'undo') quantum.undo = true;
+            else if (a.name === 'steer') quantum.steer = true;
+            else if (a.name === 'unitary') quantum.unitary = true;
+            else if (a.name === 'measure') quantum.measure = true;
+        } else {
+            system.push(a);
+        }
+    }
+    return { quantum, system };
+}
+
+/** 量子物理特性属性名（@[coherence] / @[noise] / @[basis] / @[decoherence_free] / @[error_correction]） */
+const PHYSICAL_ATTR_NAMES = new Set(['coherence', 'noise', 'basis', 'decoherence_free', 'error_correction']);
+
+/**
+ * 从函数属性里分离量子物理特性，返回结构化 PhysicalAttrs（无则 undefined）。
+ * 物理特性为 QVM/QM 模拟提供约束元数据，不属于 LLVM 函数属性。
+ */
+function extractPhysicalAttrs(attributes: FunctionAttribute[]): { physical?: PhysicalAttrs; system: FunctionAttribute[] } {
+    let physical: PhysicalAttrs | undefined;
+    const system: FunctionAttribute[] = [];
+    for (const a of attributes) {
+        if (PHYSICAL_ATTR_NAMES.has(a.name)) {
+            if (!physical) physical = {};
+            if (a.name === 'coherence') {
+                const nums = a.nums ?? [];
+                physical.coherence = { t1: nums[0] ?? 0, t2: nums[1] ?? 0 };
+            } else if (a.name === 'noise') {
+                physical.noise = a.value ?? '';
+            } else if (a.name === 'basis') {
+                const v = (a.value ?? 'Z').toUpperCase();
+                if (v === 'X' || v === 'Y' || v === 'Z') physical.basis = v;
+            } else if (a.name === 'decoherence_free') {
+                physical.decoherenceFree = true;
+            } else if (a.name === 'error_correction') {
+                physical.errorCorrection = a.value ?? '';
+            }
+        } else {
+            system.push(a);
+        }
+    }
+    return { physical, system };
+}
 
 const ALLOWED_TYPES = [
     'let', 'auto', 'int', 'int8', 'int16', 'int32', 'int64',
@@ -164,35 +225,99 @@ export class Parser {
     }
 
     /**
-     * 函数属性：@[name] 或 @[name("value")]，连续多个。
-     * 用于系统级编程：@[section(".text.boot")] / @[naked] / @[no_gc] 等。
+     * 函数属性：@[name]、@[name("value")]、@[name(n1, n2, ...)]，连续多个。
+     * 用于系统级编程（@[section]/@[naked]/@[inline]）与量子物理特性（@[coherence(100,50)]）。
      */
     private parseAttributes(): FunctionAttribute[] {
         const attrs: FunctionAttribute[] = [];
-        while (this.currentToken.type === TokenType.At) {
+        // 仅解析 @[...] 属性；遇到 @layer(...) 等其它 @ 标签时停下，交由 parseTopLevelItem 处理。
+        while (this.currentToken.type === TokenType.At && this.peek().type === TokenType.OpenBracket) {
             this.eat(TokenType.At);
             this.eat(TokenType.OpenBracket);
             const name = this.eatIdentifierOrKeyword().value;
             let value: string | null = null;
+            let nums: number[] | undefined;
             // `as` 断言打断 while 循环对 this.currentToken.type 的流式窄化
             const t = this.currentToken.type as TokenType;
             if (t === TokenType.OpenParen) {
                 this.eat(TokenType.OpenParen);
-                value = this.eat(TokenType.String).value;
+                const first = this.currentToken.type as TokenType;
+                if (first === TokenType.String) {
+                    value = this.eat(TokenType.String).value;
+                } else {
+                    // 数值参数列表（如 @[coherence(100, 50)]）
+                    nums = [];
+                    while ((this.currentToken.type as TokenType) !== TokenType.CloseParen && (this.currentToken.type as TokenType) !== TokenType.EOF) {
+                        nums.push(Number(this.eat(TokenType.Number).value));
+                        if ((this.currentToken.type as TokenType) === TokenType.Comma) this.eat(TokenType.Comma);
+                    }
+                }
                 this.eat(TokenType.CloseParen);
             }
             this.eat(TokenType.CloseBracket);
-            attrs.push({ name, value });
+            attrs.push({ name, value, nums });
         }
         return attrs;
     }
 
+    /**
+     * 运行层标签：@layer(time=T, thread=W, coord=(x,y,...)[, cost=N][, deadline=D])
+     * 解析后返回 LayerTag；`time` 可省略（子函数运行时继承调用者时钟 + Δt）。
+     * 前置条件：当前 token 为 '@'，peek 为标识符 'layer'。
+     */
+    private parseLayerTag(): LayerTag {
+        this.eat(TokenType.At);
+        this.eatIdentifierOrKeyword();       // 'layer'
+        this.eat(TokenType.OpenParen);
+
+        const tag: LayerTag = { thread: 0, coord: [] };
+        while (this.currentToken.type !== TokenType.CloseParen && this.currentToken.type !== TokenType.EOF) {
+            const key = this.eatIdentifierOrKeyword().value;
+            this.eat(TokenType.Equals);
+            if (key === 'coord') {
+                this.eat(TokenType.OpenParen);
+                while ((this.currentToken.type as TokenType) !== TokenType.CloseParen && (this.currentToken.type as TokenType) !== TokenType.EOF) {
+                    const n = this.eat(TokenType.Number);
+                    tag.coord.push(Number(n.value));
+                    if (this.currentToken.type === TokenType.Comma) this.eat(TokenType.Comma);
+                }
+                this.eat(TokenType.CloseParen);
+            } else {
+                const n = this.eat(TokenType.Number);
+                const v = Number(n.value);
+                if (key === 'time') tag.time = v;
+                else if (key === 'thread') tag.thread = v;
+                else if (key === 'cost') tag.cost = v;
+                else if (key === 'deadline') tag.deadline = v;
+            }
+            if (this.currentToken.type === TokenType.Comma) this.eat(TokenType.Comma);
+        }
+        this.eat(TokenType.CloseParen);
+        return tag;
+    }
+
     private parseTopLevelItem(): Statement | Item {
-        // 函数属性（@[...]）作用于其后的顶层函数声明
+        // 函数属性（@[...]）与运行层标签（@layer(...)）作用于其后的顶层函数声明。
+        // 二者可任意顺序混排：@[section("...")] @layer(...) fn 或 @layer(...) @[naked] fn。
         if (this.currentToken.type === TokenType.At) {
-            const attributes = this.parseAttributes();
+            let layer: LayerTag | undefined;
+            const attributes: FunctionAttribute[] = [];
+            while (this.currentToken.type === TokenType.At) {
+                const next = this.peek();
+                if (next.type === TokenType.Identifier && next.value === 'layer') {
+                    layer = this.parseLayerTag();
+                } else {
+                    attributes.push(...this.parseAttributes());
+                }
+            }
             const fn = this.parseDeclarationOrFunction(false, false) as FunctionDeclaration;
-            fn.attributes = attributes;
+            fn.layer = layer;
+            // 分离量子门属性与物理特性（与系统属性 @[section]/@[inline] 等正交）
+            const { quantum, system: sysAfterQuantum } = extractQuantumAttrs(attributes);
+            const { physical, system } = extractPhysicalAttrs(sysAfterQuantum);
+            fn.attributes = system;
+            fn.quantum = quantum;
+            fn.physical = physical;
             return fn;
         }
         if (this.isKeyword('mod')) return this.parseModule();

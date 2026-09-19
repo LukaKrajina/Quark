@@ -16,6 +16,7 @@
 //  运行：qk run examples/qk_basis_state.qk
 // ============================================================================
 
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     // Z 基（计算基）
     auto zplus  = basis_state(0.0, 0.0, 0);              // |0⟩

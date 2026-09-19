@@ -26,7 +26,7 @@ test('syslevel: dereference generates load and store', () => {
 
 test('syslevel: semantic accepts dereference', () => {
     const a = new SemanticAnalyzer();
-    const ast = parse('int32 quark_main() { unsafe { cap<int32> p = null; int32 x = *p; } return 0; }');
+    const ast = parse('@layer(time=0, thread=0, coord=(0))\nint32 quark_main() { unsafe { cap<int32> p = null; int32 x = *p; } return 0; }');
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, []);
 });
@@ -76,7 +76,7 @@ test('syslevel: bitwise operators emit or/and/shl/ashr/xor', () => {
 });
 
 test('syslevel: cap pointer arithmetic emits getelementptr', () => {
-    const ast = parse('int32 quark_main() { unsafe { cap<int32> p = null; cap<int32> q = p + 1; } return 0; }');
+    const ast = parse('@layer(time=0, thread=0, coord=(0))\nint32 quark_main() { unsafe { cap<int32> p = null; cap<int32> q = p + 1; } return 0; }');
     const a = new SemanticAnalyzer();
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, [], 'pointer arithmetic is type-safe');
@@ -85,7 +85,7 @@ test('syslevel: cap pointer arithmetic emits getelementptr', () => {
 });
 
 test('syslevel: int -> cap emits inttoptr', () => {
-    const ast = parse('int32 quark_main() { unsafe { cap<int32> p = 753664; int32 x = *p; } return 0; }');
+    const ast = parse('@layer(time=0, thread=0, coord=(0))\nint32 quark_main() { unsafe { cap<int32> p = 753664; int32 x = *p; } return 0; }');
     const a = new SemanticAnalyzer();
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, [], 'int-to-cap is type-safe');
@@ -94,7 +94,7 @@ test('syslevel: int -> cap emits inttoptr', () => {
 });
 
 test('syslevel: address-of emits function symbol', () => {
-    const ast = parse('int32 my_handler() { return 1; } int32 quark_main() { unsafe { cap<uint8> h = &my_handler; } return 0; }');
+    const ast = parse('@layer(time=0, thread=0, coord=(0,0))\nint32 my_handler() { return 1; }\n@layer(time=0, thread=0, coord=(1,0))\nint32 quark_main() { unsafe { cap<uint8> h = &my_handler; } return 0; }');
     const a = new SemanticAnalyzer();
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, [], 'address-of is type-safe');
@@ -103,7 +103,7 @@ test('syslevel: address-of emits function symbol', () => {
 });
 
 test('syslevel: address-of local variable emits alloca pointer', () => {
-    const ast = parse('int32 quark_main() { int32 x = 42; unsafe { cap<int32> p = &x; int32 y = *p; } return y; }');
+    const ast = parse('@layer(time=0, thread=0, coord=(0))\nint32 quark_main() { int32 x = 42; unsafe { cap<int32> p = &x; int32 y = *p; } return y; }');
     const a = new SemanticAnalyzer();
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, [], 'address-of local is type-safe');
@@ -113,7 +113,7 @@ test('syslevel: address-of local variable emits alloca pointer', () => {
 });
 
 test('syslevel: qk_gc_free and qk_sys_callp emit calls', () => {
-    const ast = parse('int32 quark_main() { unsafe { cap<int32> p = qk_gc_alloc(16); qk_gc_free(p); cap<uint8> m = qk_sys_callp(4, 4096, 0, 0); } return 0; }');
+    const ast = parse('@layer(time=0, thread=0, coord=(0))\nint32 quark_main() { unsafe { cap<int32> p = qk_gc_alloc(16); qk_gc_free(p); cap<uint8> m = qk_sys_callp(4, 4096, 0, 0); } return 0; }');
     const a = new SemanticAnalyzer();
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, [], 'qk_gc_free/qk_sys_callp are type-safe');
@@ -123,7 +123,7 @@ test('syslevel: qk_gc_free and qk_sys_callp emit calls', () => {
 });
 
 test('syslevel: route statement generates comparisons and branches', () => {
-    const ast = parse('int32 quark_main() { int32 x = 2; int32 r = 0; route (x) { path 1: { r = 10; } path 2: { r = 20; } fallback: { r = 30; } } return r; }');
+    const ast = parse('@layer(time=0, thread=0, coord=(0))\nint32 quark_main() { int32 x = 2; int32 r = 0; route (x) { path 1: { r = 10; } path 2: { r = 20; } fallback: { r = 30; } } return r; }');
     const a = new SemanticAnalyzer();
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, [], 'route is type-safe');
@@ -133,7 +133,7 @@ test('syslevel: route statement generates comparisons and branches', () => {
 });
 
 test('syslevel: entry function can return any definite type', () => {
-    const ast = parse('double quark_main() { return 1.5; }');
+    const ast = parse('@layer(time=0, thread=0, coord=(0))\ndouble quark_main() { return 1.5; }');
     const a = new SemanticAnalyzer();
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, [], 'double return type is accepted');
@@ -149,7 +149,7 @@ test('syslevel: entry function rejects unknown return type', () => {
 });
 
 test('syslevel: spin executes body before checking condition', () => {
-    const ast = parse('int32 quark_main() { int32 i = 0; spin { i = i + 1; } while (i < 3); return i; }');
+    const ast = parse('@layer(time=0, thread=0, coord=(0))\nint32 quark_main() { int32 i = 0; spin { i = i + 1; } while (i < 3); return i; }');
     const a = new SemanticAnalyzer();
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, [], 'spin is type-safe');
@@ -166,7 +166,7 @@ test('syslevel: fixed value cannot be reassigned', () => {
 });
 
 test('syslevel: flavor members resolve to integers', () => {
-    const ast = parse('flavor Color { RED, GREEN, BLUE } int32 quark_main() { int32 x = GREEN; int32 y = BLUE; return x + y; }');
+    const ast = parse('flavor Color { RED, GREEN, BLUE }\n@layer(time=0, thread=0, coord=(0))\nint32 quark_main() { int32 x = GREEN; int32 y = BLUE; return x + y; }');
     const a = new SemanticAnalyzer();
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, [], 'flavor is type-safe');
@@ -175,7 +175,7 @@ test('syslevel: flavor members resolve to integers', () => {
 });
 
 test('syslevel: fuse pattern matching returns matched arm', () => {
-    const ast = parse('int32 quark_main() { int32 x = 2; int32 r = fuse (x) { 1: 10, 2: 20, _: 30, }; return r; }');
+    const ast = parse('@layer(time=0, thread=0, coord=(0))\nint32 quark_main() { int32 x = 2; int32 r = fuse (x) { 1: 10, 2: 20, _: 30, }; return r; }');
     const a = new SemanticAnalyzer();
     a.analyze(ast);
     assert.deepStrictEqual(a.errors, [], 'fuse is type-safe');

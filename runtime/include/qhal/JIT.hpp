@@ -3,6 +3,8 @@
 #include <string>
 #include <iostream>
 #include <stdexcept>
+#include <thread>
+#include <vector>
 
 // LLVM Core & IR
 #include <llvm/IR/LLVMContext.h>
@@ -92,8 +94,23 @@ extern "C" void __quantum__qis__cnot(void *control, void *target);
 extern "C" void __quantum__qis__toffoli(void *c1, void *c2, void *target);
 extern "C" void __quantum__qis__swap(void *a, void *b);
 extern "C" void __quantum__qis__qft(int num_qubits);
+extern "C" void __quantum__qis__iqft(int num_qubits);
+extern "C" void __quantum__qis__cqft(void *control, int num_qubits);
 extern "C" void __quantum__qis__braid(void *a, void *b);
+extern "C" void __quantum__qis__cbraid(void *control, void *a, void *b);
+// 并发线程（spawn）：以 std::thread 启动独立线程函数（带 env 闭包捕获）并 detach
+extern "C" void qk_spawn(void (*fn)(void *), void *env);
+// 受控门（可逆编织 @[steer]）：cx / ch / crz / cswap / c_toffoli
+extern "C" void __quantum__qis__cx(void *control, void *target);
+extern "C" void __quantum__qis__ch(void *control, void *target);
+extern "C" void __quantum__qis__crz(void *control, void *target, double angle);
+extern "C" void __quantum__qis__cswap(void *control, void *a, void *b);
+extern "C" void __quantum__qis__c_toffoli(void *control, void *a, void *b, void *target);
+// 噪声通道注入（@[noise]/@[coherence] 物理特性）
+extern "C" void __quantum__qis__apply_noise(void *qubit, int channel, double param);
 extern "C" int  __quantum__qis__measure_basis(void *qubit, char basis);
+// 多维标签函数执行拓扑（@layer）调度入口：由 IR 生成的 qk_topology_entry 调用
+extern "C" int32_t quark_runtime_run_topology(const char *json);
 
 #if defined(QUARK_RT_BUILD)
 void qk_alloc(size_t num_qubits)
@@ -381,9 +398,65 @@ void __quantum__qis__qft(int num_qubits)
         ActiveBackend->apply_qft(0, static_cast<size_t>(num_qubits - 1));
 }
 
+void __quantum__qis__iqft(int num_qubits)
+{
+    if (ActiveBackend && num_qubits > 0)
+        ActiveBackend->apply_iqft(0, static_cast<size_t>(num_qubits - 1));
+}
+
+void __quantum__qis__cqft(void *control, int num_qubits)
+{
+    if (ActiveBackend && num_qubits > 0)
+        ActiveBackend->apply_cqft(qubit_handle_id(control), 0, static_cast<size_t>(num_qubits - 1));
+}
+
+void __quantum__qis__cbraid(void *control, void *a, void *b)
+{
+    if (ActiveBackend) ActiveBackend->apply_cbraid(qubit_handle_id(control), qubit_handle_id(a), qubit_handle_id(b));
+}
+
+void qk_spawn(void (*fn)(void *), void *env)
+{
+    if (fn)
+    {
+        std::thread t(fn, env);
+        t.detach();
+    }
+}
+
 void __quantum__qis__braid(void *a, void *b)
 {
     if (ActiveBackend) ActiveBackend->apply_braid(qubit_handle_id(a), qubit_handle_id(b));
+}
+
+void __quantum__qis__cx(void *control, void *target)
+{
+    if (ActiveBackend) ActiveBackend->apply_cx(qubit_handle_id(control), qubit_handle_id(target));
+}
+
+void __quantum__qis__ch(void *control, void *target)
+{
+    if (ActiveBackend) ActiveBackend->apply_ch(qubit_handle_id(control), qubit_handle_id(target));
+}
+
+void __quantum__qis__crz(void *control, void *target, double angle)
+{
+    if (ActiveBackend) ActiveBackend->apply_crz(qubit_handle_id(control), qubit_handle_id(target), angle);
+}
+
+void __quantum__qis__cswap(void *control, void *a, void *b)
+{
+    if (ActiveBackend) ActiveBackend->apply_cswap(qubit_handle_id(control), qubit_handle_id(a), qubit_handle_id(b));
+}
+
+void __quantum__qis__c_toffoli(void *control, void *a, void *b, void *target)
+{
+    if (ActiveBackend) ActiveBackend->apply_c_toffoli(qubit_handle_id(control), qubit_handle_id(a), qubit_handle_id(b), qubit_handle_id(target));
+}
+
+void __quantum__qis__apply_noise(void *qubit, int channel, double param)
+{
+    if (ActiveBackend) ActiveBackend->apply_noise(qubit_handle_id(qubit), channel, param);
 }
 
 int __quantum__qis__measure_basis(void *qubit, char basis)
@@ -796,6 +869,11 @@ namespace qhal
                 llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
             HostApiMap[Mangle("qk_cgfx_triangle_a")] = llvm::orc::ExecutorSymbolDef(
                 llvm::orc::ExecutorAddr::fromPtr(&qk_cgfx_triangle_a),
+                llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+
+            // --- 多维标签函数执行拓扑（@layer）调度入口 ---
+            HostApiMap[Mangle("quark_runtime_run_topology")] = llvm::orc::ExecutorSymbolDef(
+                llvm::orc::ExecutorAddr::fromPtr(&quark_runtime_run_topology),
                 llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
 
 

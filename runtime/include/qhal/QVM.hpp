@@ -820,6 +820,101 @@ namespace qhal
             apply_two_qubit_gate_dense(a, b, R);
         }
 
+        // ─── 噪声通道注入（@[noise]/@[coherence] 物理特性 → 运行时）──────────
+        // channel: 0=depolarizing, 1=dephasing(phase_flip), 2=amplitude_damping, 3=bit_flip
+        void apply_noise(size_t qubit_id, int channel, double param) override
+        {
+            check_lock(qubit_id);
+            // 噪声通道作用于态矢量：物化到 Dense_StateVector
+            if (active_policy != BackendExecutionPolicy::Dense_StateVector)
+            {
+                size_t total = 1ULL << num_qubits;
+                for (size_t i = 0; i < total; ++i)
+                    dense_state[i] = peek_state(i);
+                active_policy = BackendExecutionPolicy::Dense_StateVector;
+            }
+
+            const size_t mask = 1ULL << qubit_id;
+            switch (channel)
+            {
+                case 0: // depolarizing：以 3p/4 施加 X/Y/Z 之一（Y ≈ Z·X，到相位）
+                {
+                    std::uniform_real_distribution<double> d(0.0, 1.0);
+                    double r = d(rng);
+                    double px = param / 4.0;
+                    if (r < px) apply_x(qubit_id);
+                    else if (r < 2 * px) { apply_z(qubit_id); apply_x(qubit_id); }
+                    else if (r < 3 * px) apply_z(qubit_id);
+                    break;
+                }
+                case 1: // dephasing（phase flip）：以概率 p 施加 Z
+                {
+                    std::bernoulli_distribution d(param);
+                    if (d(rng)) apply_z(qubit_id);
+                    break;
+                }
+                case 2: // amplitude damping（T1 弛豫，Kraus K0/K1）
+                {
+                    amplitude_damping_dense(qubit_id, param, mask);
+                    break;
+                }
+                case 3: // bit flip：以概率 p 施加 X
+                {
+                    std::bernoulli_distribution d(param);
+                    if (d(rng)) apply_x(qubit_id);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        // 振幅阻尼（Kraus K0/K1），直接作用于 dense_state 的 target 位。
+        // 参考 IdealStateCore::apply_amplitude_damping 的坍缩语义。
+        void amplitude_damping_dense(size_t target, double gamma, size_t mask)
+        {
+            double p1 = 0.0;
+            for (size_t i = 0; i < dense_state.size(); ++i)
+                if (i & mask)
+                    p1 += std::norm(dense_state[i]);
+
+            std::bernoulli_distribution d(gamma * p1);
+            if (d(rng))
+            {
+                // K1 = √γ |0⟩⟨1|：|1⟩ 分量跃迁到 |0⟩，再归一化
+                for (size_t i = 0; i < dense_state.size(); ++i)
+                {
+                    if (i & mask)
+                    {
+                        dense_state[i ^ mask] = dense_state[i];
+                        dense_state[i] = std::complex<double>(0.0, 0.0);
+                    }
+                }
+                if (p1 > 0.0)
+                {
+                    double n = 1.0 / std::sqrt(p1);
+                    for (size_t i = 0; i < dense_state.size(); ++i)
+                        dense_state[i] *= n;
+                }
+            }
+            else
+            {
+                // K0 = |0⟩⟨0| + √(1-γ)|1⟩⟨1|
+                double denom = std::sqrt(1.0 - gamma * p1);
+                if (denom <= 0.0)
+                    return;
+                double s = std::sqrt(1.0 - gamma) / denom;
+                double s0 = 1.0 / denom;
+                for (size_t i = 0; i < dense_state.size(); ++i)
+                {
+                    if (i & mask)
+                        dense_state[i] *= s;
+                    else
+                        dense_state[i] *= s0;
+                }
+            }
+        }
+
         // 任意基构建：把 |0⟩ 旋转到布洛赫方向 (θ, φ) 的 + 本征态
         //   |b₀⟩ = cos(θ/2)|0⟩ + e^{iφ} sin(θ/2)|1⟩
         // 用精确的 2×2 酉矩阵（不经过门分解，避免累积相位误差）。

@@ -72,3 +72,41 @@ test('mir: all blocks terminated (well-formed CFG)', () => {
         assert.notStrictEqual(b.terminator, null, `block ${b.id} must have a terminator`);
     }
 });
+
+// ─── 代码生成用 MIR 补全验证 ──────────────────────────────────────
+test('mir: fuse lowers to SwitchInt control flow (not opaque Call "fuse")', () => {
+    const body = build(
+        'int32 quark_main() { int32 x = 2; int32 r = fuse (x) { 1: 10, 2: 20, _: 30, }; return r; }');
+    assert.ok(count(body, 'SwitchInt') >= 1, 'fuse produces SwitchInt');
+    // 不得再出现 "fuse" 占位调用
+    const hasFuseCall = body.blocks.some(b =>
+        b.statements.some(s => s.kind === 'Assign' && s.rvalue.kind === 'Call' && s.rvalue.target === 'fuse'));
+    assert.strictEqual(hasFuseCall, false, 'no opaque fuse call remains');
+});
+
+test('mir: builtin call retTy is precise (qchain_balance -> uint64)', () => {
+    const body = build('int32 quark_main() { uint64 b = qchain_balance("a"); return 0; }');
+    const call = body.blocks.flatMap(b => b.statements)
+        .find(s => s.kind === 'Assign' && s.rvalue.kind === 'Call' && s.rvalue.target === 'qchain_balance');
+    assert.ok(call, 'qchain_balance call exists');
+    assert.strictEqual((call as any).rvalue.retTy, 'uint64', 'retTy is uint64, not int32');
+});
+
+test('mir: user function call retTy is precise', () => {
+    const parser = new Parser(new Lexer(
+        'double foo() { return 1.5; } ' +
+        'int32 quark_main() { double x = foo(); return 0; }'));
+    const prog = buildMir(parser.parse());
+    const body = prog.bodies.find(b => b.owner === 'quark_main')!;
+    const call = body.blocks.flatMap(b => b.statements)
+        .find(s => s.kind === 'Assign' && s.rvalue.kind === 'Call' && s.rvalue.target === 'foo');
+    assert.ok(call, 'foo call exists');
+    assert.strictEqual((call as any).rvalue.retTy, 'double', 'retTy is double from user signature');
+});
+
+test('mir: lattice index lowers to precise qk_lattice_ref', () => {
+    const body = build('int32 quark_main() { auto b = new lattice<int32, open>(4); int32 v = b[0]; return v; }');
+    const call = body.blocks.flatMap(b => b.statements)
+        .find(s => s.kind === 'Assign' && s.rvalue.kind === 'Call' && s.rvalue.target === 'qk_lattice_ref');
+    assert.ok(call, 'qk_lattice_ref call exists');
+});

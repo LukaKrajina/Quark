@@ -353,6 +353,15 @@ export function collectModuleInfo(ast: Program): { exports: MMIExport[]; permiss
         }
     }
 
+    // 多维标签函数：若存在 @layer 块，把拓扑入口 qk_topology_entry 加入导出表，
+    // 使 .mmi 加载器可经 invoke("qk_topology_entry") 触发多维拓扑调度。
+    const hasLayerFns = ast.body.some(
+        n => (n as any).type === 'FunctionDeclaration' && (n as any).layer
+    );
+    if (hasLayerFns) {
+        exports.push({ name: 'qk_topology_entry', params: [], ret: 'i32' });
+    }
+
     return { exports, permissions, imports };
 }
 

@@ -55,6 +55,71 @@ namespace qhal
             apply_cnot(a, b);
         }
 
+        // ─── 受控门（可逆编织 @[steer] 的运行时实现，用基础门分解到全局相位）───
+        // 受控 Rz：CRz(θ) = Rz(θ/2)[t] · CNOT(c,t) · Rz(-θ/2)[t] · CNOT(c,t)
+        virtual void apply_crz(size_t control, size_t target, double angle)
+        {
+            apply_rz(target, angle / 2.0);
+            apply_cnot(control, target);
+            apply_rz(target, -angle / 2.0);
+            apply_cnot(control, target);
+        }
+        // 受控 H：H = Rz(π/2)·Rx(π/2)·Rz(π/2)，CH = CRz(π/2)·(H·CRz(π/2)·H)·CRz(π/2)
+        virtual void apply_ch(size_t control, size_t target)
+        {
+            apply_crz(control, target, M_PI / 2.0);
+            apply_h(target);
+            apply_crz(control, target, M_PI / 2.0);
+            apply_h(target);
+            apply_crz(control, target, M_PI / 2.0);
+        }
+        // 受控 X（控制位导引 X）= CNOT；受控 CNOT = Toffoli
+        virtual void apply_cx(size_t control, size_t target)
+        {
+            apply_cnot(control, target);
+        }
+        // 受控 swap（Fredkin）：CSWAP = CNOT(b,a) · Toffoli(c,a,b) · CNOT(b,a)
+        virtual void apply_cswap(size_t control, size_t a, size_t b)
+        {
+            if (a == b)
+                return;
+            apply_cnot(b, a);
+            apply_toffoli(control, a, b);
+            apply_cnot(b, a);
+        }
+        // 受控 Toffoli（C³X）：无 ancilla 分解（Qiskit C3XGate 相对相位版本）。
+        // c 为额外控制位，a/b 为原 Toffoli 控制位，t 为目标。
+        virtual void apply_c_toffoli(size_t c, size_t a, size_t b, size_t t)
+        {
+            apply_h(t);
+            apply_rz(t, M_PI / 8.0);
+            apply_cnot(c, t);
+            apply_rz(t, -M_PI / 8.0);
+            apply_h(t);
+            apply_toffoli(a, b, t);
+            apply_rz(t, -M_PI / 8.0);
+            apply_cnot(c, t);
+            apply_rz(t, M_PI / 8.0);
+            apply_h(t);
+            apply_toffoli(a, b, t);
+            apply_rz(t, M_PI / 8.0);
+            apply_cnot(c, t);
+            apply_rz(t, -M_PI / 8.0);
+            apply_h(t);
+            apply_toffoli(a, b, t);
+        }
+
+        // ─── 噪声通道注入（@[noise]/@[coherence] 元数据 → 运行时）──────────
+        // channel: 0=depolarizing, 1=dephasing(phase_flip), 2=amplitude_damping, 3=bit_flip
+        // param：噪声强度（depolarizing/dephasing/bit_flip 为概率 p，amplitude_damping 为 γ）。
+        // 默认空实现；维护态矢量的后端（QVM 等）应重写为对应的噪声通道。
+        virtual void apply_noise(size_t qubit_id, int channel, double param)
+        {
+            (void)qubit_id;
+            (void)channel;
+            (void)param;
+        }
+
         virtual void apply_qft(size_t lo, size_t hi)
         {
             for (int i = static_cast<int>(hi); i >= static_cast<int>(lo); --i)
@@ -67,6 +132,43 @@ namespace qhal
                     apply_cnot(static_cast<size_t>(i), static_cast<size_t>(j));
                     apply_rz(static_cast<size_t>(j), -theta / 2.0);
                     apply_cnot(static_cast<size_t>(i), static_cast<size_t>(j));
+                }
+            }
+        }
+
+        // 逆 QFT（iQFT）：QFT 的门序反转 + 角度取负（可逆对偶 U†）。
+        virtual void apply_iqft(size_t lo, size_t hi)
+        {
+            for (int i = static_cast<int>(lo); i <= static_cast<int>(hi); ++i)
+            {
+                for (int j = i - 1; j >= static_cast<int>(lo); --j)
+                {
+                    double theta = 2.0 * M_PI / std::pow(2.0, i - j + 1);
+                    // CRz†(i, j, θ) = CNOT(i,j)·Rz(j,θ/2)·CNOT(i,j)·Rz(j,-θ/2)
+                    apply_cnot(static_cast<size_t>(i), static_cast<size_t>(j));
+                    apply_rz(static_cast<size_t>(j), theta / 2.0);
+                    apply_cnot(static_cast<size_t>(i), static_cast<size_t>(j));
+                    apply_rz(static_cast<size_t>(j), -theta / 2.0);
+                }
+                apply_h(static_cast<size_t>(i));
+            }
+        }
+
+        // 受控 QFT（cqft）：整个 QFT 受 control 导引。
+        //   H(i) → ch(control, i)
+        //   CRz(i,j,θ) → ccrz(control,i,j,θ) = Rz(j,θ/2)·Toffoli(control,i,j)·Rz(j,-θ/2)·Toffoli(control,i,j)
+        virtual void apply_cqft(size_t control, size_t lo, size_t hi)
+        {
+            for (int i = static_cast<int>(hi); i >= static_cast<int>(lo); --i)
+            {
+                apply_ch(control, static_cast<size_t>(i));
+                for (int j = static_cast<int>(lo); j < i; ++j)
+                {
+                    double theta = 2.0 * M_PI / std::pow(2.0, i - j + 1);
+                    apply_rz(static_cast<size_t>(j), theta / 2.0);
+                    apply_toffoli(control, static_cast<size_t>(i), static_cast<size_t>(j));
+                    apply_rz(static_cast<size_t>(j), -theta / 2.0);
+                    apply_toffoli(control, static_cast<size_t>(i), static_cast<size_t>(j));
                 }
             }
         }
@@ -104,6 +206,13 @@ namespace qhal
         virtual void apply_braid(size_t a, size_t b)
         {
             apply_swap(a, b);
+        }
+
+        // 受控 braid（c_braid）：默认 = 受控 swap（Fredkin），与 braid 默认 = swap 一致。
+        // 维护精确 Yang-Baxter √SWAP 的后端（如 QVM）应重写为受控 √SWAP。
+        virtual void apply_cbraid(size_t control, size_t a, size_t b)
+        {
+            apply_cswap(control, a, b);
         }
 
         // 读取当前态向量（计算基振幅）与量子比特数。

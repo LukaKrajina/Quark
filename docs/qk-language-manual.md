@@ -35,14 +35,17 @@
 qk 的编译管线为：
 
 ```
-Lexer（词法）→ Parser（语法）→ SemanticAnalyzer（语义）→ MIR lowering（中间表示）
-    → BorrowChecker（借用检查 + 量子线性类型 QLT）→ Q-Digest（静态竞争检测）
-    → IRGenerator（LLVM IR）→ TCP Daemon（:50052）→ LLVM ORC JIT → 硬件探测
-    → QM（真实量子机）/ QVM（本地模拟器）
+Lexer（词法）→ Parser（语法）→ SemanticAnalyzer（语义）
+    → 门合成 gate-synth（@[undo]/@[steer] 可逆编织 → <name>_undo/_steer）
+    → TopologyBuilder（@layer 拓扑聚合 + 平行/叠加推导 + 调用传播延迟）
+    → MIR lowering（中间表示）→ BorrowChecker（借用检查 + 量子线性类型 QLT）
+    → Q-Digest（静态竞争检测）→ IRGenerator（LLVM IR）
+    → TCP Daemon（:50052）→ LLVM ORC JIT → TopoScheduler（分层拓扑调度）
+    → 硬件探测 → QM（真实量子机）/ QVM（本地模拟器）
 ```
 
 - 源文件扩展名：`.qk`
-- 入口函数：`quark_main`（无显式函数时，顶层语句会隐式包裹进 `quark_main`）
+- 入口函数：多维标签函数 `@layer(time, thread, coord)`（无单一 `main`；脚本模式下顶层语句仍隐式包裹进 `quark_main`）
 - 类型系统：静态类型 + `let`/`auto` 局部类型推导
 - 量子语义：静态强制「不可克隆定理」「测量后坍缩」等量子约束（量子线性类型 QLT）
 - 所有权：借用检查，杜绝借用冲突与悬垂借用
@@ -54,7 +57,8 @@ Lexer（词法）→ Parser（语法）→ SemanticAnalyzer（语义）→ MIR l
 
 ```qk
 // hello.qk
-int32 quark_main() {
+@layer(time=0, thread=0, coord=(0))
+int32 main() {
     int32 x = 42;
     int32 y = x + 8;
     return y;                     // 返回 50
@@ -66,7 +70,7 @@ qk run hello.qk        # 运行脚本
 qk ir  hello.qk        # 仅输出 LLVM IR
 ```
 
-任何没有显式函数定义的顶层脚本也可运行（隐式包裹为 `quark_main`）：
+任何没有显式函数定义的顶层脚本也可运行（脚本模式，隐式包裹为 `quark_main`）：
 
 ```qk
 let q = alloc();
@@ -309,23 +313,61 @@ spin {
 
 ## 8. 函数
 
-### 8.1 入口函数
+### 8.1 多维标签函数（入口）
 
-每个显式定义函数的程序需要 `quark_main`：
+qk 没有单一的 `main` 入口，而是用**多维标签函数**（`@layer`）声明可调度单元。每个显式函数必须
+携带 `@layer(time, thread, coord)` 标签，写在函数上一行：
 
 ```qk
-int32 quark_main() {
+@layer(time=0, thread=0, coord=(0,0))
+int32 main() {
     return 0;
 }
+```
+
+三个维度的语义：
+
+| 字段 | 必填 | 含义 |
+| --- | --- | --- |
+| `time` | 根块必填，子函数可省略 | 锚点时间：块在其 `coord` 时序链上的启动槽位；省略则继承调用者时钟 + Δt |
+| `thread` | 必填 | 逻辑线程 id：同线程串行、异线程可并行 |
+| `coord` | 必填 | N 维运行层坐标：块在多维拓扑空间的初始位置 |
+| `cost` | 可选（默认 1） | 块自身的执行成本，影响父块逻辑时钟推进 |
+| `deadline` | 可选 | 时间束缚上限 |
+
+块间关系从标签**自动推导**：
+
+```text
+coord 相同  → 叠加（stack），按 time 组成时序链
+coord 不同  → 平行（parallel），空间并置
+thread 不同 → 可并行
+```
+
+块内**调用传播延迟**（逻辑时钟模型）：子函数的执行时刻 = 父函数锚点 `time` + 调用点之前的累计延迟
+Δt（Δt = 前面语句的执行成本 δ 与前置子函数 `cost` 之和）。这对应量子电路的门时序与传播延迟。
+
+多个标签函数构成一张执行拓扑，运行时按 `time` 分层、同层按 `thread` 并行调度：
+
+```qk
+@layer(time=0, thread=0, coord=(0,0))
+int32 producer() { return 42; }
+
+@layer(time=0, thread=1, coord=(0,1))   // 与 producer 同 time、异 coord → 平行
+int32 observer() { return 7; }
+
+@layer(time=1, thread=0, coord=(0,0))   // 与 producer 同 coord、time+1 → 叠加
+int32 consumer() { return 0; }
 ```
 
 ### 8.2 函数声明
 
 ```qk
+@layer(time=0, thread=0, coord=(0))
 int32 add(int32 a, int32 b) {
     return a + b;
 }
 
+@layer(time=0, thread=0, coord=(1))
 void do_nothing() {
     return;
 }
@@ -341,24 +383,26 @@ let twice = fn(int32 x) -> int32 {
 };
 ```
 
-函数类型的返回类型签名形如 `(params)->ret`，可通过变量间接调用。
+函数类型的返回类型签名形如 `(params)->ret`，可通过变量间接调用。lambda body 的量子操作
+纳入借用检查（QLT 线性类型覆盖闭包内的 qubit 操作）。
 
 ### 8.4 方法接收者
 
 `form`/`impl` 的方法可通过 `self` 或 `&self` 作为接收者（见 [第 14 节](#14-类型定义form--trait--impl--template)）。
 
-### 8.5 函数属性
+### 8.5 函数属性（系统级 `@[...]` 与调度标签 `@layer`）
 
-函数可携带系统级属性，形如 `@[name]` 或 `@[name("value")]`，作用于其后的函数声明：
+函数可携带系统级属性 `@[name]` / `@[name("value")]`，与调度标签 `@layer(...)` 正交并存：
+`@[...]` 控制段放置/裸函数等系统语义，`@layer(...)` 控制多维拓扑调度语义，二者可混排：
 
 ```qk
-@[section(".text.boot")] @[naked] @[no_gc]
-int32 quark_main() {
+@layer(time=0, thread=0, coord=(0)) @[section(".text.boot")] @[naked] @[no_gc]
+int32 main() {
     return 0;
 }
 ```
 
-常用属性：`section`/`place`（段放置）、`naked`/`raw`（裸函数，无栈帧）、`no_gc`（禁用 GC）。
+常用系统属性：`section`/`place`（段放置）、`naked`/`raw`（裸函数，无栈帧）、`no_gc`（禁用 GC）。
 
 ### 8.6 堆分配构造（make）
 
@@ -424,6 +468,20 @@ int32 r = measure(q);   // 测量并坍缩，返回 0/1
 | `swap` | `swap(Qubit, Qubit)` | 交换 |
 | `qft` | `qft(int)` | 量子傅里叶变换（比特数） |
 | `braid` | `braid(Qubit, Qubit)` | 编织（Yang-Baxter） |
+
+**受控门**（由 `@[steer]` 可逆编织自动合成，也可直接调用）：
+
+| 门 | 签名 | 说明 |
+| --- | --- | --- |
+| `cx` | `cx(Qubit, Qubit)` | 受控 X（= CNOT） |
+| `ch` | `ch(Qubit, Qubit)` | 受控 Hadamard |
+| `crz` | `crz(Qubit, Qubit, double)` | 受控 Rz |
+| `cswap` | `cswap(Qubit, Qubit, Qubit)` | 受控 SWAP（Fredkin） |
+| `c_toffoli` | `c_toffoli(Qubit, Qubit, Qubit, Qubit)` | 受控 Toffoli（C³X） |
+| `cqft` | `cqft(Qubit, int)` | 受控 QFT（控制位 + 比特数） |
+| `cbraid` | `cbraid(Qubit, Qubit, Qubit)` | 受控编织（Yang-Baxter） |
+
+逆 QFT：`iqft(int)`（`qft` 的可逆对偶，门序反转 + 角度取负）。
 
 > 门操作在语句位置被识别为函数调用；在表达式位置（如 `x * x`）则识别为普通标识符。
 
@@ -652,6 +710,10 @@ form Point {
 }
 ```
 
+字段访问（`p.x` / `p.y`）经 `getelementptr` 编译为结构字段加载；结构布局为
+`{ i8* vtable, 字段... }`（字段索引从 1 起）。MIR 携带 form 定义（`forms`），
+下沉路径（`--mir`）据此重建结构类型并生成精确 `getelementptr`。
+
 ### 14.2 trait 与 impl
 
 ```qk
@@ -726,6 +788,7 @@ qk 面向「量子机器人 + 裸机内核」，提供系统级构造：能力�
 ### 15.1 unsafe 块
 
 ```qk
+@layer(time=0, thread=0, coord=(0))
 int32 quark_main() {
     unsafe {
         // 危险操作：裸指针解引用 / MMIO / 内联汇编
@@ -786,14 +849,58 @@ unsafe {
 }
 ```
 
-### 15.7 函数属性
+### 15.7 函数属性（三类标签）
+
+函数上一行可标注三类正交标签：经典编译属性、量子门属性、量子物理特性。
+
+**经典编译属性**（映射到 LLVM 函数属性）：
 
 ```qk
-@[section(".text.boot")] @[naked]
-int32 quark_main() {
-    return 0;
-}
+@layer(time=0, thread=0, coord=(0))
+@[inline] @[pure] @[cold] @[export] @[noreturn]
+int32 quark_main() { return 0; }
 ```
+
+| 标签 | 语义 | LLVM |
+| --- | --- | --- |
+| `@[inline]` / `@[noinline]` | 强制 / 禁止内联 | `alwaysinline` / `noinline` |
+| `@[pure]` / `@[readonly]` | 无副作用 / 只读 | `readnone` / `readonly` |
+| `@[cold]` / `@[hot]` | 冷 / 热路径提示 | `cold` / `hot` |
+| `@[noreturn]` | 不返回 | `noreturn` |
+| `@[export]` | 导出符号 | `dllexport` |
+| `@[section("...")]` / `@[naked]` | 段放置 / 裸函数 | `section` / `naked` |
+
+**量子门属性**（可逆编织 Reversible Weaving 范式）：
+
+```qk
+@[gate] @[undo] @[steer]
+void U(Qubit q) { h(q); rz(q, 0.5); }
+```
+
+| 标签 | 语义 | 自动合成 |
+| --- | --- | --- |
+| `@[gate]` | 标记为可组合门单元 | — |
+| `@[undo]` | 合成可逆对偶 `U†`（门序反转 + 逐门取逆） | `<name>_undo` |
+| `@[steer]` | 合成相干控制版本 `Λ(U)`（控制位导引目标门） | `<name>_steer` |
+| `@[unitary]` | 酉性验证（无测量 / 无经典分支依赖） | — |
+| `@[measure]` | 标记测量点（消费 Qubit） | — |
+
+`@[undo]` 相干控制（coherent control）与 ZX-calculus 图式受控，而非「加一个控制位」。
+
+**量子物理特性**（为 QVM / QM 模拟提供约束元数据）：
+
+```qk
+@[coherence(100, 50)] @[noise("depolarizing")] @[basis("X")] @[decoherence_free]
+void f(Qubit q) { h(q); }
+```
+
+| 标签 | 语义 |
+| --- | --- |
+| `@[coherence(t1, t2)]` | 相干时间（T1 弛豫 / T2 退相，单位 μs；须满足 `0 < T2 ≤ T1`） |
+| `@[noise("model")]` | 噪声模型（`depolarizing` / `amplitude_damping` / `phase_damping` / `bit_flip`） |
+| `@[basis(X\|Y\|Z)]` | 指定测量基 |
+| `@[decoherence_free]` | 无退相干子空间（DFS） |
+| `@[error_correction("surface")]` | 纠错码 |
 
 ### 15.8 QCOS 可启动内核
 
@@ -834,10 +941,17 @@ qk 用 `spawn` 派生并发线程、`entangle` 声明量子纠缠，二者为 Q-
 
 ```qk
 spawn {
-    // 并发执行体，闭包继承外层作用域
-    // 是竞争检测的"线程"单元
+    // 并发执行体，是竞争检测的"线程"单元
+    // 编译为独立线程函数 @qk_thread_N，经 qk_spawn 内建以 std::thread 启动
+    Qubit q = alloc();
+    h(q);
+    int32 r = measure(q);
 }
 ```
+
+`spawn` 块编译为独立线程函数 `@qk_thread_N`，经 `qk_spawn` 内建以 `std::thread` 启动（detach），
+实现**真实并发**（不再是串行内联降级）。线程函数支持**闭包捕获**外层局部变量——外层变量经
+env 闭包结构传递（复用 lambda 的闭包机制）。
 
 ### 16.2 entangle
 
@@ -923,6 +1037,13 @@ qk_sys_call qk_sys_calld qk_sys_log qk_sys_logi qk_sys_callp
 qk_qms_gap qk_mix_bound qk_qms_conc
 // 量子化命名范式与并发
 route path fallback spin spawn entangle
+// 标签（多维拓扑 + 可逆编织 + 物理特性 + 经典属性）
+layer gate undo steer unitary measure
+coherence noise basis decoherence_free error_correction
+inline noinline pure readonly cold hot noreturn
+section naked place raw export
+// 受控门
+cx ch crz cswap c_toffoli cqft cbraid
 ```
 
 ### 19.2 常见错误类型
@@ -939,6 +1060,9 @@ route path fallback spin spawn entangle
 | `Impl Error` | 未实现 trait 方法 / trait 不存在 |
 | `Contract Error` | `requires` / `ensures` / `invariant` 类型非布尔 |
 | `Ambiguity Warning` | 门名与变量名冲突 |
+| `Topology Error` | `E-TOP001` 显式函数缺 `@layer` / `E-TOP002` 坐标维度不一致 / `E-TOP003` 坐标占用 / `E-TOP005` 叠加链空槽 / `E-TOP006` 传播延迟超 deadline |
+| `Quantum Attr Error` | `E-QUNI` `@[unitary]`/`@[gate]` 函数含测量（不可逆）/ `E-QSYN` `@[undo]`/`@[steer]` 缺 `@[gate]`/`@[unitary]` 前提 |
+| `Physical Error` | `E-PHY` `@[coherence]` 违反 `0 < T2 ≤ T1` / `@[noise]` 未知噪声模型 |
 
 ---
 

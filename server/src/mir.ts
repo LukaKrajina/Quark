@@ -58,7 +58,7 @@ export type MirRvalue =
     | { kind: 'Unary'; op: string; arg: MirOperand; ty: string }
     | { kind: 'Call'; target: string; args: MirOperand[]; retTy: string | null }
     | { kind: 'NewObject'; className: string; args: MirOperand[]; ty: string }
-    | { kind: 'Member'; object: MirOperand; property: string; ty: string }
+    | { kind: 'Member'; object: MirOperand; property: string; ty: string; fieldIndex?: number; fieldType?: string }
     /** 量子：分配一个 Qubit */
     | { kind: 'QAlloc'; ty: string }
     /** 量子：施加门（借用 &mut Qubit） */
@@ -120,10 +120,14 @@ export interface MirBody {
     /** 参数对应的局部变量（按顺序） */
     params: LocalId[];
     returnTy: string | null;
+    /** @layer 拓扑标签（time/thread/coord），下沉路径据此生成调度表与拓扑入口 */
+    layer?: { time?: number; thread: number; coord: number[] };
 }
 
 export interface MirProgram {
     bodies: MirBody[];
+    /** form 定义（名 → 字段列表），下沉路径据此建立结构类型（getelementptr） */
+    forms?: { name: string; fields: { name: string; ty: string }[] }[];
 }
 
 // ============================================================================
@@ -153,15 +157,80 @@ const LINEAR_TYPES = new Set<string>(['Qubit', 'QObject']);
 
 /** 量子门：在语句位置由 parser 识别为普通函数调用，此处还原为 QGate */
 const GATE_FNS = new Set<string>([
-    'x', 'h', 'rz', 'cnot', 'toffoli', 'swap', 'qft', 'braid',
+    'x', 'h', 'rz', 'cnot', 'toffoli', 'swap', 'qft', 'iqft', 'braid',
+    // 受控门（可逆编织 @[steer] 生成）：同样借用参数（控制位 + 目标位），不消费
+    'cx', 'ch', 'crz', 'cswap', 'c_toffoli', 'cqft', 'cbraid',
 ]);
 
 /** 测量：消费 Qubit */
 const MEASURE_FNS = new Set<string>(['measure', 'measure_x', 'measure_y']);
 
-/** 从常量表达式提取整数值（RouteStatement 的 SwitchInt 用） */
+/**
+ * 内建函数返回类型表（代码生成用 MIR 需要精确 retTy，供下沉到 LLVM 时映射）。
+ * 与 semantic.ts 的内建签名、ir.ts 的 declare 保持一致。
+ */
+const BUILTIN_RET_TY: Record<string, string> = {
+    // 量子核心
+    'basis_state': 'QObject',
+    'encode_text': 'QObject', 'encode_image': 'QObject',
+    'qk_encode_string': 'QObject', 'qk_decode_string': 'string',
+    'qlm_invoke': 'QModel', 'qlm_load': 'QModel', 'qlm_forward': 'void',
+    // 脑机接口
+    'mind_read': 'QObject', 'mind_train': 'void', 'mind_feedback': 'void',
+    'veda_qlm_train': 'void',
+    // 神经 / 软逻辑原语
+    'surrogate': 'double', 'tanh_quantize': 'double', 'lif_step': 'double',
+    'mellowmax2': 'double', 'logsumexp2': 'double', 'boltzmann2': 'double',
+    'tnorm_luk': 'double', 'tnorm_prod': 'double', 'tnorm_godel': 'double',
+    'polymer_weight': 'double', 'polymer_mix_bound': 'double',
+    // QCOS syscall
+    'qk_sys_call': 'int32', 'qk_sys_calld': 'double',
+    'qk_sys_log': 'void', 'qk_sys_logi': 'int32', 'qk_sys_callp': 'cap<uint8>',
+    'qk_gc_alloc': 'cap<int32>', 'qk_gc_free': 'void',
+    // QMS 数值内核
+    'qk_qms_gap': 'double', 'qk_mix_bound': 'double', 'qk_qms_conc': 'double',
+    // 系统级原子 / 端口 / 地址
+    'sync_load': 'int32', 'sync_add': 'int32', 'sync_cas': 'int32',
+    'sync_store': 'void', 'outb': 'void', 'inb': 'int32', 'addr': 'int32',
+    // QChain 量子区块链
+    'qchain_wallet': 'string', 'qchain_mint': 'void', 'qchain_transfer': 'int32',
+    'qchain_balance': 'uint64', 'qchain_mine': 'int32', 'qchain_height': 'int32',
+    'qchain_verify': 'int32', 'qchain_qkd': 'string', 'qchain_qdba': 'int32',
+    'qchain_coin_mint': 'QObject', 'qchain_coin_verify': 'int32',
+    'qchain_sha3': 'string', 'qchain_hmac': 'string', 'qchain_hash_unicode': 'string',
+    'qchain_sign': 'string', 'qchain_sign_verify': 'int32', 'qchain_sign_pubkey': 'string',
+    'qchain_mlkem_encaps': 'string', 'qchain_mlkem_decaps': 'string',
+    'qchain_causal_verify': 'int32',
+    'qchain_cipher_encrypt': 'string', 'qchain_cipher_decrypt': 'string',
+    // QRC 量子储备池
+    'qrc_new': 'QReservoir', 'qrc_train': 'void', 'qrc_release': 'void',
+    'qrc_probe': 'QObject', 'qrc_predict': 'QObject',
+    // 经典 GUI / 图形引擎
+    'cgui_init': 'int32', 'cgui_should_close': 'int32', 'cgui_button': 'int32',
+    'cgui_mouse_x': 'int32', 'cgui_mouse_y': 'int32',
+    'cgui_mouse_left_clicked': 'int32', 'cgui_width': 'int32', 'cgui_height': 'int32',
+    'cgui_begin_frame': 'void', 'cgui_end_frame': 'void', 'cgui_text': 'void',
+    'cgui_text_int': 'void', 'cgui_beep': 'void', 'cgui_panel': 'void',
+    'cgui_panel_end': 'void', 'cgui_row': 'void',
+    'cgfx_rect': 'void', 'cgfx_line': 'void', 'cgfx_ellipse': 'void',
+    'cgfx_triangle': 'void', 'cgfx_rect_a': 'void', 'cgfx_line_a': 'void',
+    'cgfx_ellipse_a': 'void', 'cgfx_triangle_a': 'void',
+    // 晶格内省
+    'lattice_rank': 'int32', 'lattice_size': 'int32', 'lattice_boundary': 'int32',
+    // 晶格访问（代码生成精确内建名，对应 ir.ts 的 qk_lattice_*）
+    'qk_lattice_ref': 'int32',
+};
+
+/** 成员方法返回类型表（QObject.measure / QModel.export 等） */
+const METHOD_RET_TY: Record<string, string> = {
+    'measure': 'int32',
+    'export': 'void',
+};
+
+/** 从常量表达式提取整数值（RouteStatement / FuseExpression 的 SwitchInt 用） */
 function constInt(expr: Expression): number {
     if (expr.type === 'NumberLiteral') return expr.value;
+    if (expr.type === 'CharLiteral') return expr.value.charCodeAt(0);
     return 0;
 }
 
@@ -173,6 +242,14 @@ export class MirBuilder {
     private varEnv = new Map<string, LocalId>();
     private loopStack: Array<{ breakTo: BlockId; continueTo: BlockId }> = [];
     private owner: string;
+    /** 用户函数返回类型（代码生成用 MIR 需要精确 retTy） */
+    private userFuncRet: Map<string, string> = new Map();
+    /** @[gate] 自定义量子门函数名（lowerCall 时按门识别：借用参数、落到 void 槽） */
+    private userGateFns: Set<string> = new Set();
+    /** @[measure] 自定义测量函数名（lowerCall 时按测量识别：消费 Qubit） */
+    private userMeasureFns: Set<string> = new Set();
+    /** form 定义（名 → 字段列表），Member 字段访问据此查字段索引/类型 */
+    private formFields: Map<string, { name: string; ty: string }[]> = new Map();
 
     constructor(owner: string = 'quark_main') {
         this.owner = owner;
@@ -291,11 +368,33 @@ export class MirBuilder {
             }
 
             case 'FuseExpression': {
-                // 融合表达式落到一个临时值；借用检查不深入其分支
-                const p = this.materialize(
-                    { kind: 'Call', target: 'fuse', args: [], retTy: 'int32' },
-                    'int32', expr.line, expr.column);
-                return { kind: 'Copy', place: p };
+                // fuse (x) { v1: e1, ..., _: ef } 降为 SwitchInt 控制流（代码生成用精确降级）。
+                // 判别值路由到匹配 arm，求值后 Goto 汇合；通配 `_`（pattern==null）作 default。
+                const result = this.newLocal(null, 'int32', true, true, expr.line, expr.column);
+                const disc = this.lowerExpression(expr.discriminant);
+
+                const armBlocks = expr.arms.map(() => this.newBlock());
+                const afterBlock = this.newBlock();
+
+                const targets = expr.arms.map((arm, i) => ({
+                    value: arm.pattern ? constInt(arm.pattern) : null,
+                    target: armBlocks[i],
+                }));
+                this.terminate({ kind: 'SwitchInt', discriminant: disc, targets });
+
+                expr.arms.forEach((arm, i) => {
+                    this.enterBlock(armBlocks[i]);
+                    const v = this.lowerExpression(arm.value);
+                    this.push({
+                        kind: 'Assign',
+                        place: this.place(result),
+                        rvalue: { kind: 'Use', operand: v },
+                    });
+                    this.terminate({ kind: 'Goto', target: afterBlock });
+                });
+
+                this.enterBlock(afterBlock);
+                return { kind: 'Copy', place: this.place(result) };
             }
 
             case 'NativeExpression': {
@@ -394,22 +493,52 @@ export class MirBuilder {
             case 'MemberExpression': {
                 const object = this.lowerExpression(expr.object);
                 if (expr.isMethodCall) {
-                    // 成员方法调用：降级为以其属性名为目标的调用
+                    // 成员方法调用：降级为以其属性名为目标的调用，retTy 由方法签名表推导
                     const args = (expr.arguments ?? []).map(a => this.lowerExpression(a));
+                    const retTy = METHOD_RET_TY[expr.property] ?? 'int32';
                     const p = this.materialize(
-                        { kind: 'Call', target: expr.property, args, retTy: 'int32' },
-                        'int32', expr.line, expr.column);
+                        { kind: 'Call', target: expr.property, args, retTy }, retTy, expr.line, expr.column);
                     return { kind: 'Copy', place: p };
                 }
+                // 查字段索引/类型（对象为 form 时），下沉路径据此生成 getelementptr
+                let fieldIndex: number | undefined;
+                let fieldType: string | undefined;
+                if (expr.object.type === 'Identifier') {
+                    const id = this.varEnv.get(expr.object.name);
+                    if (id !== undefined && id < this.locals.length) {
+                        const fields = this.formFields.get(this.locals[id].ty);
+                        if (fields) {
+                            const idx = fields.findIndex(f => f.name === expr.property);
+                            if (idx >= 0) {
+                                fieldIndex = idx + 1; // field 0 是 vtable 指针
+                                fieldType = fields[idx].ty;
+                            }
+                        }
+                    }
+                }
                 const p = this.materialize(
-                    { kind: 'Member', object, property: expr.property, ty: 'unknown' },
-                    'unknown', expr.line, expr.column);
+                    { kind: 'Member', object, property: expr.property, ty: fieldType ?? 'unknown', fieldIndex, fieldType },
+                    fieldType ?? 'unknown', expr.line, expr.column);
                 return { kind: 'Copy', place: p };
             }
 
             case 'IndexExpression': {
-                // 晶格索引读取：降为内置调用（不透明类型 + 运行时访问）
-                return this.lowerCall('lattice_ref', [expr.object, ...expr.indices], expr.line, expr.column);
+                // 晶格索引读取：降为精确内建 qk_lattice_ref（对应 ir.ts 的 declare i32 @qk_lattice_ref）
+                return this.lowerCall('qk_lattice_ref', [expr.object, ...expr.indices], expr.line, expr.column);
+            }
+
+            case 'FunctionExpression': {
+                // lambda 表达式：内联 lower body（借用检查覆盖 lambda body 的量子操作），
+                // 参数作为局部变量；返回占位闭包值（完整闭包语义由 ir.ts 层承载）。
+                for (const p of expr.params) {
+                    const id = this.newLocal(p.name, p.type, true, false, expr.line, expr.column);
+                    this.varEnv.set(p.name, id);
+                }
+                for (const s of expr.body) this.lowerStatement(s);
+                const tmp = this.materialize(
+                    { kind: 'Use', operand: { kind: 'Const', value: { kind: 'Int', value: 0, ty: 'int32' } } },
+                    'int32', expr.line, expr.column);
+                return { kind: 'Copy', place: tmp };
             }
 
             default:
@@ -430,14 +559,23 @@ export class MirBuilder {
         return this.lowerExpression(expr);
     }
 
-    /** 函数调用：区分量子门 / 测量 / 普通调用 */
+    /** 函数返回类型：内建表 > 用户函数表 > 默认 int32 */
+    private retTyOf(name: string): string {
+        const builtin = BUILTIN_RET_TY[name];
+        if (builtin !== undefined) return builtin;
+        const user = this.userFuncRet.get(name);
+        if (user !== undefined) return user;
+        return 'int32';
+    }
+
+    /** 函数调用：区分量子门 / 测量 / 普通调用（普通调用返回类型由签名表精确推导） */
     private lowerCall(name: string, args: Expression[], line: number, column: number): MirOperand {
         if (name === 'alloc') {
             const p = this.materialize({ kind: 'QAlloc', ty: 'Qubit' }, 'Qubit', line, column);
             return { kind: 'Copy', place: p };
         }
 
-        if (GATE_FNS.has(name)) {
+        if (GATE_FNS.has(name) || this.userGateFns.has(name)) {
             // 门**借用**量子比特，不消费它；因此实参用 Ref 而非 Copy/Move，
             // 否则 QLT 会把"施加门"误判为"消耗量子比特"。
             const lowered = args.map(a => this.lowerBorrowArg(a));
@@ -446,7 +584,7 @@ export class MirBuilder {
             return { kind: 'Copy', place: p };
         }
 
-        if (MEASURE_FNS.has(name)) {
+        if (MEASURE_FNS.has(name) || this.userMeasureFns.has(name)) {
             const lowered = args.map(a => this.lowerExpression(a));
             const p = this.materialize(
                 { kind: 'QMeasure', arg: lowered[0], ty: 'int32' }, 'int32', line, column);
@@ -454,8 +592,9 @@ export class MirBuilder {
         }
 
         const lowered = args.map(a => this.lowerExpression(a));
+        const retTy = this.retTyOf(name);
         const p = this.materialize(
-            { kind: 'Call', target: name, args: lowered, retTy: 'int32' }, 'int32', line, column);
+            { kind: 'Call', target: name, args: lowered, retTy }, retTy, line, column);
         return { kind: 'Copy', place: p };
     }
 
@@ -708,6 +847,16 @@ export class MirBuilder {
                 // 顶层函数由 lowerProgram 处理；此处忽略（QK 不支持嵌套函数定义）。
                 break;
 
+            case 'SpawnStatement':
+                // spawn 块体：MIR 层内联 lower（并发语义由 ir 层 + runtime 承载，
+                // MIR 仅用于借用检查 / 竞争检测的输入）。
+                for (const s of stmt.body) this.lowerStatement(s);
+                break;
+
+            case 'EntangleStatement':
+                // 纠缠声明：纯静态信息（供竞争检测），无运行时指令。
+                break;
+
             default:
                 throw new Error(`MIR Error: unsupported statement '${(stmt as any).type}'`);
         }
@@ -716,7 +865,8 @@ export class MirBuilder {
     // ---- 函数体与程序降级 ---------------------------------------------------
 
     private lowerBody(owner: string, params: Param[], body: Statement[],
-                      returnTy: string | null): MirBody {
+                      returnTy: string | null,
+                      layer?: { time?: number; thread: number; coord: number[] }): MirBody {
         this.owner = owner;
         this.locals = [];
         this.blocks = [];
@@ -742,16 +892,41 @@ export class MirBuilder {
                 : { kind: 'Return', value: null };
         }
 
-        return { owner, locals: this.locals, blocks: this.blocks, params: paramIds, returnTy };
+        return { owner, locals: this.locals, blocks: this.blocks, params: paramIds, returnTy, ...(layer ? { layer } : {}) };
     }
 
     /** 把一个顶层函数声明降为 MirBody */
     private lowerFunction(fn: FunctionDeclaration): MirBody {
-        return this.lowerBody(fn.name, fn.params, fn.body, fn.returnType);
+        const layer = fn.layer ? { time: fn.layer.time, thread: fn.layer.thread, coord: fn.layer.coord } : undefined;
+        return this.lowerBody(fn.name, fn.params, fn.body, fn.returnType, layer);
     }
 
     /** 把整份程序降为 MirProgram */
     public build(program: Program): MirProgram {
+        // 收集用户函数返回类型（代码生成用 MIR 需要精确 retTy）+ 量子门/测量函数名
+        this.userFuncRet.clear();
+        this.userGateFns.clear();
+        this.userMeasureFns.clear();
+        this.formFields.clear();
+        for (const n of program.body) {
+            if (n.type === 'FunctionDeclaration') {
+                this.userFuncRet.set(n.name, n.returnType);
+                const q = (n as FunctionDeclaration).quantum;
+                if (q) {
+                    if (q.isGate) this.userGateFns.add(n.name);
+                    if (q.measure) this.userMeasureFns.add(n.name);
+                }
+            } else if (n.type === 'FormDecl') {
+                // 收集 form 字段（ranks 展开），供 Member 字段访问查索引/类型
+                const form = n as any;
+                const fields: { name: string; ty: string }[] = [];
+                for (const rank of form.ranks) {
+                    for (const f of rank.fields) fields.push({ name: f.name, ty: f.type });
+                }
+                this.formFields.set(form.name, fields);
+            }
+        }
+
         const bodies: MirBody[] = [];
         const fnDecls = program.body.filter(
             (n): n is FunctionDeclaration => n.type === 'FunctionDeclaration');
@@ -766,7 +941,8 @@ export class MirBuilder {
             bodies.push(this.lowerBody('quark_main', [], stmts, 'int32'));
         }
 
-        return { bodies };
+        const forms = [...this.formFields.entries()].map(([name, fields]) => ({ name, fields }));
+        return { bodies, ...(forms.length > 0 ? { forms } : {}) };
     }
 }
 

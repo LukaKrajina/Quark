@@ -2,13 +2,19 @@ import { Program, Statement, Expression, MemberExpression, Item, FormDecl, Trait
 import { buildMir } from "./mir";
 import { BorrowChecker } from "./borrow";
 import { detectRaces, detectQuantumRaces, entanglementClosure, Access, Digest } from "./race";
+import { buildTopology } from "./topology";
+import { synthesizeGates } from "./gate-synth";
+import { Type, T, cap, func, parseType, typeToString, typeEquals, isAssignable, isNumeric, isConditionType } from "./types";
 
 function isTopLevelItem(node: any): node is Item {
     return ['ModuleDecl', 'UseDecl', 'FormDecl', 'FlavorDecl', 'ImplDecl', 'TraitDecl', 'TemplateDecl', 'ImportDecl', 'RequiresDecl', 'ExternDecl'].includes(node.type);
 }
 
 // 量子门名（我已将它们从 lexer 关键字移除，但是仍作为门调用使用）
-const GATE_NAMES = new Set(['h', 'x', 'rz', 'cnot', 'toffoli', 'swap', 'qft', 'braid', 'measure_x', 'measure_y']);
+const GATE_NAMES = new Set(['h', 'x', 'rz', 'cnot', 'toffoli', 'swap', 'qft', 'iqft', 'braid',
+    'measure_x', 'measure_y',
+    // 受控门（可逆编织 @[steer]）
+    'cx', 'ch', 'crz', 'cswap', 'c_toffoli', 'cqft', 'cbraid']);
 
 export interface SemanticError {
     message: string;
@@ -18,7 +24,7 @@ export interface SemanticError {
 }
 
 export class SemanticAnalyzer {
-    private symbolMap: Map<string, string> = new Map();
+    private symbolMap: Map<string, Type> = new Map();
     public errors: SemanticError[] = [];
     private forms: Map<string, FormDecl> = new Map();
     private traits: Map<string, TraitDecl> = new Map();
@@ -28,13 +34,14 @@ export class SemanticAnalyzer {
     private parentOf: Map<string, string> = new Map();
     private childOf: Map<string, string> = new Map();
     private loopDepth: number = 0;
-    private currentReturnType: string = 'void';
+    private currentReturnType: Type = T.void;
     private measuredQubits: Set<string> = new Set();
     private declaredGateVars: Set<string> = new Set();
     private usedGates: Set<string> = new Set();
     private fixedSymbols: Set<string> = new Set();
     private flavorMembers: Map<string, number> = new Map();
-    private externSigs: Map<string, { params: string[]; ret: string }> = new Map();
+    private externSigs: Map<string, { params: Type[]; ret: Type }> = new Map();
+    private userFuncSigs: Map<string, { params: Type[]; ret: Type }> = new Map();
 
     private resetDeclarations() {
         this.forms.clear();
@@ -45,6 +52,7 @@ export class SemanticAnalyzer {
         this.parentOf.clear();
         this.childOf.clear();
         this.externSigs.clear();
+        this.userFuncSigs.clear();
     }
 
     private collectDeclarations(items: (Statement | Item)[], prefix: string) {
@@ -72,7 +80,14 @@ export class SemanticAnalyzer {
                 this.modules.set(fullName, node);
                 this.collectDeclarations(node.body, fullName);
             } else if (node.type === 'ExternDecl') {
-                this.externSigs.set(node.name, { params: node.params.map(p => p.type), ret: node.returnType });
+                this.externSigs.set(node.name, { params: node.params.map(p => parseType(p.type)), ret: parseType(node.returnType) });
+            } else if (node.type === 'FunctionDeclaration') {
+                // 收集用户函数签名（含模块前缀），供调用点做参数数量 + 类型检查。
+                const fullName = prefix ? prefix + '::' + node.name : node.name;
+                this.userFuncSigs.set(fullName, {
+                    params: node.params.map(p => parseType(p.type)),
+                    ret: parseType(node.returnType),
+                });
             }
         }
     }
@@ -145,7 +160,7 @@ export class SemanticAnalyzer {
         return methods;
     }
 
-    private findFieldType(formName: string, fieldName: string): string | null {
+    private findFieldType(formName: string, fieldName: string): Type | null {
         const form = this.forms.get(formName);
         if (!form) return null;
         if (form.inherits && form.inherits.base) {
@@ -154,7 +169,7 @@ export class SemanticAnalyzer {
         }
         for (const rank of form.ranks) {
             for (const f of rank.fields) {
-                if (f.name === fieldName) return f.type;
+                if (f.name === fieldName) return parseType(f.type);
             }
         }
         return null;
@@ -174,11 +189,124 @@ export class SemanticAnalyzer {
             this.visitStatement(stmt as Statement);
         });
 
-        // P1：量子线性类型（QLT）+ 借用检查，运行于 MIR 层。
+        // 量子门属性校验（@[gate]/@[undo]/@[steer]/@[unitary]/@[measure]）。
+        this.runQuantumAttrs(program);
+
+        // 量子物理特性校验（@[coherence]/@[noise]/@[basis]/@[decoherence_free]/@[error_correction]）。
+        this.runPhysicalAttrs(program);
+
+        // 门合成（可逆编织范式）：@[undo] → <name>_undo，@[steer] → <name>_steer。
+        // 在借用检查之前合成，使合成函数同样受 QLT 线性类型检查。
+        const synthWarnings = synthesizeGates(program);
+        for (const w of synthWarnings) {
+            this.errors.push({ message: w, line: 0, column: 0, length: 1 });
+        }
+
+        // 量子线性类型（QLT）+ 借用检查，运行于 MIR 层。
         this.runBorrowCheck(program);
 
-        // 算法 2：Q-Digest 量子感知静态竞争检测。
+        // Q-Digest 量子感知静态竞争检测。
         this.runRaceDetection(program);
+
+        // 多维标签函数：执行拓扑构建（平行/叠加推导 + 调用传播延迟 + 时间束缚）。
+        this.runTopology(program);
+    }
+
+    /**
+     * 量子门属性校验：
+     * - @[unitary]/@[gate]：函数体必须可逆，不得含测量（measure/measure_x/measure_y）。
+     * - @[undo]/@[steer]：必须以 @[gate] 或 @[unitary] 为前提（可逆对偶 / 相干控制需要可逆基元）。
+     */
+    private runQuantumAttrs(program: Program): void {
+        for (const node of program.body) {
+            if (node.type !== 'FunctionDeclaration') continue;
+            const fn = node as any;
+            const q = fn.quantum;
+            if (!q) continue;
+
+            const hasMeasure = this.containsMeasureCall(fn.body);
+
+            if ((q.unitary || q.isGate) && hasMeasure) {
+                const tag = q.unitary ? '@[unitary]' : '@[gate]';
+                this.errors.push({
+                    message: `[E-QUNI] ${tag} function '${fn.name}' must be reversible and cannot measure`,
+                    line: fn.line, column: fn.column, length: 1,
+                });
+            }
+            if ((q.undo || q.steer) && !q.isGate && !q.unitary) {
+                this.errors.push({
+                    message: `[E-QSYN] @[undo]/@[steer] on '${fn.name}' requires @[gate] or @[unitary]`,
+                    line: fn.line, column: fn.column, length: 1,
+                });
+            }
+        }
+    }
+
+    /** 递归检查 AST 子树里是否含 measure / measure_x / measure_y 函数调用 */
+    private containsMeasureCall(node: any): boolean {
+        if (!node || typeof node !== 'object') return false;
+        if (node.type === 'FunctionCall') {
+            const n = node.name;
+            if (n === 'measure' || n === 'measure_x' || n === 'measure_y') return true;
+        }
+        for (const key of Object.keys(node)) {
+            const val = node[key];
+            if (Array.isArray(val)) {
+                for (const item of val) {
+                    if (this.containsMeasureCall(item)) return true;
+                }
+            } else if (val && typeof val === 'object') {
+                if (this.containsMeasureCall(val)) return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 量子物理特性校验（@[coherence]/@[noise]/@[basis]/@[decoherence_free]/@[error_correction]）：
+     * - coherence：T1 ≥ T2 且均为正（弛豫慢于退相是物理必然）。
+     * - noise：模型名必须在已知集合内。
+     */
+    private runPhysicalAttrs(program: Program): void {
+        const NOISE_MODELS = new Set(['depolarizing', 'amplitude_damping', 'phase_damping', 'bit_flip']);
+        for (const node of program.body) {
+            if (node.type !== 'FunctionDeclaration') continue;
+            const fn = node as any;
+            const p = fn.physical;
+            if (!p) continue;
+
+            if (p.coherence) {
+                const { t1, t2 } = p.coherence;
+                if (t1 <= 0 || t2 <= 0 || t2 > t1) {
+                    this.errors.push({
+                        message: `[E-PHY] @[coherence] on '${fn.name}' requires 0 < T2 <= T1`,
+                        line: fn.line, column: fn.column, length: 1,
+                    });
+                }
+            }
+            if (p.noise && !NOISE_MODELS.has(p.noise)) {
+                this.errors.push({
+                    message: `[E-PHY] @[noise] on '${fn.name}': unknown model '${p.noise}'`,
+                    line: fn.line, column: fn.column, length: 1,
+                });
+            }
+        }
+    }
+
+    /**
+     * 执行拓扑构建：@layer 标签聚合 + 平行/叠加自动推导 + 块内调用传播延迟累计。
+     * 显式函数必须携带 @layer 标签（E-TOP001），否则视为"入口缺失"。
+     */
+    private runTopology(program: Program): void {
+        const { errors } = buildTopology(program);
+        for (const e of errors) {
+            this.errors.push({
+                message: `[${e.code}] ${e.message}`,
+                line: e.line,
+                column: e.column,
+                length: 1,
+            });
+        }
     }
 
     /**
@@ -207,7 +335,7 @@ export class SemanticAnalyzer {
     }
 
     /**
-     * 算法 2：Q-Digest —— 量子感知的静态数据竞争检测。
+     * Q-Digest —— 量子感知的静态数据竞争检测。
      *
      * 在类型检查之后运行。把 spawn / entangle / sync_* / measure 构造翻译为
      * (access, digest) 记录：digest = 线程 id + 锁集 + 量子比特纠缠闭包。
@@ -220,8 +348,11 @@ export class SemanticAnalyzer {
     private runRaceDetection(program: Program): void {
         // 遍历所有函数体（不再仅限 quark_main），对每个函数体独立做
         // spawn/entangle/sync_*/measure 的 digest 分析；tid 用函数名区分。
+        // 编译器合成函数（_undo/_steer）与 @[gate] 门函数是「顺序调用的门单元」，
+        // 非并行线程，跳过以免把顺序调用误判为跨线程竞争。
         const functions = program.body.filter(
-            s => s.type === 'FunctionDeclaration' && Array.isArray((s as any).body)
+            s => s.type === 'FunctionDeclaration' && Array.isArray((s as any).body) &&
+            !(s as any).synthetic && !(s as any).quantum?.isGate
         ) as any[];
         if (functions.length === 0) return;
 
@@ -389,17 +520,12 @@ export class SemanticAnalyzer {
         if (stmt.type === 'VariableDeclaration') {
             const exprType = this.visitExpression(stmt.value);
 
-            const inferredType = stmt.varType === 'auto' ? exprType : stmt.varType;
+            const inferredType: Type = stmt.varType === 'auto' ? exprType : parseType(stmt.varType);
 
-            // null 可赋给任意能力类型（cap<T>）
-            const nullToCap = exprType === 'null' && stmt.varType.startsWith('cap<');
-            // 整型地址可构造能力（int -> cap，MMIO 等）
-            const intToCap = ['int8', 'int16', 'int32', 'int64',
-                              'uint8', 'uint16', 'uint32', 'uint64'].includes(exprType)
-                             && stmt.varType.startsWith('cap<');
-            if (stmt.varType !== 'auto' && stmt.varType !== exprType && exprType !== 'unknown' && !nullToCap && !intToCap) {
+            // 赋值兼容性统一由 isAssignable 判定：相等 / 数值隐式转换 / null→cap / int→cap。
+            if (stmt.varType !== 'auto' && !isAssignable(inferredType, exprType)) {
                 this.errors.push({
-                    message: `Type Error: Cannot assign expression of type '${exprType}' to variable of type '${stmt.varType}'.`,
+                    message: `Type Error: Cannot assign expression of type '${typeToString(exprType)}' to variable of type '${stmt.varType}'.`,
                     line: stmt.value.line,
                     column: stmt.value.column,
                     length: stmt.value.length
@@ -408,7 +534,7 @@ export class SemanticAnalyzer {
 
             if (stmt.value.type === 'Identifier') {
                 const sourceVarType = this.symbolMap.get(stmt.value.name);
-                if (sourceVarType === 'Qubit') {
+                if (sourceVarType && sourceVarType.kind === 'quantum' && sourceVarType.cls === 'Qubit') {
                     this.errors.push({
                         message: `Quantum Violation: Cannot copy Qubit '${stmt.value.name}'. Quark statically enforces the No-Cloning Theorem.`,
                         line: stmt.value.line,
@@ -450,9 +576,9 @@ export class SemanticAnalyzer {
                 if (stmt.target.type === 'IndexExpression') {
                     const elemType = this.visitExpression(stmt.target);
                     const valType = this.visitExpression(stmt.value);
-                    if (elemType !== 'unknown' && valType !== 'unknown' && elemType !== valType) {
+                    if (elemType.kind !== 'unknown' && valType.kind !== 'unknown' && !typeEquals(elemType, valType)) {
                         this.errors.push({
-                            message: `Type Error: Cannot assign '${valType}' to lattice element of type '${elemType}'.`,
+                            message: `Type Error: Cannot assign '${typeToString(valType)}' to lattice element of type '${typeToString(elemType)}'.`,
                             line: stmt.line,
                             column: stmt.column,
                             length: 1
@@ -462,7 +588,7 @@ export class SemanticAnalyzer {
                 }
                 const objType = this.visitExpression((stmt.target as MemberExpression).object);
                 this.visitExpression(stmt.value);
-                if (objType === 'unknown') {
+                if (objType.kind === 'unknown') {
                     this.errors.push({
                         message: `Reference Error: Undefined object in field assignment.`,
                         line: stmt.line,
@@ -490,9 +616,9 @@ export class SemanticAnalyzer {
                     column: stmt.column,
                     length: stmt.name.length
                 });
-            } else if (targetType !== exprType && exprType !== 'unknown') {
+            } else if (!typeEquals(targetType, exprType) && exprType.kind !== 'unknown') {
                 this.errors.push({
-                    message: `Type Error: Cannot reassign variable '${stmt.name}' of type '${targetType}' to '${exprType}'.`,
+                    message: `Type Error: Cannot reassign variable '${stmt.name}' of type '${typeToString(targetType)}' to '${typeToString(exprType)}'.`,
                     line: stmt.value.line,
                     column: stmt.value.column,
                     length: stmt.value.length
@@ -501,9 +627,9 @@ export class SemanticAnalyzer {
         }
         else if (stmt.type === 'WhileStatement') {
             const condType = this.visitExpression(stmt.condition);
-            if (condType !== 'bool' && condType !== 'int32' && condType !== 'double' && condType !== 'unknown') {
+            if (!isConditionType(condType)) {
                 this.errors.push({
-                    message: `Type Error: while condition must be boolean/numeric, got '${condType}'.`,
+                    message: `Type Error: while condition must be boolean/numeric, got '${typeToString(condType)}'.`,
                     line: stmt.condition.line,
                     column: stmt.condition.column,
                     length: stmt.condition.length
@@ -512,9 +638,9 @@ export class SemanticAnalyzer {
             if (stmt.invariant) {
                 for (const inv of stmt.invariant) {
                     const t = this.visitExpression(inv);
-                    if (t !== 'bool' && t !== 'int32' && t !== 'unknown') {
+                    if (!isConditionType(t)) {
                         this.errors.push({
-                            message: `Contract Error: 'invariant' condition must be boolean, got '${t}'.`,
+                            message: `Contract Error: 'invariant' condition must be boolean, got '${typeToString(t)}'.`,
                             line: inv.line,
                             column: inv.column,
                             length: inv.length
@@ -533,9 +659,9 @@ export class SemanticAnalyzer {
             if (stmt.init) this.visitStatement(stmt.init);
             if (stmt.condition) {
                 const condType = this.visitExpression(stmt.condition);
-                if (condType !== 'bool' && condType !== 'int32' && condType !== 'double' && condType !== 'unknown') {
+                if (!isConditionType(condType)) {
                     this.errors.push({
-                        message: `Type Error: for condition must be boolean/numeric, got '${condType}'.`,
+                        message: `Type Error: for condition must be boolean/numeric, got '${typeToString(condType)}'.`,
                         line: stmt.condition.line,
                         column: stmt.condition.column,
                         length: stmt.condition.length
@@ -549,9 +675,9 @@ export class SemanticAnalyzer {
         }
         else if (stmt.type === 'IfStatement') {
             const condType = this.visitExpression(stmt.condition);
-            if (condType !== 'bool' && condType !== 'int32' && condType !== 'double' && condType !== 'unknown') {
+            if (!isConditionType(condType)) {
                 this.errors.push({
-                    message: `Type Error: if condition must be boolean/numeric, got '${condType}'.`,
+                    message: `Type Error: if condition must be boolean/numeric, got '${typeToString(condType)}'.`,
                     line: stmt.condition.line,
                     column: stmt.condition.column,
                     length: stmt.condition.length
@@ -577,9 +703,9 @@ export class SemanticAnalyzer {
         }
         else if (stmt.type === 'SpinStatement') {
             const condType = this.visitExpression(stmt.condition);
-            if (condType !== 'bool' && condType !== 'int32' && condType !== 'double' && condType !== 'unknown') {
+            if (!isConditionType(condType)) {
                 this.errors.push({
-                    message: `Type Error: spin condition must be boolean/numeric, got '${condType}'.`,
+                    message: `Type Error: spin condition must be boolean/numeric, got '${typeToString(condType)}'.`,
                     line: stmt.condition.line,
                     column: stmt.condition.column,
                     length: stmt.condition.length
@@ -597,9 +723,9 @@ export class SemanticAnalyzer {
             // entangle(q1, q2)：两操作数都必须是 Qubit
             for (const operand of [stmt.left, stmt.right]) {
                 const t = this.visitExpression(operand);
-                if (t !== 'Qubit' && t !== 'unknown') {
+                if (!(t.kind === 'quantum' && t.cls === 'Qubit') && t.kind !== 'unknown') {
                     this.errors.push({
-                        message: `Type Error: 'entangle' expects Qubit operands, got '${t}'.`,
+                        message: `Type Error: 'entangle' expects Qubit operands, got '${typeToString(t)}'.`,
                         line: operand.line,
                         column: operand.column,
                         length: operand.length
@@ -630,9 +756,9 @@ export class SemanticAnalyzer {
         else if (stmt.type === 'FunctionDeclaration') {
             this.symbolMap.clear();
             for (const p of stmt.params) {
-                this.symbolMap.set(p.name, p.type);
+                this.symbolMap.set(p.name, parseType(p.type));
             }
-            this.currentReturnType = stmt.returnType;
+            this.currentReturnType = parseType(stmt.returnType);
             // 返回类型必须是"确定类型"（不能是 auto/let/unknown/空）——
             // 新范式：入口与函数返回值都有明确定义的类型，杜绝 unknown。
             if (!stmt.returnType || ['auto', 'let', 'unknown'].includes(stmt.returnType)) {
@@ -645,9 +771,9 @@ export class SemanticAnalyzer {
             }
             for (const req of stmt.requires) {
                 const t = this.visitExpression(req);
-                if (t !== 'bool' && t !== 'int32' && t !== 'unknown') {
+                if (!isConditionType(t)) {
                     this.errors.push({
-                        message: `Contract Error: 'requires' condition must be boolean, got '${t}'.`,
+                        message: `Contract Error: 'requires' condition must be boolean, got '${typeToString(t)}'.`,
                         line: req.line,
                         column: req.column,
                         length: req.length
@@ -656,9 +782,9 @@ export class SemanticAnalyzer {
             }
             for (const ens of stmt.ensures) {
                 const t = this.visitExpression(ens);
-                if (t !== 'bool' && t !== 'int32' && t !== 'unknown') {
+                if (!isConditionType(t)) {
                     this.errors.push({
-                        message: `Contract Error: 'ensures' condition must be boolean, got '${t}'.`,
+                        message: `Contract Error: 'ensures' condition must be boolean, got '${typeToString(t)}'.`,
                         line: ens.line,
                         column: ens.column,
                         length: ens.length
@@ -682,16 +808,16 @@ export class SemanticAnalyzer {
         }
         for (const arg of expr.arguments) {
             const t = this.visitExpression(arg);
-            if (t !== 'Qubit' && t !== 'unknown') {
+            if (!(t.kind === 'quantum' && t.cls === 'Qubit') && t.kind !== 'unknown') {
                 this.errors.push({
-                    message: `Type Error: '${expr.name}' expects Qubit arguments, got '${t}'.`,
+                    message: `Type Error: '${expr.name}' expects Qubit arguments, got '${typeToString(t)}'.`,
                     line: arg.line, column: arg.column, length: arg.length
                 });
             }
         }
     }
 
-    private visitExpression(expr: Expression): string {
+    private visitExpression(expr: Expression): Type {
         if (expr.type === 'ResultExpr') {
             return this.currentReturnType;
         }
@@ -702,9 +828,9 @@ export class SemanticAnalyzer {
             // 扩展符号表：保留外部符号（闭包捕获），参数遮蔽外部同名
             this.symbolMap = new Map(savedSymbols);
             for (const p of expr.params) {
-                this.symbolMap.set(p.name, p.type);
+                this.symbolMap.set(p.name, parseType(p.type));
             }
-            let retType = expr.returnType ?? 'void';
+            let retType: Type = expr.returnType ? parseType(expr.returnType) : T.void;
             if (!expr.returnType) {
                 for (const s of expr.body) {
                     if (s.type === 'ReturnStatement') {
@@ -717,21 +843,21 @@ export class SemanticAnalyzer {
             expr.body.forEach(s => this.visitStatement(s));
             this.symbolMap = savedSymbols;
             this.currentReturnType = savedReturnType;
-            return '(' + expr.params.map(p => p.type).join(',') + ')->' + retType;
+            return func(expr.params.map(p => parseType(p.type)), retType);
         }
 
         if (expr.type === 'NumberLiteral') {
-            return expr.isFloat ? 'double' : 'int32';
+            return expr.isFloat ? T.double : T.int32;
         }
 
-        if (expr.type === 'StringLiteral') return 'string';
-        if (expr.type === 'CharLiteral') return 'char';
-        if (expr.type === 'NullLiteral') return 'null';
+        if (expr.type === 'StringLiteral') return T.string;
+        if (expr.type === 'CharLiteral') return T.char;
+        if (expr.type === 'NullLiteral') return T.null;
 
         if (expr.type === 'Dereference') {
             const t = this.visitExpression(expr.target);
-            if (t.startsWith('cap<')) return t.slice(4, -1);  // 剥掉 cap<...>
-            return 'unknown';
+            if (t.kind === 'cap') return t.inner;  // 剥掉 cap<...>
+            return T.unknown;
         }
 
         if (expr.type === 'AddressOf') {
@@ -739,22 +865,22 @@ export class SemanticAnalyzer {
             if (expr.target.type === 'Identifier') {
                 const t = this.symbolMap.get(expr.target.name);
                 if (t) {
-                    return 'cap<' + t + '>';
+                    return cap(t);
                 }
             }
-            return 'cap<uint8>';  // 函数指针：不透明指针能力
+            return cap(T.uint8);  // 函数指针：不透明指针能力
         }
 
         if (expr.type === 'FuseExpression') {
             this.visitExpression(expr.discriminant);
-            let resultType = 'unknown';
+            let resultType: Type = T.unknown;
             for (const arm of expr.arms) {
                 if (arm.pattern) this.visitExpression(arm.pattern);
                 const t = this.visitExpression(arm.value);
-                if (resultType === 'unknown') resultType = t;
-                else if (resultType !== t && t !== 'unknown') {
+                if (resultType.kind === 'unknown') resultType = t;
+                else if (!typeEquals(resultType, t) && t.kind !== 'unknown') {
                     this.errors.push({
-                        message: `Type Error: fuse arms must have the same type, got '${resultType}' and '${t}'.`,
+                        message: `Type Error: fuse arms must have the same type, got '${typeToString(resultType)}' and '${typeToString(t)}'.`,
                         line: expr.line,
                         column: expr.column,
                         length: expr.length
@@ -764,7 +890,7 @@ export class SemanticAnalyzer {
             return resultType;
         }
 
-        if (expr.type === 'NativeExpression') return 'void';
+        if (expr.type === 'NativeExpression') return T.void;
 
         if (expr.type === 'Identifier') {
             if (this.measuredQubits.has(expr.name)) {
@@ -774,10 +900,10 @@ export class SemanticAnalyzer {
                     column: expr.column,
                     length: expr.length
                 });
-                return 'unknown';
+                return T.unknown;
             }
             if (this.flavorMembers.has(expr.name)) {
-                return 'int32';  // 味成员（新范式 enum 常量）
+                return T.int32;  // 味成员（新范式 enum 常量）
             }
             if (!this.symbolMap.has(expr.name)) {
                 this.errors.push({
@@ -786,7 +912,7 @@ export class SemanticAnalyzer {
                     column: expr.column,
                     length: expr.length
                 });
-                return 'unknown';
+                return T.unknown;
             }
             return this.symbolMap.get(expr.name)!;
         }
@@ -803,7 +929,7 @@ export class SemanticAnalyzer {
                     });
                 }
             }
-            if (expr.name === 'alloc') return 'Qubit';
+            if (expr.name === 'alloc') return T.qubit;
 
             // 任意基构建量子态：basis_state(theta, phi, value) -> QObject
             if (expr.name === 'basis_state') {
@@ -815,13 +941,13 @@ export class SemanticAnalyzer {
                 } else {
                     expr.arguments.forEach(a => this.visitExpression(a));
                 }
-                return 'QObject';
+                return T.qobject;
             }
 
             // 晶格内省：lattice_rank / lattice_size / lattice_boundary -> int32
             if (expr.name === 'lattice_rank' || expr.name === 'lattice_size' || expr.name === 'lattice_boundary') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'int32';
+                return T.int32;
             }
 
             // 经典 GUI（cgui_*）返回 int32 的内建
@@ -830,7 +956,7 @@ export class SemanticAnalyzer {
                 expr.name === 'cgui_mouse_y' || expr.name === 'cgui_mouse_left_clicked' ||
                 expr.name === 'cgui_width' || expr.name === 'cgui_height') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'int32';
+                return T.int32;
             }
 
             // 经典 GUI / 图形引擎返回 void 的内建
@@ -844,7 +970,7 @@ export class SemanticAnalyzer {
                 expr.name === 'cgfx_line_a' || expr.name === 'cgfx_ellipse_a' ||
                 expr.name === 'cgfx_triangle_a') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'void';
+                return T.void;
             }
 
 
@@ -853,31 +979,71 @@ export class SemanticAnalyzer {
 
             if (expr.name === 'h' || expr.name === 'x') {
                 this.checkQubitArgs(expr, 1);
-                return 'void';
+                return T.void;
             }
             if (expr.name === 'rz') {
-                this.checkQubitArgs(expr, 1);
-                if (expr.arguments.length >= 2) this.visitExpression(expr.arguments[1]);
-                return 'void';
+                // rz(Qubit, double)：1 个 qubit + 1 个旋转角度
+                if (expr.arguments.length !== 2) {
+                    this.errors.push({
+                        message: `Signature Error: 'rz' expects 2 arguments (qubit, angle).`,
+                        line: expr.line, column: expr.column, length: expr.length
+                    });
+                }
+                return T.void;
             }
             if (expr.name === 'cnot' || expr.name === 'swap' || expr.name === 'braid') {
                 this.checkQubitArgs(expr, 2);
-                return 'void';
+                return T.void;
             }
             if (expr.name === 'toffoli') {
                 this.checkQubitArgs(expr, 3);
-                return 'void';
+                return T.void;
             }
-            if (expr.name === 'qft') {
+            // 受控门（可逆编织 @[steer]）
+            if (expr.name === 'cx' || expr.name === 'ch') {
+                this.checkQubitArgs(expr, 2);
+                return T.void;
+            }
+            if (expr.name === 'crz') {
+                if (expr.arguments.length !== 3) {
+                    this.errors.push({
+                        message: `Signature Error: 'crz' expects 3 arguments (control, target, angle).`,
+                        line: expr.line, column: expr.column, length: expr.length
+                    });
+                }
+                return T.void;
+            }
+            if (expr.name === 'cswap') {
+                this.checkQubitArgs(expr, 3);
+                return T.void;
+            }
+            if (expr.name === 'c_toffoli') {
+                this.checkQubitArgs(expr, 4);
+                return T.void;
+            }
+            if (expr.name === 'qft' || expr.name === 'iqft') {
                 if (expr.arguments.length !== 1) {
                     this.errors.push({
-                        message: `Signature Error: 'qft' expects 1 argument (num_qubits: int).`,
+                        message: `Signature Error: '${expr.name}' expects 1 argument (num_qubits: int).`,
                         line: expr.line, column: expr.column, length: expr.length
                     });
                 } else {
                     this.visitExpression(expr.arguments[0]);
                 }
-                return 'void';
+                return T.void;
+            }
+            if (expr.name === 'cqft') {
+                if (expr.arguments.length !== 2) {
+                    this.errors.push({
+                        message: `Signature Error: 'cqft' expects 2 arguments (control: Qubit, num_qubits: int).`,
+                        line: expr.line, column: expr.column, length: expr.length
+                    });
+                }
+                return T.void;
+            }
+            if (expr.name === 'cbraid') {
+                this.checkQubitArgs(expr, 3);
+                return T.void;
             }
             if (expr.name === 'measure_x' || expr.name === 'measure_y') {
                 if (expr.arguments.length !== 1) {
@@ -885,10 +1051,10 @@ export class SemanticAnalyzer {
                         message: `Signature Error: '${expr.name}' expects exactly 1 Qubit argument.`,
                         line: expr.line, column: expr.column, length: expr.length
                     });
-                    return 'int32';
+                    return T.int32;
                 }
                 const argType = this.visitExpression(expr.arguments[0]);
-                if (argType !== 'Qubit' && argType !== 'unknown') {
+                if (!(argType.kind === 'quantum' && argType.cls === 'Qubit') && argType.kind !== 'unknown') {
                     this.errors.push({
                         message: `Type Error: '${expr.name}' expects a Qubit, but received '${argType}'.`,
                         line: expr.arguments[0].line,
@@ -901,7 +1067,7 @@ export class SemanticAnalyzer {
                     this.symbolMap.delete(qname);
                     this.measuredQubits.add(qname);
                 }
-                return 'int32';
+                return T.int32;
             }
 
             if (expr.name === 'measure') {
@@ -912,11 +1078,11 @@ export class SemanticAnalyzer {
                         column: expr.column,
                         length: expr.length
                     });
-                    return 'int32';
+                    return T.int32;
                 }
 
                 const argType = this.visitExpression(expr.arguments[0]);
-                if (argType !== 'Qubit' && argType !== 'unknown') {
+                if (!(argType.kind === 'quantum' && argType.cls === 'Qubit') && argType.kind !== 'unknown') {
                     this.errors.push({
                         message: `Type Error: 'measure' expects a Qubit, but received '${argType}'.`,
                         line: expr.arguments[0].line,
@@ -931,7 +1097,7 @@ export class SemanticAnalyzer {
                     this.measuredQubits.add(qname);
                 }
 
-                return 'int32';
+                return T.int32;
             }
 
             if (expr.name === 'encode_text') {
@@ -942,10 +1108,10 @@ export class SemanticAnalyzer {
                         column: expr.column,
                         length: expr.length
                     });
-                    return 'QObject';
+                    return T.qobject;
                 }
                 const argType = this.visitExpression(expr.arguments[0]);
-                if (argType !== 'string' && argType !== 'unknown') {
+                if (argType.kind !== 'string' && argType.kind !== 'unknown') {
                     this.errors.push({
                         message: `Type Error: 'encode_text' expects string, got '${argType}'.`,
                         line: expr.arguments[0].line,
@@ -953,7 +1119,7 @@ export class SemanticAnalyzer {
                         length: expr.arguments[0].length
                     });
                 }
-                return 'QObject';
+                return T.qobject;
             }
 
             if (expr.name === 'qlm_invoke') {
@@ -964,10 +1130,10 @@ export class SemanticAnalyzer {
                         column: expr.column,
                         length: expr.length
                     });
-                    return 'QModel';
+                    return T.qmodel;
                 }
                 const arg0Type = this.visitExpression(expr.arguments[0]);
-                if (arg0Type !== 'QObject' && arg0Type !== 'unknown') {
+                if (!(arg0Type.kind === 'quantum' && arg0Type.cls === 'QObject') && arg0Type.kind !== 'unknown') {
                     this.errors.push({
                         message: `Type Error: First argument of 'qlm_invoke' must be QObject, got '${arg0Type}'.`,
                         line: expr.arguments[0].line,
@@ -975,7 +1141,7 @@ export class SemanticAnalyzer {
                         length: expr.arguments[0].length
                     });
                 }
-                return 'QModel';
+                return T.qmodel;
             }
 
             if (expr.name === 'qlm_load') {
@@ -985,7 +1151,7 @@ export class SemanticAnalyzer {
                         line: expr.line, column: expr.column, length: expr.length
                     });
                 }
-                return 'QModel';
+                return T.qmodel;
             }
 
             if (expr.name === 'qk_encode_string') {
@@ -995,7 +1161,7 @@ export class SemanticAnalyzer {
                         line: expr.line, column: expr.column, length: expr.length
                     });
                 }
-                return 'QObject';
+                return T.qobject;
             }
 
             if (expr.name === 'qlm_forward') {
@@ -1005,7 +1171,7 @@ export class SemanticAnalyzer {
                         line: expr.line, column: expr.column, length: expr.length
                     });
                 }
-                return 'void';
+                return T.void;
             }
 
             if (expr.name === 'qk_decode_string') {
@@ -1015,7 +1181,7 @@ export class SemanticAnalyzer {
                         line: expr.line, column: expr.column, length: expr.length
                     });
                 }
-                return 'string';
+                return T.string;
             }
 
             // ─── QRC 量子储备池内置函数（DQNF 范式）──────────────
@@ -1031,7 +1197,7 @@ export class SemanticAnalyzer {
                 } else {
                     expr.arguments.forEach(a => this.visitExpression(a));
                 }
-                return 'QReservoir';
+                return T.qreservoir;
             }
 
             if (expr.name === 'qrc_train') {
@@ -1042,7 +1208,7 @@ export class SemanticAnalyzer {
                     });
                 } else {
                     const arg0Type = this.visitExpression(expr.arguments[0]);
-                    if (arg0Type !== 'QReservoir' && arg0Type !== 'unknown') {
+                    if (!(arg0Type.kind === 'quantum' && arg0Type.cls === 'QReservoir') && arg0Type.kind !== 'unknown') {
                         this.errors.push({
                             message: `Type Error: First argument of 'qrc_train' must be QReservoir, got '${arg0Type}'.`,
                             line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length
@@ -1051,7 +1217,7 @@ export class SemanticAnalyzer {
                     this.visitExpression(expr.arguments[1]);
                     this.visitExpression(expr.arguments[2]);
                 }
-                return 'void';
+                return T.void;
             }
 
             if (expr.name === 'qrc_probe' || expr.name === 'qrc_predict') {
@@ -1062,7 +1228,7 @@ export class SemanticAnalyzer {
                     });
                 } else {
                     const arg0Type = this.visitExpression(expr.arguments[0]);
-                    if (arg0Type !== 'QReservoir' && arg0Type !== 'unknown') {
+                    if (!(arg0Type.kind === 'quantum' && arg0Type.cls === 'QReservoir') && arg0Type.kind !== 'unknown') {
                         this.errors.push({
                             message: `Type Error: First argument of '${expr.name}' must be QReservoir, got '${arg0Type}'.`,
                             line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length
@@ -1070,7 +1236,7 @@ export class SemanticAnalyzer {
                     }
                     this.visitExpression(expr.arguments[1]);
                 }
-                return 'QObject';
+                return T.qobject;
             }
 
             if (expr.name === 'qrc_release') {
@@ -1081,14 +1247,14 @@ export class SemanticAnalyzer {
                     });
                 } else {
                     const arg0Type = this.visitExpression(expr.arguments[0]);
-                    if (arg0Type !== 'QReservoir' && arg0Type !== 'unknown') {
+                    if (!(arg0Type.kind === 'quantum' && arg0Type.cls === 'QReservoir') && arg0Type.kind !== 'unknown') {
                         this.errors.push({
                             message: `Type Error: First argument of 'qrc_release' must be QReservoir, got '${arg0Type}'.`,
                             line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length
                         });
                     }
                 }
-                return 'void';
+                return T.void;
             }
 
             if (expr.name === 'mind_read') {
@@ -1099,7 +1265,7 @@ export class SemanticAnalyzer {
                     });
                 } else {
                     const argType = this.visitExpression(expr.arguments[0]);
-                    if (argType !== 'string' && argType !== 'unknown') {
+                    if (argType.kind !== 'string' && argType.kind !== 'unknown') {
                         this.errors.push({
                             message: `Type Error: 'mind_read' expects a string modality, got '${argType}'.`,
                             line: expr.arguments[0].line,
@@ -1108,7 +1274,7 @@ export class SemanticAnalyzer {
                         });
                     }
                 }
-                return 'QObject';
+                return T.qobject;
             }
 
             if (expr.name === 'mind_train') {
@@ -1119,7 +1285,7 @@ export class SemanticAnalyzer {
                     });
                 } else {
                     const arg0Type = this.visitExpression(expr.arguments[0]);
-                    if (arg0Type !== 'QObject' && arg0Type !== 'unknown') {
+                    if (!(arg0Type.kind === 'quantum' && arg0Type.cls === 'QObject') && arg0Type.kind !== 'unknown') {
                         this.errors.push({
                             message: `Type Error: First argument of 'mind_train' must be QObject, got '${arg0Type}'.`,
                             line: expr.arguments[0].line,
@@ -1128,7 +1294,7 @@ export class SemanticAnalyzer {
                         });
                     }
                 }
-                return 'void';
+                return T.void;
             }
 
             if (expr.name === 'mind_feedback') {
@@ -1139,7 +1305,7 @@ export class SemanticAnalyzer {
                     });
                 } else {
                     const argType = this.visitExpression(expr.arguments[0]);
-                    if (argType !== 'QObject' && argType !== 'unknown') {
+                    if (!(argType.kind === 'quantum' && argType.cls === 'QObject') && argType.kind !== 'unknown') {
                         this.errors.push({
                             message: `Type Error: 'mind_feedback' expects a QObject, got '${argType}'.`,
                             line: expr.arguments[0].line,
@@ -1148,7 +1314,7 @@ export class SemanticAnalyzer {
                         });
                     }
                 }
-                return 'void';
+                return T.void;
             }
 
             if (expr.name === 'veda_qlm_train') {
@@ -1159,7 +1325,7 @@ export class SemanticAnalyzer {
                     });
                 } else {
                     const arg0Type = this.visitExpression(expr.arguments[0]);
-                    if (arg0Type !== 'QObject' && arg0Type !== 'unknown') {
+                    if (!(arg0Type.kind === 'quantum' && arg0Type.cls === 'QObject') && arg0Type.kind !== 'unknown') {
                         this.errors.push({
                             message: `Type Error: First argument of 'veda_qlm_train' must be QObject, got '${arg0Type}'.`,
                             line: expr.arguments[0].line,
@@ -1168,12 +1334,12 @@ export class SemanticAnalyzer {
                         });
                     }
                 }
-                return 'void';
+                return T.void;
             }
 
             // ─── QChain 量子区块链内置函数 ──────────────────────────
             if (expr.name === 'qchain_wallet') {
-                return 'string';
+                return T.string;
             }
             if (expr.name === 'qchain_balance') {
                 if (expr.arguments.length !== 1) {
@@ -1183,11 +1349,11 @@ export class SemanticAnalyzer {
                     });
                 } else {
                     const t = this.visitExpression(expr.arguments[0]);
-                    if (t !== 'string' && t !== 'unknown') {
-                        this.errors.push({ message: `Type Error: 'qchain_balance' expects a string address, got '${t}'.`, line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length });
+                    if (t.kind !== 'string' && t.kind !== 'unknown') {
+                        this.errors.push({ message: `Type Error: 'qchain_balance' expects a string address, got '${typeToString(t)}'.`, line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length });
                     }
                 }
-                return 'uint64';
+                return T.uint64;
             }
             if (expr.name === 'qchain_mint') {
                 if (expr.arguments.length !== 2) {
@@ -1196,7 +1362,7 @@ export class SemanticAnalyzer {
                     this.visitExpression(expr.arguments[0]);
                     this.visitExpression(expr.arguments[1]);
                 }
-                return 'void';
+                return T.void;
             }
             if (expr.name === 'qchain_transfer') {
                 if (expr.arguments.length !== 3) {
@@ -1206,10 +1372,10 @@ export class SemanticAnalyzer {
                     this.visitExpression(expr.arguments[1]);
                     this.visitExpression(expr.arguments[2]);
                 }
-                return 'int32';
+                return T.int32;
             }
             if (expr.name === 'qchain_mine' || expr.name === 'qchain_height' || expr.name === 'qchain_verify') {
-                return 'int32';
+                return T.int32;
             }
             if (expr.name === 'qchain_qkd') {
                 if (expr.arguments.length !== 1) {
@@ -1217,7 +1383,7 @@ export class SemanticAnalyzer {
                 } else {
                     this.visitExpression(expr.arguments[0]);
                 }
-                return 'string';
+                return T.string;
             }
             if (expr.name === 'qchain_qdba') {
                 if (expr.arguments.length !== 1) {
@@ -1225,7 +1391,7 @@ export class SemanticAnalyzer {
                 } else {
                     this.visitExpression(expr.arguments[0]);
                 }
-                return 'int32';
+                return T.int32;
             }
             if (expr.name === 'qchain_coin_mint') {
                 if (expr.arguments.length !== 1) {
@@ -1233,35 +1399,35 @@ export class SemanticAnalyzer {
                 } else {
                     this.visitExpression(expr.arguments[0]);
                 }
-                return 'QObject';
+                return T.qobject;
             }
             if (expr.name === 'qchain_coin_verify') {
                 if (expr.arguments.length !== 1) {
                     this.errors.push({ message: `Signature Error: 'qchain_coin_verify' expects 1 argument (coin: QObject).`, line: expr.line, column: expr.column, length: expr.length });
                 } else {
                     const t = this.visitExpression(expr.arguments[0]);
-                    if (t !== 'QObject' && t !== 'unknown') {
-                        this.errors.push({ message: `Type Error: 'qchain_coin_verify' expects a QObject coin, got '${t}'.`, line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length });
+                    if (!(t.kind === 'quantum' && t.cls === 'QObject') && t.kind !== 'unknown') {
+                        this.errors.push({ message: `Type Error: 'qchain_coin_verify' expects a QObject coin, got '${typeToString(t)}'.`, line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length });
                     }
                 }
-                return 'int32';
+                return T.int32;
             }
 
             // ─── QChain 密码原语 / 抗超时空 / 时空加密 ──────────────
             if (expr.name === 'qchain_sha3' || expr.name === 'qchain_hash_unicode' ||
                 expr.name === 'qchain_sign' || expr.name === 'qchain_sign_pubkey') {
                 if (expr.name === 'qchain_sign_pubkey') {
-                    return 'string';
+                    return T.string;
                 }
                 if (expr.arguments.length !== 1) {
                     this.errors.push({ message: `Signature Error: '${expr.name}' expects 1 argument (msg: string).`, line: expr.line, column: expr.column, length: expr.length });
                 } else {
                     const t = this.visitExpression(expr.arguments[0]);
-                    if (t !== 'string' && t !== 'unknown') {
-                        this.errors.push({ message: `Type Error: '${expr.name}' expects a string message, got '${t}'.`, line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length });
+                    if (t.kind !== 'string' && t.kind !== 'unknown') {
+                        this.errors.push({ message: `Type Error: '${expr.name}' expects a string message, got '${typeToString(t)}'.`, line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length });
                     }
                 }
-                return 'string';
+                return T.string;
             }
             if (expr.name === 'qchain_hmac') {
                 if (expr.arguments.length !== 2) {
@@ -1270,7 +1436,7 @@ export class SemanticAnalyzer {
                     this.visitExpression(expr.arguments[0]);
                     this.visitExpression(expr.arguments[1]);
                 }
-                return 'string';
+                return T.string;
             }
             if (expr.name === 'qchain_sign_verify') {
                 if (expr.arguments.length !== 2) {
@@ -1279,7 +1445,7 @@ export class SemanticAnalyzer {
                     this.visitExpression(expr.arguments[0]);
                     this.visitExpression(expr.arguments[1]);
                 }
-                return 'int32';
+                return T.int32;
             }
             if (expr.name === 'qchain_mlkem_encaps') {
                 if (expr.arguments.length !== 1) {
@@ -1287,7 +1453,7 @@ export class SemanticAnalyzer {
                 } else {
                     this.visitExpression(expr.arguments[0]);
                 }
-                return 'string';
+                return T.string;
             }
             if (expr.name === 'qchain_mlkem_decaps') {
                 if (expr.arguments.length !== 2) {
@@ -1296,10 +1462,10 @@ export class SemanticAnalyzer {
                     this.visitExpression(expr.arguments[0]);
                     this.visitExpression(expr.arguments[1]);
                 }
-                return 'string';
+                return T.string;
             }
             if (expr.name === 'qchain_causal_verify') {
-                return 'int32';
+                return T.int32;
             }
             if (expr.name === 'qchain_cipher_encrypt' || expr.name === 'qchain_cipher_decrypt') {
                 if (expr.arguments.length !== 2) {
@@ -1308,62 +1474,62 @@ export class SemanticAnalyzer {
                     this.visitExpression(expr.arguments[0]);
                     this.visitExpression(expr.arguments[1]);
                 }
-                return 'string';
+                return T.string;
             }
 
             // QCOS syscall ABI（通用 syscall 入口 + 控制台）
             if (expr.name === 'qk_sys_call') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'int32';
+                return T.int32;
             }
             if (expr.name === 'qk_sys_calld') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'double';
+                return T.double;
             }
             if (expr.name === 'qk_sys_log') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'void';
+                return T.void;
             }
             if (expr.name === 'qk_sys_logi') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'int32';
+                return T.int32;
             }
             if (expr.name === 'qk_sys_callp') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'cap<uint8>';   // 指针型 syscall：返回指针能力
+                return cap(T.uint8);   // 指针型 syscall：返回指针能力
             }
             if (expr.name === 'qk_gc_free') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'void';
+                return T.void;
             }
 
             // 同步内存事件（系统级：自旋锁 / 计数器；语义源自弱内存模型）
             if (expr.name === 'sync_load' || expr.name === 'sync_add' || expr.name === 'sync_cas') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'int32';
+                return T.int32;
             }
             if (expr.name === 'sync_store') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'void';
+                return T.void;
             }
             // 端口 I/O（原生效应：x86 outb/inb）
             if (expr.name === 'outb') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'void';
+                return T.void;
             }
             if (expr.name === 'inb') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'int32';
+                return T.int32;
             }
             // 类型化堆分配：返回 cap<int32>（以 int32 字为单位的能力）
             if (expr.name === 'qk_gc_alloc') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'cap<int32>';
+                return cap(T.int32);
             }
             // 能力 -> 整型地址（ptrtoint，返回低 32 位）
             if (expr.name === 'addr') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'int32';
+                return T.int32;
             }
 
             // QMS 数值内核（谱隙 / 混合界 / 方差收缩时间）
@@ -1381,7 +1547,7 @@ export class SemanticAnalyzer {
                     });
                 }
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'double';
+                return T.double;
             }
 
             const scalarMathFns: Record<string, { argc: number; args: string[] }> = {
@@ -1406,7 +1572,7 @@ export class SemanticAnalyzer {
                     });
                 }
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'double';
+                return T.double;
             }
 
             // 外部 C 符号调用（extern 声明）
@@ -1418,18 +1584,37 @@ export class SemanticAnalyzer {
 
             // 函数变量调用（lambda / 高阶函数）
             const fnType = this.symbolMap.get(expr.name);
-            if (fnType && fnType.startsWith('(') && fnType.includes(')->')) {
-                const arrowIdx = fnType.indexOf(')->');
-                const retType = fnType.slice(arrowIdx + 3);
+            if (fnType && fnType.kind === 'func') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return retType;
+                return fnType.ret;
+            }
+
+            // 用户自定义函数调用：查签名表，做参数数量 + 类型检查
+            const userSig = this.userFuncSigs.get(expr.name);
+            if (userSig) {
+                if (expr.arguments.length !== userSig.params.length) {
+                    this.errors.push({
+                        message: `Signature Error: '${expr.name}' expects ${userSig.params.length} argument(s), got ${expr.arguments.length}.`,
+                        line: expr.line, column: expr.column, length: expr.length
+                    });
+                }
+                expr.arguments.forEach((a, i) => {
+                    const at = this.visitExpression(a);
+                    if (i < userSig.params.length && !isAssignable(userSig.params[i], at) && at.kind !== 'unknown') {
+                        this.errors.push({
+                            message: `Type Error: argument ${i + 1} of '${expr.name}' expects '${typeToString(userSig.params[i])}', got '${typeToString(at)}'.`,
+                            line: a.line, column: a.column, length: a.length
+                        });
+                    }
+                });
+                return userSig.ret;
             }
         }
 
         if (expr.type === 'MemberExpression') {
             const objType = this.visitExpression(expr.object);
 
-            if (objType === 'QModel' && expr.property === 'export') {
+            if (objType.kind === 'quantum' && objType.cls === 'QModel' && expr.property === 'export') {
                 if (expr.arguments.length !== 1) {
                     this.errors.push({
                         message: `Signature Error: QModel.export expects 1 string argument (export path).`,
@@ -1439,23 +1624,23 @@ export class SemanticAnalyzer {
                     });
                 } else {
                     const pathType = this.visitExpression(expr.arguments[0]);
-                    if (pathType !== 'string' && pathType !== 'unknown') {
+                    if (pathType.kind !== 'string' && pathType.kind !== 'unknown') {
                         this.errors.push({
-                            message: `Type Error: Export path must be string, got '${pathType}'.`,
+                            message: `Type Error: Export path must be string, got '${typeToString(pathType)}'.`,
                             line: expr.arguments[0].line,
                             column: expr.arguments[0].column,
                             length: expr.arguments[0].length
                         });
                     }
                 }
-                return 'void';
+                return T.void;
             }
 
-            if (objType === 'QObject' && expr.property === 'measure') return 'int32';
+            if (objType.kind === 'quantum' && objType.cls === 'QObject' && expr.property === 'measure') return T.int32;
 
             // QCOS: form 字段读取（含继承字段）
-            if (!expr.isMethodCall) {
-                const ft = this.findFieldType(objType, expr.property);
+            if (!expr.isMethodCall && objType.kind === 'form') {
+                const ft = this.findFieldType(objType.name, expr.property);
                 if (ft) return ft;
             }
         }
@@ -1465,54 +1650,54 @@ export class SemanticAnalyzer {
             const r = this.visitExpression(expr.right);
             if (expr.operator === '<' || expr.operator === '==' ||
                 expr.operator === '>' || expr.operator === '<=' ||
-                expr.operator === '>=' || expr.operator === '!=') return 'bool';
+                expr.operator === '>=' || expr.operator === '!=') return T.bool;
             // 指针算术：cap<T> + int -> cap<T>（允许类型不一致）
-            const ptrArith = expr.operator === '+' && l.startsWith('cap<');
-            if (l !== r && l !== 'unknown' && r !== 'unknown' && !ptrArith) {
+            const ptrArith = expr.operator === '+' && l.kind === 'cap';
+            if (!typeEquals(l, r) && l.kind !== 'unknown' && r.kind !== 'unknown' && !ptrArith) {
                 this.errors.push({
-                    message: `Type Error: binary operator '${expr.operator}' on mismatched types '${l}' and '${r}'.`,
+                    message: `Type Error: binary operator '${expr.operator}' on mismatched types '${typeToString(l)}' and '${typeToString(r)}'.`,
                     line: expr.line,
                     column: expr.column,
                     length: expr.length
                 });
             }
-            return l === 'unknown' ? r : l;
+            return l.kind === 'unknown' ? r : l;
         }
 
         if (expr.type === 'LogicalExpression') {
             const l = this.visitExpression(expr.left);
             const r = this.visitExpression(expr.right);
-            if (l !== 'bool' && l !== 'int32' && l !== 'unknown') {
+            if (!isConditionType(l)) {
                 this.errors.push({
-                    message: `Type Error: logical operator '${expr.operator}' requires boolean operands, got '${l}'.`,
+                    message: `Type Error: logical operator '${expr.operator}' requires boolean operands, got '${typeToString(l)}'.`,
                     line: expr.left.line,
                     column: expr.left.column,
                     length: expr.left.length
                 });
             }
-            if (r !== 'bool' && r !== 'int32' && r !== 'unknown') {
+            if (!isConditionType(r)) {
                 this.errors.push({
-                    message: `Type Error: logical operator '${expr.operator}' requires boolean operands, got '${r}'.`,
+                    message: `Type Error: logical operator '${expr.operator}' requires boolean operands, got '${typeToString(r)}'.`,
                     line: expr.right.line,
                     column: expr.right.column,
                     length: expr.right.length
                 });
             }
-            return 'bool';
+            return T.bool;
         }
 
         if (expr.type === 'UnaryExpression') {
             const t = this.visitExpression(expr.argument);
             if (expr.operator === '!') {
-                if (t !== 'bool' && t !== 'int32' && t !== 'unknown') {
+                if (!isConditionType(t)) {
                     this.errors.push({
-                        message: `Type Error: unary '!' requires a boolean operand, got '${t}'.`,
+                        message: `Type Error: unary '!' requires a boolean operand, got '${typeToString(t)}'.`,
                         line: expr.argument.line,
                         column: expr.argument.column,
                         length: expr.argument.length
                     });
                 }
-                return 'bool';
+                return T.bool;
             }
             return t;
         }
@@ -1520,35 +1705,34 @@ export class SemanticAnalyzer {
         if (expr.type === 'IndexExpression') {
             const objType = this.visitExpression(expr.object);
             expr.indices.forEach(i => this.visitExpression(i));
-            if (objType.startsWith('lattice<')) {
-                const inner = objType.slice('lattice<'.length, -1);
-                return inner.split(',')[0].trim();
+            if (objType.kind === 'lattice') {
+                return objType.elem;
             }
             this.errors.push({
-                message: `Type Error: Indexing requires a lattice, got '${objType}'.`,
+                message: `Type Error: Indexing requires a lattice, got '${typeToString(objType)}'.`,
                 line: expr.line,
                 column: expr.column,
                 length: expr.length
             });
-            return 'unknown';
+            return T.unknown;
         }
 
         if (expr.type === 'NewExpression') {
             if (expr.className === 'QReservoir') {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return 'QReservoir';
+                return T.qreservoir;
             }
             if (expr.className === 'BellState' || expr.className === 'DiracState' || expr.className === 'QuantumRegister') {
-                return 'QObject';
+                return T.qobject;
             }
             // 晶格构造：new/make lattice<T, B>(...) -> lattice<T, B>
             if (expr.className.startsWith('lattice<')) {
                 expr.arguments.forEach(a => this.visitExpression(a));
-                return expr.className;
+                return parseType(expr.className);
             }
             const base = expr.className.split('<')[0];
             if (this.forms.has(base)) {
-                return base;
+                return parseType(base);
             }
             this.errors.push({
                 message: `Type Error: Unknown form '${expr.className}'.`,
@@ -1556,8 +1740,8 @@ export class SemanticAnalyzer {
                 column: expr.column,
                 length: expr.length
             });
-            return 'unknown';
+            return T.unknown;
         }
-        return 'unknown';
+        return T.unknown;
     }
 }

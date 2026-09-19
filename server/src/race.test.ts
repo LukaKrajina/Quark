@@ -96,6 +96,7 @@ test('race: disjoint entanglement pairs stay separate', () => {
 
 test('race: e2e classic race across spawn threads is detected', () => {
     const a = analyze(`
+        @layer(time=0, thread=0, coord=(0))
         int32 quark_main() {
             cap<int32> counter = qk_gc_alloc(4);
             spawn { sync_add(counter, 1); }
@@ -111,6 +112,7 @@ test('race: e2e classic race across spawn threads is detected', () => {
 
 test('race: e2e quantum race on entangled closure is detected', () => {
     const a = analyze(`
+        @layer(time=0, thread=0, coord=(0))
         int32 quark_main() {
             Qubit q1 = alloc(1);
             Qubit q2 = alloc(1);
@@ -128,6 +130,7 @@ test('race: e2e quantum race on entangled closure is detected', () => {
 
 test('race: e2e single-threaded sync accesses are race-free', () => {
     const a = analyze(`
+        @layer(time=0, thread=0, coord=(0))
         int32 quark_main() {
             cap<int32> counter = qk_gc_alloc(4);
             sync_add(counter, 1);

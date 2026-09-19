@@ -5,6 +5,35 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.0]
+
+### Added
+
+- **多维标签函数 `@layer`**：以注解式标签 `@layer(time, thread, coord[, cost, deadline])` 取代单一 `quark_main` 入口，把执行过程映射到「时间 × 线程 × 运行层坐标」的多维拓扑空间。编译期 `TopologyBuilder` 自动推导平行/叠加关系与调用传播延迟（子函数 = 父时钟 + Δt），运行时 `TopoScheduler` 按拓扑分层调度（同层并行、层间顺序）。
+- **可逆编织门合成范式（Reversible Weaving）**：标签体系`@[gate]`（可组合门单元）、`@[undo]`（可逆对偶 U†：门序反转 + 逐门取逆、`@[steer]`（相干控制 Λ(U)：控制位导引目标门）、`@[unitary]`（酉性验证）、`@[measure]`（测量点标记）；`gate-synth.ts` 在 AST 层自动合成 `<name>_undo`/`<name>_steer`。
+- **受控门运行时实现**：`cx`/`ch`/`crz`/`cswap`/`c_toffoli`/`cqft`/`cbraid` 受控门 QIR 内建 + `IQuantumBackend` 基础门分解（CRz/CH/Fredkin/C³X/受控 QFT/受控 braid，到全局相位）；`iqft` 逆 QFT 内建（`qft† = iqft`）。
+- **量子物理特性标签**：`@[coherence(t1,t2)]`（相干时间）、`@[noise("model")]`（噪声模型）、`@[basis(X|Y|Z)]`（测量基）、`@[decoherence_free]`（无退相干子空间）、`@[error_correction("code")]`（纠错码）。
+- **噪声注入通道**：`@[noise]`/`@[coherence]` 门后自动注入噪声，`IQuantumBackend::apply_noise` 分发到 QVM（dense_state Kraus 通道）与超导/离子阱/中性原子/光子各硬件后端（`IdealStateCore::apply_noise_channel` 统一分发）。
+- **经典编译属性**：`@[inline]`/`@[noinline]`/`@[pure]`/`@[readonly]`/`@[cold]`/`@[hot]`/`@[noreturn]`/`@[export]`，映射到 LLVM 函数属性（`alwaysinline`/`readnone`/`cold`/`dllexport` 等）。
+- **IR 下沉（MIR → LLVM C++ API）**：`MirModuleBuilder` 以 LLVM C++ API 从序列化 MIR 构建 Module，经 `verifyModule` 校验；内建符号表覆盖全部 `ir.ts` declare（80+ 符号）；`mir_module_test` 固化为 CMake target。下沉路径补全 `NewObject`（对象构造 → `qk_create_*`）、`Drop`/`Consume`（量子资源释放）、`@layer` 拓扑入口（`emitTopologyEntry` 生成调度表 + `qk_topology_entry`）、`Member` form 字段访问（MIR 携带 `forms` 定义 + `MirModuleBuilder` 结构类型 + 精确 `getelementptr`）；`cli.ts` 新增 `--mir` 开关走 `COMPILE_MIR` 下沉路径。
+- **`spawn` 真实并发**：`spawn` 块编译为独立线程函数 `@qk_thread_N`，经 `qk_spawn` 内建以 `std::thread` 启动（detach），取代此前的串行内联降级；支持**闭包捕获**（`collectFreeVariables` + env 结构传递外层局部变量）；`mir.ts` 补上 `SpawnStatement` lowering 消除借用检查静默跳过。
+- **lambda lowering**：`mir.ts` 补 `FunctionExpression`（lambda）lowering，lambda body 的量子操作纳入借用检查（消除「MIR lowering skipped」静默降级）；`irverify.ts` 识别 `%env`/`%closure.*` 闭包类型名与参数。
+- **非破坏 `expectation_z`**：`IdealStateCore::expectation_z`（⟨Z⟩ = 1 - 2·P(1)，不坍缩态），超导/离子阱/中性原子三后端重写。
+- **光子去极化**：`PhotonicBackend` 的 depolarizing 从「损耗+相位翻转」近似改为正确的 Pauli 通道（X/Y/Z 以 3p/4 概率）。
+- **新示例**：`examples/reversible_weaving.qk`（可逆编织范式端到端 demo：`@[gate]`+`@[undo]`+`@[steer]`+`@[noise]`）。
+
+### Fixed
+
+- 修复 `parseAttributes` 把连续 `@` 全当 `@[...]`，导致 `@[gate] @layer(...)` 混排崩溃。
+- 修复 `irverify.ts` 函数参数（`%arg0`）未计入 `definedRegs`，导致带参函数误报 SSA violation。
+- 修复 `rz` 签名检查（原误判为 1 参数，实际为 qubit + angle 2 参数）。
+- 修复受控门不在 `GATE_FNS` 导致 MIR 层误判「消费」参数、`@[gate]` 函数误报 E-TOP001、顺序调用被 Q-Digest 误判为跨线程竞争。
+- 修复 `section`/`naked` 与历史 `place`/`raw` 命名分裂（`@[section]` 现在正确生成 LLVM `section` 属性）。
+
+### Changed
+
+- 入口函数：`quark_main` 由 `@layer` 多维标签函数取代（无标签程序仍回退脚本模式）。
+
 ## [0.5.0] (vsx 0.1.1)
 
 ### Added
