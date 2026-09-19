@@ -4,10 +4,13 @@
 
 # Quark — 量子编程语言
 
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue)
-![Language](https://img.shields.io/badge/lang-TypeScript%20%7C%20C%2B%2B20-orange)
-![Runtime](https://img.shields.io/badge/runtime-LLVM%20ORC%20JIT-informational)
-![License](https://img.shields.io/badge/license-MIT-green)
+[![Stars](https://img.shields.io/github/stars/LukaKrajina/Quark?style=social)](https://github.com/LukaKrajina/Quark/stargazers)
+[![Forks](https://img.shields.io/github/forks/LukaKrajina/Quark?style=social)](https://github.com/LukaKrajina/Quark/network/members)
+
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue?style=for-the-badge)
+![Language](https://img.shields.io/badge/lang-TypeScript%20%7C%20C%2B%2B20-orange?style=for-the-badge)
+![Runtime](https://img.shields.io/badge/runtime-LLVM%20ORC%20JIT-informational?style=for-the-badge)
+![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 
 [English](./README.en.md)
 
