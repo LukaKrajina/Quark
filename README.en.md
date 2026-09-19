@@ -1,6 +1,17 @@
+<div align="center">
+
+<img src="icons/marketplace.png" alt="QK" width="128"/>
+
 # Quark — Quantum Programming Language
 
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue)
+![Language](https://img.shields.io/badge/lang-TypeScript%20%7C%20C%2B%2B20-orange)
+![Runtime](https://img.shields.io/badge/runtime-LLVM%20ORC%20JIT-informational)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 [中文](./README.md)
+
+</div>
 
 Quark (`.qk`) is an experimental programming language targeting **quantum computing + neural interfaces + quantum language models + quantum robotics**. This repository ships a full **VS Code language extension**, an **LLVM ORC JIT runtime**, a **CLI toolchain**, a **web inference UI**, a **Go installer**, a **real-time quantum visualizer**, the **VedaROS quantum robotics operating system**, and the **QbNS quantum brain network**.
 

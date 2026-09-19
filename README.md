@@ -1,6 +1,17 @@
+<div align="center">
+
+<img src="icons/marketplace.png" alt="QK" width="128"/>
+
 # Quark — 量子编程语言
 
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-blue)
+![Language](https://img.shields.io/badge/lang-TypeScript%20%7C%20C%2B%2B20-orange)
+![Runtime](https://img.shields.io/badge/runtime-LLVM%20ORC%20JIT-informational)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 [English](./README.en.md)
+
+</div>
 
 Quark（`.qk`）是一门面向「量子计算 + 神经接口 + 量子语言模型 + 量子机器人」的实验性编程语言。本仓库提供了完整的 **VSCode 语言支持扩展**、**LLVM ORC JIT 运行时**、**命令行工具链**、**Web 推理界面**、**Go 安装器**、**实时量子可视化器**、**VedaROS 量子机器人操作系统**与 **QbNS 量子脑网络**。
 
