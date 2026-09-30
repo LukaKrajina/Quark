@@ -2,7 +2,7 @@
   "name": "quark-lang",
   "displayName": "Quark Language Support",
   "description": "Language support for the Quark Quantum Programming Language (.qk)",
-  "version": "0.2.2",
+  "version": "0.3.1",
   "publisher": "quarkproject",
   "icon": "icons/marketplace.png",
   "repository": {

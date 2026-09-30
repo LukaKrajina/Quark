@@ -78,6 +78,12 @@ TQNF 将它重新诠释为量子学习的三个正交自由度——这就是「
 > `H_a ⊗ H_b`（coord）以及**沿时间的信道复合** `Φ_t ∘ … ∘ Φ_0`（time）。学习不再「调权重」，
 > 而是「选几何（度量）+ 选拓扑（纠缠/并置）+ 调耗散（信道强度）」。
 
+新增的拓扑边把「选几何」显式化了：`coord` 维度不同 → `projection`（曲面体投影，对应
+Fubini-Study 测地线 / Poincaré 双曲几何）；同 `coord` 且标 `dual=1` → `inversion`（T-对偶反转空间
+`R → 1/R`）；同 `coord` 异 `thread` → `crossing`（交叉）；叠加链上的坐标空槽与超 `deadline` 的
+传播延迟分别由 `E-TOP005` / `E-TOP006` 报错。通过校验后，运行时按 `@qk_topology_json` 调度表由
+`quark_runtime_run_topology` 执行（`time` 分层 + 按 coord 的 L1 码距并行）。
+
 ---
 
 ## 4. 设计法则
@@ -135,6 +141,34 @@ TQNF 把 DQNF 的启发式「法则」系统化为六条对偶律（对偶 = 两
 | `natural_gradient(G,∇L)` | `θ ← θ - η G⁺ ∇L` | 几何更新 |
 | `apply_kraus(ρ,{K})` | `Σ K ρ K†` | time（耗散流） |
 | `depolarizing/amplitude_damping/dephasing` | 标准噪声信道 | time（耗散流） |
+
+### 5.3 `spacetime/RetrocausalCapacity.hpp` / `spacetime/RetrocausalCTC.hpp` —— 逆因果容量与 KK-CTC 内核
+
+`time` 维度的「信道复合」在**逆因果方向**上的对偶：容量由信道 Choi 矩阵决定（P-CTC，
+`I_max = log2 λ_max(J)`、`I_doe = log2 d_in − log2 λ_min⁺(J)`）：
+
+| 原语 | 数学 | 支柱 |
+| --- | --- | --- |
+| `QuantumChannel::from_kraus/unitary/depolarizing/dephasing/bit_flip/amplitude_damping/…` | Kraus 表示的信道构造 | time（信道） |
+| `choi_matrix(Φ)` | Choi 矩阵 `J = Σ_ij e_ij ⊗ Φ(e_ij)` | 逆因果容量 |
+| `retrocausal_info(Φ)` | `imax` / `idoe` / 谱 / 纯度 / 平坦度 | 逆因果容量 |
+| `tensor_product` / `tensor_power` / `idoe_regularized` | 信道张量积、`n` 次幂、Doeblin 正则化 | 容量标度 |
+| `forward_classical_capacity(Φ)` | 前向 Holevo 容量（回程能力基准） | 对照 |
+| `retrocausal_capacity(Φ)` | `q/c` 渐近容量 + 单次容量 + 回程增益 | 逆因果容量 |
+| `q_retrocausal_capacity(Φ, q)` | q-变形容量（q→0 前向、q→1 回程） | 逆因果容量 |
+| `amplified_teleportation(Φ, …)` | 后选择放大协议 | 协议 |
+| `retrocausal_flow(_perturbed)` | 容量流与扰动流 | 动力学 |
+
+| 原语 | 数学 | 支柱 |
+| --- | --- | --- |
+| `KaluzaKleinND(n)` | `n` 个额外维 `S¹` 的 KK 动量 / 模式质量平方 / 快子质量平方 `m²_eff = −μ²` | 几何 |
+| `TachyonCTCNoise` / `tachyon_ctc_noise` | 几何 → 噪声映射（退相 `asym/(1+asym)`、去极化 `n/(n+1)`、阻尼 `μ²/(μ²+λ)`） | time（耗散流） |
+| `compose_channels` / `tachyon_ctc_channel` | Kraus 串行组合 → 嘈杂 CTC 信道 | time（信道复合） |
+| `MultiTopologyRetrocausal` | 逐 `coord` 维度容量与容量-维度曲线 | coord（维度） |
+
+语言层入口：`retrocausal_*`（7 个）/ `retrocausal_ctc_*`（4 个）/ `geodesic_distance` / `inversion` /
+`hyperbolic_metric` / `hyperbolic_distance`；C ABI 见 `qml/RetrocausalAbi.hpp`、`qml/RetrocausalCTCAbi.hpp`、
+`qml/GeodesicAbi.hpp`，语言手册见 §12.12–§12.14。
 
 ---
 

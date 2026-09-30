@@ -130,8 +130,27 @@ if(WIN32)
         ${LLVM_TARGETS_TO_BUILD}
     )
 else()
-    # Linux（如 Arch）提供合并的 libLLVM.so，包含全部组件；分立组件库不存在
-    set(llvm_libs LLVM)
+    # Linux：优先**静态**组件库——产物自包含，不要求目标机装 libLLVM.so（既省去
+    # 132 MB 依赖，也避免跨发行版的 LLVM 版本/符号耦合）。Ubuntu/Debian 的
+    # llvm-dev 同时提供 libLLVM*.a 与合并的 libLLVM.so；Arch 等只有合并 so。
+    find_library(QUARK_LLVM_STATIC_CORE NAMES LLVMCore PATHS ${LLVM_LIBRARY_DIR} NO_DEFAULT_PATH)
+    if(QUARK_LLVM_STATIC_CORE)
+        llvm_map_components_to_libnames(llvm_libs
+            Core
+            ExecutionEngine
+            IRReader
+            OrcJIT
+            Support
+            Target
+            ${LLVM_TARGETS_TO_BUILD}
+        )
+        # 静态链接还需 LLVM 自身的外部依赖（zlib / zstd / tinfo / xml2 / dl / m …）
+        list(APPEND llvm_libs ${LLVM_SYSTEM_LIBS})
+        message(STATUS "Quark: LLVM 静态链接 (${QUARK_LLVM_STATIC_CORE})，系统库: ${LLVM_SYSTEM_LIBS}")
+    else()
+        set(llvm_libs LLVM)
+        message(STATUS "Quark: LLVM 以合并 libLLVM.so 动态链接")
+    endif()
 endif()
 
 # Vulkan & GLFW
@@ -258,6 +277,7 @@ add_library(quark_rt SHARED
     src/ClassicGfx.cpp
     src/ClassicGui.cpp
     src/stb_image_impl.cpp
+    src/glibc_compat.cpp   # 仅 Linux/glibc 生效：见文件头（旧发行版符号版本兼容）
     include/gui/src/render_context.cpp
     include/gui/src/font_loader.cpp
 )
@@ -272,6 +292,17 @@ target_link_libraries(quark_rt PRIVATE Kokkos::kokkos)
 # shared library 链接时丢弃其符号，导致 quark_rt.so 遗留未解析的 Kokkos
 # 符号、runtime 可执行链接失败。强制 --no-as-needed 保留 Kokkos 依赖。
 target_link_options(quark_rt PRIVATE -Wl,--no-as-needed)
+if(UNIX AND NOT APPLE)
+    # glibc 兼容垫片必须关掉内建函数折叠，否则我们对 fmod/sqrtf 的「就地定义」
+    # 会被编译器替换成内建调用，垫片形同虚设。
+    set_source_files_properties(src/glibc_compat.cpp PROPERTIES COMPILE_OPTIONS "-fno-builtin")
+    # 静态链接 libstdc++：产物不再要求目标机的 libstdc++.so.6 具备同版本
+    # GLIBCXX_3.4.3x 符号（Ubuntu 22.04 只到 3.4.30）。
+    # 注：**不**静态链接 libgcc——静态 libgcc 的展开器会引用 _dl_find_object
+    # （ld.so 自 glibc 2.35 起才导出），把门槛又抬上去；libgcc_s.so.1 各发行版
+    # 都有且版本接口稳定，动态链接反而更通用。
+    target_link_options(quark_rt PRIVATE -static-libstdc++)
+endif()
 target_link_libraries(quark_rt PRIVATE ${Vulkan_LIBRARIES} ${GLFW_LIB} ${GLFW_STATIC_SYS})
 if(WIN32)
     target_link_libraries(quark_rt PRIVATE ws2_32 ${OPENMP_LIB})
@@ -300,6 +331,7 @@ endif()
 # ==========================================
 add_executable(runtime
     src/main.cpp
+    src/glibc_compat.cpp   # 仅 Linux/glibc 生效（同上）
 )
 target_include_directories(runtime PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(runtime PRIVATE quark_rt Kokkos::kokkos)
@@ -321,6 +353,8 @@ if(WIN32)
     endif()
 elseif(UNIX AND NOT APPLE)
     target_link_libraries(runtime PRIVATE pthread)
+    # 与 quark_rt 一致：静态 libstdc++（libgcc 保持动态，见上）
+    target_link_options(runtime PRIVATE -static-libstdc++)
 endif()
 quark_sign_target(runtime)
 

@@ -30,6 +30,9 @@ Quark（`.qk`）是一门面向「量子计算 + 神经接口 + 量子语言模�
 | QRC 量子储备池 | `qrc_new` / `qrc_train` / `qrc_probe` / `qrc_predict` / `qrc_release` 五个内置函数 + `QReservoir` 类型：合成正弦时序训练线性读出，验证「无贫瘠高原」的量子储备计算 |
 | TQNF 拓扑量子神经场 | QObject 层量子门 `qgate_h`/`qgate_x`/`qgate_rz`/`qgate_cnot`（借用不消费）、跨对象受控门 `qgate_cnot_pair`（POVM 弱测量）、非破坏期望 `qexpect_z`、部分坍缩测量 `qmeasure`、qubit 数查询 `qobj_num_qubits`、SWAP test 注意力 `qattention`、态量度 `qstate_entropy`/`qstate_fidelity`、测量熵 `shannon4`/`shannon8`、可训练性诊断 `dla_dim`（动力学李代数维数） |
 | POVM 正定算子值测量 | 跨对象受控门（主 qubit 控制辅助 qubit）实现弱测量，主态不完全坍缩；多 qubit 变分 ansatz 经 `qobj_num_qubits` 态维度对齐 |
+| 量子通道逆因果容量 | `retrocausal_imax` / `_idoe` / `_q_capacity` / `_c_capacity` / `_q_one_shot` / `_gain` / `_deformed(kind, p[, x])`：基于 Choi 矩阵的 P-CTC 回程能力（max-information / Doeblin / 渐近与单次量子·经典容量 / q-变形容量 / 回程增益），`kind` 覆盖去极化 / 退相 / 比特翻转 / 振幅阻尼 / 幺正 Hadamard / 比特-相位翻转 |
+| 快子 KK 双空间 CTC | `retrocausal_ctc_q_capacity` / `_c_capacity` / `_gain(n, theta, mu2, lambda)` / `retrocausal_ctc_dephasing(theta)`：把抽象噪声升级为「快子场在 KK 额外维（DD 双维度）传播」物理产生（Wilson line 退相 / 维度扩散去极化 / 快子真空阻尼），`@layer(coord=...)` 的维度即额外维数 n |
+| 非欧几里德曲面体几何 | `geodesic_distance(a, b)`（Fubini-Study 测地线距离，SWAP-test 重叠）/ `inversion(R)`（T-对偶反转 `R→1/R`）/ `hyperbolic_metric(x)` / `hyperbolic_distance(x, y)`（Poincaré 球度规与双曲距离） |
 | 脑机接口 BCI | `mind_read` / `mind_train` / `mind_feedback`，通过 QbNS Transducer 将神经信号编码为量子态 |
 | QbNS 量子脑网络 | `Transducer`（神经→量子编码）、`Rmx`（分布式混合网络）、`qbw`（脑量子波 / 量子流 / 分布链接） |
 | VedaROS 量子机器人 OS | 类 ROS 的量子分布式操作系统：QDDP 去中心化协议、类 rclcpp 客户端库、qk 自定义语言、坐标变换树、行为树导航、纠缠意识规划、硬件抽象 |
@@ -43,12 +46,12 @@ Quark（`.qk`）是一门面向「量子计算 + 神经接口 + 量子语言模�
 | 量子门原语 | 内置 `x` `y` `z` `h` `s` `t` `rz` `rx` `ry` `cnot` `toffoli` `swap` `qft` `iqft` `braid` 门、受控门 `cx` `ch` `crz` `cswap` `c_toffoli` `cqft` `cbraid` 与 `measure_x` / `measure_y` 测量 |
 | 量子语言迁移 | `qk migrate` 把 OpenQASM 2.0/3.0、Q#、Quil、Silq 源码友好地转译为 `.qk`（source-to-source，多前端 + 统一 CircuitIR + 单发射器，含 qelib1 门库自动分解） |
 | 真实并发 | `spawn` 块编译为独立线程函数，经 `qk_spawn` 内建以 `std::thread` 启动（detach），支持闭包捕获外层变量，配合 Q-Digest 静态竞争检测 |
-| 多维标签函数 | `@layer(time, thread, coord[, cost, deadline])` 注解式入口，执行过程映射到「时间 × 线程 × 运行层坐标」多维拓扑，编译期自动推导平行/叠加 + 运行时拓扑调度 |
+| 多维标签函数 | `@layer(time, thread, coord[, cost, deadline][, dual])` 注解式入口，执行过程映射到「时间 × 线程 × 运行层坐标」多维拓扑，编译期自动推导平行/叠加/投影/反转/交叉五类边 + 调用传播延迟（`E-TOP005`/`E-TOP006` 诊断）+ 运行时 `quark_runtime_run_topology` 按 time 分层、按 coord 码距并行调度 |
 | 可逆编织门合成 | `@[gate]`/`@[undo]`/`@[steer]`/`@[unitary]`/`@[measure]` 标签：可逆对偶 U†（门序反转 + 逐门取逆）与相干控制 Λ(U) 的自动合成 |
 | 量子物理特性 | `@[coherence]`/`@[noise]`/`@[basis]`/`@[decoherence_free]`/`@[error_correction]` 标签：噪声模型与相干时间约束，门后自动注入噪声到 QVM 与多硬件后端 |
 | 经典编译属性 | `@[inline]`/`@[noinline]`/`@[pure]`/`@[cold]`/`@[hot]`/`@[noreturn]`/`@[export]`，映射到 LLVM 函数属性 |
 | 系统级内核编程 | 读寄存器内建（`read_cr3`/`rdmsr`/`wrmsr`/`cpuid`/`rdtsc`/`xgetbv` 等，把 CR3/MSR/CPUID 叶读回 `uint64` 变量）、裸汇编块 `asm { }` + `@[naked]`（多指令序列：中断存根保存全部寄存器 + iretq、切栈、gdt 远返回）、函数指针 `fn<ret(params)>` 间接调用、`@[packed]` 精确字节布局（GPT/FAT/ATA 磁盘结构）、`volatile_load/store`（MMIO 轮询）、定长数组 `arr<T,N>` 字面量与索引、位域、完整 uint64 无符号运算与复数类型 |
-| VS Code 扩展 | vsx 打包：esbuild bundle + runtime 产物（`runtime.exe`/`quark_rt.dll` 等）打包进 `bin/`，**安装即运行/编译/构建 qk**（无需单独安装 runtime）；语法高亮 + 语义感知补全 + 运行/编译/构建命令 + **中英双语悬停提示**（关键字/类型/内置函数详细文档，随系统语言自动切换）+ 右键菜单迁移（`.qasm`/`.qs`/`.quil`/`.slq` → `.qk`） |
+| VS Code 扩展 | vsx 打包：esbuild bundle + runtime 产物打包进 `bin/`（`bin/win32-x64/`、`bin/linux-x64/`），**一个 vsix 同时携带 Windows 与 Linux 运行时**，按 `process.platform` 自动选择，**安装即运行/编译/构建 qk**（无需单独安装 runtime）；语法高亮 + 语义感知补全 + 运行/编译/构建命令 + **中英双语悬停提示**（关键字/类型/内置函数详细文档，随系统语言自动切换）+ 右键菜单迁移（`.qasm`/`.qs`/`.quil`/`.slq` → `.qk`） |
 | VS Code 侧边栏 | 仿 Flutter DevTools 的 Activity Bar 侧边栏：**编译目标**（x32/x64/arm64 一键切换，编译时透传）、**操作**（运行/编译/构建/迁移快捷按钮）、**性能监测**（编译/执行耗时历史曲线图，`globalState` 跨会话持久化 + 清空按钮）、**量子对象与比特**（daemon 实时快照：多 qubit 约化密度矩阵 Bloch 球 3D 可旋转 + 态矢量概率柱状图 + 测量历史） |
 | HTTP 推理服务 | `qk serve` 提供 OpenAI 兼容的 `chat/completions`、`embeddings`、`models` 接口 |
 | Web 聊天界面 | 基于 Vite + Tailwind + Dexie 的流式推理聊天界面 |
@@ -360,6 +363,13 @@ let x = "hi", y = "yo";          // let/auto 类型推导同样支持
 | `qstate_fidelity` | `qstate_fidelity(QObject, QObject)` | `double` | 两量子态保真度 F(ρ,σ) |
 | `dla_dim` | `dla_dim(string, int32)` | `int32` | 动力学李代数维数（可训练性诊断） |
 | `shannon4` / `shannon8` | `(int32, ...)` | `double` | 测量熵（4/8 态香农熵） |
+| `retrocausal_imax` / `_idoe` / `_q_capacity` / `_c_capacity` / `_gain` | `(int32 kind, double p)` | `double` | 逆因果容量：max-information / Doeblin / 渐近量子·经典容量 / 回程增益 |
+| `retrocausal_q_one_shot` / `retrocausal_deformed` | `(int32 kind, double p, double x)` | `double` | 单次容量（含 ε）/ q-变形容量 |
+| `retrocausal_ctc_q_capacity` / `_c_capacity` / `_gain` | `(int32 n, double theta, double mu2, double lambda)` | `double` | 快子 KK 双空间嘈杂 CTC 通信容量（n 个 DD 额外维） |
+| `retrocausal_ctc_dephasing` | `(double theta)` | `double` | Wilson line 退相噪声映射（额外维破坏 ±n 模式对称） |
+| `geodesic_distance` | `(QObject, QObject)` | `double` | Fubini-Study 测地线距离 `arccos\|⟨a\|b⟩\|`（曲面体投影） |
+| `inversion` / `hyperbolic_metric` | `(double)` | `double` | T-对偶反转 `R→1/R` / Poincaré 球度规 `4/(1-\|x\|²)²` |
+| `hyperbolic_distance` | `(double, double)` | `double` | Poincaré 双曲距离 |
 
 ### 内置类
 
@@ -429,6 +439,10 @@ int32 consumer() { return 0; }
 - `time`：锚点时间（叠加链时序；子函数可省略，运行时继承调用者时钟 + Δt）
 - `thread`：逻辑线程（同线程串行、异线程并行）
 - `coord`：N 维运行层坐标（平行/叠加推导依据）
+- `cost` / `deadline`：块自身执行成本（影响父块逻辑时钟推进）/ 时间束缚上限
+- `dual`：`dual=1` 标记该块位于 T-对偶反转空间——同 coord 且标记 dual 的块之间推导 `inversion` 边
+
+块间关系自动推导为五类拓扑边：同 coord 相邻 time → `stack`（叠加）、异 coord → `parallel`（平行）、coord 维度不同 → `projection`（曲面体投影）、同 coord + `dual` → `inversion`（反转）、同 coord 异 thread → `crossing`（交叉）；子函数还带调用传播延迟（锚点 = 父锚点 + 累计 Δt）。编译期用 `E-TOP005`（叠加链坐标空槽）/ `E-TOP006`（传播延迟超 deadline）报错；通过校验后，含 `@layer` 的模块会生成调度表 `@qk_topology_json` 与入口 `@qk_topology_entry`，运行时 `quark_runtime_run_topology` 按 `time` 分层、同层按 coord 的 L1 码距并行调度（阈值 `QUARK_TOPOLOGY_MIN_DISTANCE`）。
 
 无标签的顶层脚本仍回退到脚本模式（隐式包裹为 `quark_main`）。详细语法与标签体系见 [qk 语言手册](docs/qk-language-manual.md)。
 

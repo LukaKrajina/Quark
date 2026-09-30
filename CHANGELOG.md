@@ -5,6 +5,34 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.9.1] (vsx 0.3.1)
+
+### Added
+
+- **量子非欧几里德曲面体几何原语**：语言层新增 `geodesic_distance(QObject, QObject)` / `inversion(double)` / `hyperbolic_metric(double)` / `hyperbolic_distance(double, double)` 四个内建；新增 C ABI `runtime/include/qml/GeodesicAbi.hpp`——`qk_geodesic_distance` 用 SWAP-test 重叠给出 Fubini-Study 测地线距离 `arccos|⟨a|b⟩|`（复用 `qk_qattention`），`qk_inversion` 实现 T-对偶反转 `R → 1/R`，`qk_hyperbolic_metric` / `qk_hyperbolic_distance` 给出 Poincaré 球度规 `4/(1-|x|²)²` 与双曲距离。`server/src/mir.ts` 把 `geodesic_distance` 纳入 `QOBJ_BORROW_FNS`（借用 QObject 而非消费，避免 QLT 误报 E-Q001）。
+- **量子通道逆因果容量（回程能力）**：语言层新增 7 个内建——`retrocausal_imax(kind, p)` / `retrocausal_idoe(kind, p)` / `retrocausal_q_capacity(kind, p)` / `retrocausal_c_capacity(kind, p)` / `retrocausal_q_one_shot(kind, p, eps)` / `retrocausal_gain(kind, p)` / `retrocausal_deformed(kind, p, x)`；新增 C ABI `qml/RetrocausalAbi.hpp` 与内核 `runtime/include/spacetime/RetrocausalCapacity.hpp`：Choi 矩阵 `choi_matrix`、max-information / Doeblin information（`retrocausal_info`）、正则化 Doeblin `idoe_regularized`、前向 Holevo 基准 `forward_classical_capacity`、渐近与单次 q/c 容量、q-变形容量 `q_retrocausal_capacity`、后选择放大协议 `amplified_teleportation`、容量流 `retrocausal_flow` / `retrocausal_flow_perturbed`。预置信道 `kind`：`0`=去极化、`1`=退相、`2`=比特翻转、`3`=振幅阻尼、`4`=幺正 Hadamard、`5`=比特-相位翻转。
+- **快子 KK 双空间嘈杂 CTC 通信（n 个 DD 维度）**：语言层新增 `retrocausal_ctc_q_capacity(n, theta, mu2, lambda)` / `retrocausal_ctc_c_capacity(...)` / `retrocausal_ctc_gain(...)` / `retrocausal_ctc_dephasing(theta)`；新增 C ABI `qml/RetrocausalCTCAbi.hpp` 与内核 `spacetime/RetrocausalCTC.hpp`——`KaluzaKleinND`（n 个额外维 S¹ 的 KK 动量、模式质量平方、快子质量平方与模式不对称）、`TachyonCTCNoise`（几何 → 噪声映射：退相 `asym/(1+asym)`、去极化 `n/(n+1)`、振幅阻尼 `μ²/(μ²+λ)`）、Kraus 串行组合 `tachyon_ctc_channel` 与 `MultiTopologyRetrocausal`（逐维度容量与容量-维度曲线）。`@layer(coord=(c₀,…,c_{n−1}))` 的 coord 维度即额外维数 n。
+- **`@layer(..., dual=1)` 对偶标记与三类新拓扑边**：`dual` 标记 T-对偶反转空间；拓扑推导新增 `projection`（coord 维度不同 → 曲面体投影）、`inversion`（同 coord + `dual=1`）、`crossing`（同 coord 异 thread）三类边（`ast.ts` 的 `TopologyEdge`）。
+- **拓扑调度入口（编译期 → 运行时）**：含 `@layer` 的模块额外生成调度表常量 `@qk_topology_json` 与入口 `define i32 @qk_topology_entry()`，后者调用新运行时接口 `quark_runtime_run_topology(i8*)`——按 `time` 分层，同层按 coord 的 L1 码距并行调度（虚拟线程 → 残差并发 → 码距逻辑 qubit 布局），阈值由环境变量 `QUARK_TOPOLOGY_MIN_DISTANCE` 调整。
+- **新拓扑诊断**：`E-TOP005`（叠加链坐标空槽 gap）、`E-TOP006`（调用传播延迟超出 `deadline`）；新增调用传播边 `TopologyCallEdge`（`startAt` / `deltaT`），子函数锚点 = 父锚点 + 累计延迟（`cost` 之和）。
+- **SoftLogic / 神经 / QMS 原语 ABI 化**：新增 `runtime/include/qml/SoftLogicAbi.hpp`，把 `qk_surrogate` / `qk_tanh_quantize` / `qk_lif_step` / `qk_mellowmax2` / `qk_logsumexp2` / `qk_boltzmann2` / `qk_tnorm_luk|prod|godel` / `qk_polymer_weight` / `qk_polymer_mix_bound` / `qk_qms_gap` / `qk_mix_bound` / `qk_qms_conc` 统一为 `extern "C"` 导出。
+- **SandboxJIT 无条件符号绑定扩展**：geodesic / retrocausal / CTC / 软逻辑 / QMS 原语全部无条件绑定，`.mmi` 沙箱内可直接执行这些推理原语。
+- **文档补齐**：语言手册新增 §12.12（量子通道逆因果容量）、§12.13（快子 KK 双空间嘈杂 CTC 通信）、§12.14（非欧几里德曲面体几何），§8.1 补充 `dual` 与三类新拓扑边、拓扑调度说明，§19.1 关键字表补入全部 `retrocausal_*` / `retrocausal_ctc_*`；悬停文档 `hover-docs.ts` 补入 `retrocausal_*` / `retrocausal_ctc_*` 中英双语说明。
+
+### Changed
+
+- **`E-TOP002` 放宽**：坐标维度一致性检查改为 no-op——曲面体允许不同块使用不同 coord 维度，改为推导 `projection` 边（`validateCoordDims` 不再报错）。
+- **SoftLogic / QMS 原语定义位置迁移**：由 `qhal/JIT.hpp` 内的 inline 定义迁移到 `qml/SoftLogicAbi.hpp` 的「`extern "C"` 声明 + `#if QUARK_RT_BUILD` 单点定义」，并由 `runtime/src/runtime_api.cpp` 统一 include。
+- **MIR body 增加调度元数据**：`MirBody` 新增 `layer?: {time?, thread, coord}`，随 body JSON 序列化下发（供 MIR 下沉器与沙箱使用）。
+- **VSIX 单包双平台 + 双平台开箱即用**：`bin/` 按平台分子目录（`win32-x64/`、`linux-x64/`），一个 vsix 同时携带 Windows 与 Linux 运行时，安装后按 `process.platform` 自动选择（`server.ts` 的 `resolveRuntime()`，并在 Linux/macOS 上按需 `chmod 0755`，因 zip 不保留可执行位）。两条运行时链路都做到**自包含**：
+  - **Windows**：随包携带 `libomp.dll`、`vulkan-1.dll` 与 MSVC 运行库（`msvcp140`/`vcruntime140*`，app-local 部署），不再要求用户安装 VC++ 运行库或 Vulkan 运行时。
+  - **Linux**：LLVM 改为**静态链接**（自建精简静态 LLVM，仅 X86/NVPTX/AArch64 后端），Kokkos 亦静态（PIC）并入 `libquark_rt.so`；随包携带 `libvulkan.so.1` / `libglfw.so.3` / `libomp.so.5`。不再要求目标机安装 LLVM / Vulkan SDK / GLFW / OpenMP 运行时。
+- **Linux 旧发行版兼容（新增 `runtime/src/glibc_compat.cpp`）**：在新发行版（如 Ubuntu 26.04 / glibc 2.43）上链接会把 `fmod`/`fmodf`/`acosf`/`sqrtf`/`__isoc23_strto*` 绑定到 `GLIBC_2.38/2.43` 的新符号版本，导致旧发行版报 `version 'GLIBC_2.38' not found` 而**无法加载**。新增垫片在本 DSO 内就地定义这些新名字（内部经 `.symver` 转调 `@GLIBC_2.2.5` 旧实现；`arc4random` 家族用 `getrandom(2)`/`/dev/urandom` 自行实现），使 `libquark_rt.so` / `runtime` 的符号需求上限从 `GLIBC_2.43` 降到 `GLIBC_2.34`；同时以 `-static-libstdc++` 消除 `GLIBCXX_3.4.3x` 依赖（libgcc 保持动态，避免静态展开器引入 `_dl_find_object`）。
+
+### Fixed
+
+- **LLVM ORC JIT 符号解析失败**：`qk_surrogate` / `qk_polymer_*` / `qk_qms_*` 等原语此前以非 inline 定义散落在被多处 include 的 `JIT.hpp` 中，导致 JIT 报 `Symbols not found`；改为单点定义后修复。
+
 ## [0.9.0] (vsx 0.3.0)
 
 ### Added

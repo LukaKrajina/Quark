@@ -77,6 +77,12 @@ function resolveRuntime(): { path: string; env?: NodeJS.ProcessEnv } {
     const bundled = path.join(binDir, binName);
     if (!fs.existsSync(bundled)) return { path: 'quark' };
 
+    // Linux / macOS：vsix（zip）不保留可执行位，安装后 runtime 往往是 0644，
+    // 直接 spawn 会 EACCES；这里按需补上执行权限（失败不致命，回退到 PATH 里的 quark）。
+    if (process.platform !== 'win32') {
+        try { fs.chmodSync(bundled, 0o755); } catch { /* 忽略：只读 FS 等情形 */ }
+    }
+
     // Linux / macOS：让动态链接器在 bin/<platform>/ 里找到随 vsix 打包的 libquark_rt.so，
     // 否则 spawn 时 `runtime` 会因缺依赖而启动失败。
     const env: NodeJS.ProcessEnv = { ...process.env };

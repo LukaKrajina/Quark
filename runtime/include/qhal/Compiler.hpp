@@ -109,7 +109,8 @@ namespace quark
             auto target_machine = target->createTargetMachine(triple.str(), "generic", "", opt, reloc_model);
 #endif
             module->setDataLayout(target_machine->createDataLayout());
-#if LLVM_VERSION_MAJOR >= 22
+            
+#if LLVM_VERSION_MAJOR >= 21
             module->setTargetTriple(triple);
 #else
             module->setTargetTriple(triple.str());

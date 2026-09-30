@@ -397,17 +397,28 @@ int32 main() {
 | `coord` | 必填 | N 维运行层坐标：块在多维拓扑空间的初始位置 |
 | `cost` | 可选（默认 1） | 块自身的执行成本，影响父块逻辑时钟推进 |
 | `deadline` | 可选 | 时间束缚上限 |
+| `dual` | 可选 | `dual=1` 标记该块位于 T-对偶反转空间；同 coord 且带 `dual` 的块之间推导 `inversion` 边 |
 
-块间关系从标签**自动推导**：
+块间关系从标签**自动推导**（五类拓扑边）：
 
 ```text
-coord 相同  → 叠加（stack），按 time 组成时序链
-coord 不同  → 平行（parallel），空间并置
-thread 不同 → 可并行
+coord 相同，time 相邻   → 叠加（stack），按 time 组成时序链
+coord 不同              → 平行（parallel），空间并置
+coord 维度不同          → 投影（projection），曲面体投影（不同 coord 维度共存）
+coord 相同且 dual=1     → 反转（inversion），T-对偶反转空间
+coord 相同、thread 不同 → 交叉（crossing）
+thread 不同             → 可并行
 ```
 
 块内**调用传播延迟**（逻辑时钟模型）：子函数的执行时刻 = 父函数锚点 `time` + 调用点之前的累计延迟
 Δt（Δt = 前面语句的执行成本 δ 与前置子函数 `cost` 之和）。这对应量子电路的门时序与传播延迟。
+
+编译期拓扑校验会报出两类新诊断：`E-TOP005`（叠加链上坐标出现空槽 gap）、`E-TOP006`（调用传播
+延迟超出该块的 `deadline`）；`E-TOP002`（坐标维度一致性）在曲面体语义下已放宽为不报错，
+coord 维度不同的块改为推导 `projection` 边。含 `@layer` 的模块在通过校验后额外生成调度表常量
+`@qk_topology_json` 与入口 `define i32 @qk_topology_entry()`，后者调用运行时接口
+`quark_runtime_run_topology(i8*)`——按 `time` 分层、同层按 coord 的 L1 码距并行调度
+（虚拟线程 → 残差并发 → 码距逻辑 qubit 布局，阈值可用环境变量 `QUARK_TOPOLOGY_MIN_DISTANCE` 调整）。
 
 多个标签函数构成一张执行拓扑，运行时按 `time` 分层、同层按 `thread` 并行调度：
 
@@ -833,6 +844,35 @@ double ctc_capacity() {
     double q = retrocausal_ctc_q_capacity(2, 0.3, 1.0, 1.0);  // 双 DD 维度 CTC 量子容量
     double p = retrocausal_ctc_dephasing(0.3);                // Wilson line 退相噪声
     return q;
+}
+```
+
+### 12.14 非欧几里德曲面体几何
+
+把「量子态流形」与「弦论 T-对偶双空间」的几何暴露到语言层：`geodesic_distance` 给出两个量子态
+在复射影空间 `CP^{d-1}` 上的 **Fubini-Study 测地线距离** `arccos|⟨a|b⟩|`（复用 `qk_qattention`
+的 SWAP-test 重叠，借用 QObject 不消费）；`inversion` 给出 T-对偶的半径反转 `R → 1/R`；
+`hyperbolic_metric` / `hyperbolic_distance` 给出 Poincaré 球的双曲度规 `4/(1-|x|²)²` 与双曲距离。
+这组原语对应「曲面体」上 coord 维度不同的块之间的 `projection` 投影关系，以及在
+`@layer(dual=1)` 反转空间中生效的 `inversion` 边。
+
+| 函数 | 签名 | 返回 | 说明 |
+| --- | --- | --- | --- |
+| 测地线距离 | `geodesic_distance(QObject, QObject)` | `double` | Fubini-Study 测地线距离 `arccos\|⟨a\|b⟩\|`（借用不消费） |
+| T-对偶反转 | `inversion(double)` | `double` | `R → 1/R`（反转空间，对应 `@layer(dual=1)`） |
+| Poincaré 度规 | `hyperbolic_metric(double)` | `double` | `4/(1-\|x\|²)²`（`\|x\| → 1` 时发散） |
+| 双曲距离 | `hyperbolic_distance(double, double)` | `double` | Poincaré 球内的双曲距离 |
+
+```qk
+@layer(time=0, thread=0, coord=(0,0))
+double geometry() {
+    auto a = basis_state(0.5, 0.0, 0);
+    auto b = basis_state(0.4, 0.0, 0);
+    double d = geodesic_distance(a, b);   // 两态在 CP^1 上的测地线距离
+    double r = inversion(2.0);            // T-对偶：R=2 → 1/R=0.5
+    double m = hyperbolic_metric(0.5);    // 4/(1-0.25)² ≈ 7.11
+    double h = hyperbolic_distance(0.0, 0.5);
+    return d + r + m + h;
 }
 ```
 
@@ -1345,6 +1385,8 @@ retrocausal_q_one_shot retrocausal_gain retrocausal_deformed
 // 快子 KK 双空间嘈杂 CTC 通信
 retrocausal_ctc_q_capacity retrocausal_ctc_c_capacity
 retrocausal_ctc_gain retrocausal_ctc_dephasing
+// 非欧几里德曲面体几何
+geodesic_distance inversion hyperbolic_metric hyperbolic_distance
 // 类型系统与模块
 mod use pub form impl trait template rank self flavor fuse
 export import requires ensures invariant result from

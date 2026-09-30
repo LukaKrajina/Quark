@@ -146,6 +146,13 @@ double pred = clf.predict(x_test);   // sign(Σ α_i k(x_i, x))
 | `qattention` | `qattention(QObject q, QObject k)` | `double`（态重叠度 \|⟨ψ_q\|ψ_k⟩\|²） |
 | `shannon4` | `shannon4(int32 n0, int32 n1, int32 n2, int32 n3)` | `double`（4 态香农熵） |
 | `shannon8` | `shannon8(int32 n0..n7)` | `double`（8 态香农熵） |
+| `retrocausal_imax` / `_idoe` / `_q_capacity` / `_c_capacity` / `_gain` | `(int32 kind, double p)` | `double`（逆因果容量：max-information / Doeblin / 渐近量子·经典容量 / 回程增益） |
+| `retrocausal_q_one_shot` / `retrocausal_deformed` | `(int32 kind, double p, double x)` | `double`（单次容量 / q-变形容量） |
+| `retrocausal_ctc_q_capacity` / `_c_capacity` / `_gain` | `(int32 n, double theta, double mu2, double lambda)` | `double`（快子 KK 双空间嘈杂 CTC 容量） |
+| `retrocausal_ctc_dephasing` | `(double theta)` | `double`（Wilson line 退相噪声映射） |
+| `geodesic_distance` | `geodesic_distance(QObject a, QObject b)` | `double`（Fubini-Study 测地线距离 `arccos\|⟨a\|b⟩\|`，借用不消费） |
+| `inversion` / `hyperbolic_metric` | `(double)` | `double`（T-对偶 `R→1/R` / Poincaré 度规 `4/(1-\|x\|²)²`） |
+| `hyperbolic_distance` | `(double, double)` | `double`（Poincaré 双曲距离） |
 
 `spec` 为逗号分隔的 Pauli 串（`I/X/Y/Z`），每串长度 = `n_qubits`。例：`dla_dim("X,Z", 1)` → 3（su(2)）。
 `qstate_entropy` / `qstate_fidelity` 从后端态矢量（QVM）提取 QObject 的约化密度矩阵计算；
@@ -173,7 +180,11 @@ int32 quark_main() {
 > 示例见 `examples/tqnf_dla.qk`、`examples/tqnf_qstate.qk`、`examples/tqnf_attention.qk`。
 > ABI 桥接：`qml/TQNFAbi.hpp`（`qk_dla_dim`）、`qml/QStateAbi.hpp`（`qk_qstate_entropy`/`qk_qstate_fidelity`）、
 > `qml/QAttentionAbi.hpp`（`qk_qattention`）、`qml/QEntropyAbi.hpp`（`qk_shannon4`/`qk_shannon8`）；
-> 语言层注册：`server/src/{semantic,mir,ir}.ts` + `qhal/{MirModuleBuilder,JIT}.hpp`。
+> 新增几何 / 逆因果原语的 ABI：`qml/GeodesicAbi.hpp`（`qk_geodesic_distance`/`qk_inversion`/
+> `qk_hyperbolic_metric`/`qk_hyperbolic_distance`）、`qml/RetrocausalAbi.hpp`（`qk_retrocausal_*`）、
+> `qml/RetrocausalCTCAbi.hpp`（`qk_retrocausal_ctc_*`），内核实现分别在 `spacetime/RetrocausalCapacity.hpp`
+> 与 `spacetime/RetrocausalCTC.hpp`（详见 [TQNF 手册](./qk-topological-quantum-learning.md) §5.3）；
+> 语言层注册：`server/src/{semantic,mir,ir}.ts` + `qhal/{MirModuleBuilder,JIT,SandboxJIT}.hpp`。
 
 **测量熵范式（混沌丰富度）**：邻近态重叠无法量化量子混沌——纯酉演化是等距的，
 `|⟨Uψ|U(ψ+δ)⟩|²` 恒定不变。因此混沌丰富度改用**测量诱导的非酉性香农熵**：
