@@ -1,0 +1,241 @@
+{
+  "name": "quark-lang",
+  "displayName": "Quark Language Support",
+  "description": "Language support for the Quark Quantum Programming Language (.qk)",
+  "version": "0.2.2",
+  "publisher": "quarkproject",
+  "icon": "icons/marketplace.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LukaKrajina/Quark.git"
+  },
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "AI",
+    "Data Science",
+    "Notebooks",
+    "Education"
+  ],
+  "main": "./client/out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "quark",
+        "aliases": [
+          "Quark",
+          "quark"
+        ],
+        "extensions": [
+          ".qk"
+        ],
+        "icon": {
+          "light": "./icons/quark-light.svg",
+          "dark": "./icons/quark-dark.svg"
+        },
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "quark-icons",
+        "label": "Quark File Icons",
+        "path": "./icons/quark-file-icon-theme.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "quark",
+        "scopeName": "source.quark",
+        "path": "./syntaxes/quark.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "quark.runScript",
+        "title": "Run Quark Script",
+        "icon": "$(play)"
+      },
+      {
+        "command": "quark.compileScript",
+        "title": "Compile Quark Script (AOT)",
+        "icon": "$(package)"
+      },
+      {
+        "command": "quark.buildScript",
+        "title": "Build Quark Script (IR)",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "quark.migrateScript",
+        "title": "Migrate to qk",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "quark.setCompileTarget",
+        "title": "Set Compile Target",
+        "icon": "$(settings)"
+      },
+      {
+        "command": "quark.refreshQuantumState",
+        "title": "Refresh Quantum State",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "quark.clearPerformance",
+        "title": "Clear Performance History",
+        "icon": "$(clear-all)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "quark-sidebar",
+          "title": "Quark",
+          "icon": "icons/quark-sidebar.svg"
+        }
+      ]
+    },
+    "views": {
+      "quark-sidebar": [
+        {
+          "id": "quark.targetPlatform",
+          "name": "编译目标",
+          "icon": "$(target)"
+        },
+        {
+          "id": "quark.actions",
+          "name": "操作",
+          "icon": "$(play)"
+        },
+        {
+          "id": "quark.performance",
+          "name": "性能监测",
+          "type": "webview",
+          "icon": "$(dashboard)"
+        },
+        {
+          "id": "quark.quantumState",
+          "name": "量子对象与比特",
+          "type": "webview",
+          "icon": "$(circuit-board)"
+        }
+      ]
+    },
+    "menus": {
+      "editor/title/run": [
+        {
+          "command": "quark.runScript",
+          "when": "resourceLangId == quark",
+          "group": "navigation"
+        },
+        {
+          "command": "quark.compileScript",
+          "when": "resourceLangId == quark",
+          "group": "navigation"
+        },
+        {
+          "command": "quark.buildScript",
+          "when": "resourceLangId == quark",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "quark.migrateScript",
+          "when": "resourceExtname == .qasm || resourceExtname == .qs || resourceExtname == .quil || resourceExtname == .slq",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "quark.migrateScript",
+          "when": "resourceExtname == .qasm || resourceExtname == .qs || resourceExtname == .quil || resourceExtname == .slq",
+          "group": "navigation"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "quark.refreshQuantumState",
+          "when": "view == quark.quantumState",
+          "group": "navigation"
+        },
+        {
+          "command": "quark.clearPerformance",
+          "when": "view == quark.performance",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "quark.runScript",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n",
+        "when": "editorTextFocus && editorLangId == quark"
+      },
+      {
+        "command": "quark.compileScript",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c",
+        "when": "editorTextFocus && editorLangId == quark"
+      },
+      {
+        "command": "quark.buildScript",
+        "key": "ctrl+alt+b",
+        "mac": "cmd+alt+b",
+        "when": "editorTextFocus && editorLangId == quark"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc --noEmit -p client/tsconfig.json && tsc --noEmit -p server/tsconfig.json && node esbuild.mjs",
+    "watch": "tsc -b client/tsconfig.json server/tsconfig.json -w",
+    "test": "tsc -b server/tsconfig.json && node --test \"server/out/*.test.js\"",
+    "test:integration": "tsc -b client/tsconfig.json server/tsconfig.json && node client/out/test/runTest.js",
+    "prepare:runtime:win": "powershell -ExecutionPolicy Bypass -File scripts/prepare-vsix-runtime.ps1",
+    "prepare:runtime:linux": "bash scripts/prepare-vsix-runtime.sh",
+    "package": "npx @vscode/vsce package",
+    "package:linux": "bash scripts/package-vsix.sh --linux",
+    "package:win": "bash scripts/package-vsix.sh --win",
+    "package:all": "bash scripts/package-vsix.sh --all",
+    "package:universal": "bash scripts/package-vsix-universal.sh"
+  },
+  "keywords": [
+    "quantum",
+    "quantum computing",
+    "quantum programming",
+    "programming language",
+    "quantum language",
+    "artificial intelligence",
+    "machine learning",
+    "robotics",
+    "robot operating system",
+    "quantum robotics",
+    "quantum machine learning",
+    "brain-computer interface",
+    "qk",
+    "quark"
+  ],
+  "author": "QuarkProject",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^25.5.0",
+    "@types/vscode": "~1.80.0",
+    "@vscode/test-electron": "^2.4.0",
+    "esbuild": "^0.28.2",
+    "mocha": "^10.4.0",
+    "typescript": "^6.0.2"
+  }
+}

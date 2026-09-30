@@ -1,0 +1,14 @@
+{
+  "iconDefinitions": {
+    "quark-file": {
+      "iconPath": "./quark-dark.svg"
+    }
+  },
+  "file": "quark-file",
+  "fileExtensions": {
+    "qk": "quark-file"
+  },
+  "languageIds": {
+    "quark": "quark-file"
+  }
+}
