@@ -6,6 +6,7 @@
 #include <memory>
 #include <stdexcept>
 #include "../include/qhal/IQuantumBackend.hpp"
+#include "../include/qml/Inference.hpp" // quark_alloc_qubit_id / quark_free_qubit_id（全局 qubit id 复用）
 
 namespace quark
 {
@@ -24,11 +25,16 @@ namespace quark
 
         QObject(qhal::IQuantumBackend *active_backend, size_t num_qubits) : backend(active_backend), is_owning(true)
         {
-            backend->allocate_qubits(num_qubits);
+            // 【qubit 回收优化】原实现用连续 id 0..n-1，多个 QuantumRegister 并发时
+            // 会共享同一批 id（冲突），且空闲 id 无法复用（QVM num_qubits 只增不减）。
+            // 改为走全局 id 分配器（复用已释放 id），使并发 QObject 各得唯一 id，
+            // 峰值 qubit 数由「最大并发对象数」而非「累计创建对象数」决定。
             hardware_ids.reserve(num_qubits);
             for (size_t i = 0; i < num_qubits; ++i)
             {
-                hardware_ids.push_back(i);
+                size_t id = quark_alloc_qubit_id();
+                backend->allocate_qubit(id);
+                hardware_ids.push_back(id);
             }
         }
 
@@ -38,9 +44,11 @@ namespace quark
             {
                 // release_qubit 内部已完成「测量坍缩 + 复位到 |0⟩ + 收缩 num_qubits」，
                 // 此处无需再显式 measure/apply_x（避免重复复位）。
+                // 额外把 id 回收到全局空闲栈，供后续对象复用。
                 for (size_t id : hardware_ids)
                 {
                     backend->release_qubit(id);
+                    quark_free_qubit_id(id);
                 }
             }
             else

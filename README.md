@@ -52,7 +52,7 @@ Quark（`.qk`）是一门面向「量子计算 + 神经接口 + 量子语言模�
 | 经典编译属性 | `@[inline]`/`@[noinline]`/`@[pure]`/`@[cold]`/`@[hot]`/`@[noreturn]`/`@[export]`，映射到 LLVM 函数属性 |
 | 系统级内核编程 | 读寄存器内建（`read_cr3`/`rdmsr`/`wrmsr`/`cpuid`/`rdtsc`/`xgetbv` 等，把 CR3/MSR/CPUID 叶读回 `uint64` 变量）、裸汇编块 `asm { }` + `@[naked]`（多指令序列：中断存根保存全部寄存器 + iretq、切栈、gdt 远返回）、函数指针 `fn<ret(params)>` 间接调用、`@[packed]` 精确字节布局（GPT/FAT/ATA 磁盘结构）、`volatile_load/store`（MMIO 轮询）、定长数组 `arr<T,N>` 字面量与索引、位域、完整 uint64 无符号运算与复数类型 |
 | VS Code 扩展 | vsx 打包：esbuild bundle + runtime 产物打包进 `bin/`（`bin/win32-x64/`、`bin/linux-x64/`），**一个 vsix 同时携带 Windows 与 Linux 运行时**，按 `process.platform` 自动选择，**安装即运行/编译/构建 qk**（无需单独安装 runtime）；语法高亮 + 语义感知补全 + 运行/编译/构建命令 + **中英双语悬停提示**（关键字/类型/内置函数详细文档，随系统语言自动切换）+ 右键菜单迁移（`.qasm`/`.qs`/`.quil`/`.slq` → `.qk`） |
-| VS Code 侧边栏 | 仿 Flutter DevTools 的 Activity Bar 侧边栏：**编译目标**（x32/x64/arm64 一键切换，编译时透传）、**操作**（运行/编译/构建/迁移快捷按钮）、**性能监测**（编译/执行耗时历史曲线图，`globalState` 跨会话持久化 + 清空按钮）、**量子对象与比特**（daemon 实时快照：多 qubit 约化密度矩阵 Bloch 球 3D 可旋转 + 态矢量概率柱状图 + 测量历史） |
+| VS Code 侧边栏 | 仿 Flutter DevTools 的 Activity Bar 侧边栏：**编译目标**（x32/x64/arm64/android 一键切换，编译时透传；Android 目标为 `aarch64-linux-android`，需 NDK 交叉编译器）、**操作**（运行 / 编译 / 构建(IR) / **一键打 Android APK**（debug，命令面板可选 release）/ 迁移快捷按钮）、**性能监测**（编译/执行耗时历史曲线图，`globalState` 跨会话持久化 + 清空按钮）、**量子对象与比特**（daemon 实时快照：多 qubit 约化密度矩阵 Bloch 球 3D 可旋转 + 态矢量概率柱状图 + 测量历史） |
 | HTTP 推理服务 | `qk serve` 提供 OpenAI 兼容的 `chat/completions`、`embeddings`、`models` 接口 |
 | Web 聊天界面 | 基于 Vite + Tailwind + Dexie 的流式推理聊天界面 |
 | 工具链管理 | Go 编写的 `quarkup` 安装器与版本代理 |

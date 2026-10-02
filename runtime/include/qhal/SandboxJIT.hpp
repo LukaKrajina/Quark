@@ -1,5 +1,10 @@
 #pragma once
 #include "JIT.hpp"
+// bind_whitelist() 无条件绑定 qk_qrc_*，但它们的声明在 qml/QrcAbi.hpp 里，
+// 而 MMI.hpp（SandboxJIT 的唯一包含者）常先于 QrcAbi.hpp 被包含
+// （runtime_api.cpp 的包含顺序即如此）——那样在 CUDA 设备通道下会报
+// "use of undeclared identifier 'qk_qrc_new'"。头文件自洽最稳妥。
+#include "qml/QrcAbi.hpp"
 
 #include <set>
 #include <string>
@@ -306,6 +311,13 @@ namespace qhal
             add("qk_retrocausal_ctc_c_capacity", (void *)&qk_retrocausal_ctc_c_capacity);
             add("qk_retrocausal_ctc_gain", (void *)&qk_retrocausal_ctc_gain);
             add("qk_retrocausal_ctc_dephasing", (void *)&qk_retrocausal_ctc_dephasing);
+
+            // QRC 量子储备池（无条件绑定，供 .mmi 内储备池计算解析）
+            add("qk_qrc_new", (void *)&qk_qrc_new);
+            add("qk_qrc_train", (void *)&qk_qrc_train);
+            add("qk_qrc_probe", (void *)&qk_qrc_probe);
+            add("qk_qrc_predict", (void *)&qk_qrc_predict);
+            add("qk_qrc_release", (void *)&qk_qrc_release);
 
             // Lattice 晶格数组（基础能力，无条件绑定，供 .mmi 内 lattice 操作解析）
             add("qk_lattice_new", (void *)&qk_lattice_new);

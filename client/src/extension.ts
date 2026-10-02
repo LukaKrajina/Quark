@@ -13,7 +13,8 @@ import {
     PerformanceProvider,
     QuantumStateWebviewProvider,
     PerfSnapshot,
-    CompileTarget
+    CompileTarget,
+    COMPILE_TARGETS
 } from './quarkSidebar';
 
 let client: LanguageClient;
@@ -74,7 +75,7 @@ export function activate(context: ExtensionContext) {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
             const uri = editor.document.uri.toString();
-            // 编译目标（x32/x64/arm64）从侧边栏读取，透传给 server
+            // 编译目标（x32/x64/arm64/android）从侧边栏读取，透传给 server
             client.sendNotification('quark/compileCode', { uri, arch: targetProvider.getTarget() });
         }
     });
@@ -102,6 +103,33 @@ export function activate(context: ExtensionContext) {
         client.sendNotification('quark/migrateCode', { fsPath: target.fsPath });
     });
 
+    // 一键构建 Android APK（AOT 交叉编译 + Gradle 打包）。
+    // 侧边栏的动作项带 { release: false } 直接出 debug 包；命令面板调用时（无参）弹选择框。
+    const buildApkCommand = vscode.commands.registerCommand('quark.buildApk', async (opts?: { release?: boolean }) => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== 'quark') {
+            vscode.window.showWarningMessage('Quark: 请在打开的 .qk 文件上执行 Build APK。');
+            return;
+        }
+        let release = opts?.release;
+        if (release === undefined) {
+            const pick = await vscode.window.showQuickPick(
+                [
+                    { label: 'Debug APK', description: '可调试，构建更快（默认）', release: false },
+                    { label: 'Release APK', description: '需要签名配置，产物更小', release: true },
+                ],
+                { placeHolder: '选择 APK 构建类型' },
+            );
+            if (!pick) return;
+            release = pick.release;
+        }
+        client.sendNotification('quark/buildApk', {
+            uri: editor.document.uri.toString(),
+            release,
+            workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+        });
+    });
+
     // ─── 侧边栏视图 ──────────
     const targetProvider = new TargetProvider(context);
     const actionsProvider = new ActionsProvider();
@@ -121,7 +149,12 @@ export function activate(context: ExtensionContext) {
     );
 
     // 编译目标切换命令（侧边栏 TargetItem 触发）
-    const setTargetCmd = vscode.commands.registerCommand('quark.setCompileTarget', (t: CompileTarget) => {
+    const setTargetCmd = vscode.commands.registerCommand('quark.setCompileTarget', (t?: CompileTarget) => {
+        // 从命令面板调用时没有实参，这里显式挡掉，避免把 undefined 写进 workspaceState
+        if (!t || !COMPILE_TARGETS.includes(t)) {
+            vscode.window.showWarningMessage('Quark: 请在侧边栏「编译目标」中选择目标（x32 / x64 / arm64 / android）。');
+            return;
+        }
         targetProvider.setTarget(t);
         vscode.window.showInformationMessage(`Quark 编译目标已切换为 ${t}`);
     });
@@ -145,6 +178,7 @@ export function activate(context: ExtensionContext) {
     context.subscriptions.push(compileCommand);
     context.subscriptions.push(buildCommand);
     context.subscriptions.push(migrateCommand);
+    context.subscriptions.push(buildApkCommand);
 }
 
 export function deactivate(): Thenable<void> | undefined {

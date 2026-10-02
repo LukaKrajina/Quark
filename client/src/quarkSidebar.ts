@@ -2,7 +2,7 @@
 // quarkSidebar.ts —— Quark 侧边栏
 //
 // 四个视图：
-//   1. 编译目标（TreeView）—— x32 / x64 / arm64 切换，存入 workspaceState
+//   1. 编译目标（TreeView）—— x32 / x64 / arm64 / android 切换，存入 workspaceState
 //   2. 操作（TreeView）—— 运行 / 编译 / 构建 / 迁移快捷按钮
 //   3. 性能监测（TreeView）—— 最近操作的编译/执行耗时、后端、状态
 //   4. 量子对象与比特（WebviewView）—— daemon 快照：Bloch 球 + 态矢量概率柱状图
@@ -16,14 +16,34 @@ const GET_SNAPSHOT_CMD = 0x09;
 
 // ─── 编译目标 ────────────────────────────────────────────────────────────────
 
-export const COMPILE_TARGETS = ['x32', 'x64', 'arm64'] as const;
+export const COMPILE_TARGETS = ['x32', 'x64', 'arm64', 'android'] as const;
 export type CompileTarget = (typeof COMPILE_TARGETS)[number];
+
+/** 目标 → LLVM triple 语义提示（x64 额外标注默认值） */
+const TARGET_HINT: Record<CompileTarget, string> = {
+    x32: 'i686',
+    x64: '默认 · x86_64',
+    arm64: 'aarch64',
+    android: 'aarch64-linux-android',
+};
+
+/** Android 需要 NDK 交叉编译器；缺失时给出可操作的环境变量提示 */
+const ANDROID_TOOLTIP = [
+    'Android 目标（aarch64-linux-android）',
+    '需要 NDK 交叉编译器：aarch64-linux-android{21,24,26}-clang++',
+    '可用环境变量指定：',
+    '  QUARK_ANDROID_CLANGXX  NDK clang++ 绝对路径',
+    '  QUARK_ANDROID_SYSROOT  NDK sysroot（bionic libc / libc++）',
+    '  QUARK_ANDROID_RT_DIR   交叉编译出的 libquark_rt.so 目录',
+    '打包 APK 用命令行：qk build apk <file.qk> [--release]',
+].join('\n');
 
 class TargetItem extends vscode.TreeItem {
     constructor(readonly target: CompileTarget, selected: boolean) {
         super(target, vscode.TreeItemCollapsibleState.None);
-        this.description = target === 'x64' ? '默认' : '';
-        this.iconPath = new vscode.ThemeIcon(selected ? 'check' : 'circle-outline');
+        this.description = TARGET_HINT[target];
+        this.iconPath = new vscode.ThemeIcon(selected ? 'check' : (target === 'android' ? 'device-mobile' : 'circle-outline'));
+        this.tooltip = target === 'android' ? ANDROID_TOOLTIP : `编译目标：${target}（${TARGET_HINT[target]}）`;
         this.command = { command: 'quark.setCompileTarget', title: 'Set Target', arguments: [target] };
     }
 }
@@ -51,11 +71,11 @@ export class TargetProvider implements vscode.TreeDataProvider<TargetItem> {
 // ─── 操作 ────────────────────────────────────────────────────────────────────
 
 class ActionItem extends vscode.TreeItem {
-    constructor(label: string, icon: string, command: string, detail?: string) {
+    constructor(label: string, icon: string, command: string, detail?: string, args?: unknown[]) {
         super(label, vscode.TreeItemCollapsibleState.None);
         this.iconPath = new vscode.ThemeIcon(icon);
         this.description = detail;
-        this.command = { command, title: label };
+        this.command = { command, title: label, arguments: args };
     }
 }
 
@@ -68,6 +88,9 @@ export class ActionsProvider implements vscode.TreeDataProvider<ActionItem> {
             new ActionItem('Run Script', 'play', 'quark.runScript'),
             new ActionItem('Compile (AOT)', 'package', 'quark.compileScript'),
             new ActionItem('Build (IR)', 'tools', 'quark.buildScript'),
+            // 一键打 Android APK：侧边栏点一下直接出 debug 包；
+            // 从命令面板调用（无参）时会弹出 Debug/Release 选择。
+            new ActionItem('Build APK (Android)', 'device-mobile', 'quark.buildApk', 'debug', [{ release: false }]),
             new ActionItem('Migrate to qk', 'git-compare', 'quark.migrateScript'),
         ];
     }

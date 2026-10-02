@@ -5,6 +5,20 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.9.2] (vsx 0.3.2)
+
+### Added
+
+- **侧边栏编译目标新增 `android`**：`client/src/quarkSidebar.ts` 的 `COMPILE_TARGETS` 增加 `android`（`aarch64-linux-android`，带 NDK 提示 tooltip、专用 `device-mobile` 图标，并标注各目标的 LLVM triple）；`extension.ts` 的 `quark.setCompileTarget` 增加目标合法性校验（避免命令面板调用把 `undefined` 写进 `workspaceState`）；选中 Android 执行 AOT 编译时，控制台会提示所需 NDK 交叉编译器与 `QUARK_ANDROID_CLANGXX` / `QUARK_ANDROID_SYSROOT` / `QUARK_ANDROID_RT_DIR` 环境变量，并指引用 `qk build apk` 打包 APK。
+- **一键构建 Android APK（`quark.buildApk`）**：侧边栏「操作」新增 **Build APK (Android)**（单击直接出 debug 包；从命令面板调用时弹出 Debug/Release 选择），编辑器标题栏也加入该按钮。服务端按 `QUARK_ROOT` → 工作区根 → cwd/自身向上 定位 `scripts/build-apk.sh` 并 `spawn bash` 执行（与 CLI `qk build apk` 同一编排），stdout/stderr 实时回显到 Quark Console，耗时与结果写入性能面板。Windows 上优先使用 Git Bash（`%LOCALAPPDATA%\Microsoft\WindowsApps\bash.exe` 是 WSL 启动器，无法解析 `D:\...` 形式的脚本路径），可用 `QUARK_BASH` 覆盖；未找到脚本或缺少 bash 时给出明确指引。
+
+### Fixed
+
+- **AOT 编译目标不生效（侧边栏编译目标形同虚设）**：`server.ts` 发送的 `CMD_AOT_COMPILE` 载荷多写了一个 `compile` 前缀（`compile <arch> <name>`），而后端按 `<arch> <mode> <name>` 解析，于是 `arch` 被当成 `"compile"`、`mode` 被当成目标名——无论侧边栏选 x32/x64/arm64/android，实际都按宿主默认 triple 编译。现在按 `<arch> -e <name>` 发送。
+- **Windows 宿主上的 Android 目标补齐**：`Compiler.hpp` 的 `_WIN32` 分支此前缺少 `aarch64-linux-android` triple 映射（会静默回退到宿主 triple），且输出后缀名硬套 `.dll`/`.exe`；现 Android 目标在 Windows 宿主上同样产出 ELF（`-m` → `.so`，`-e` 无后缀），并在找不到 NDK 链接器时给出可操作提示。
+- **CUDA 设备通道下 `qk_qrc_*` 未声明（曾阻塞 Windows 运行时构建）**：`SandboxJIT.hpp` 无条件绑定 QRC 符号，但其声明只在 `qml/QrcAbi.hpp` 里、且依赖包含顺序（`runtime_api.cpp` 先包含 `MMI.hpp`）。现在 `SandboxJIT.hpp` 自行包含该 ABI 头，头文件自洽。
+- **Windows 资源编译失败（`build.bat` 固定 RC 编译器）**：clang-cl 工具链下 CMake 会生成 `cmake_llvm_rc` 包装规则；若它自动探测到 Windows SDK 的 `rc.exe`，会把 clang 风格参数喂给 rc.exe 导致失败。`build.bat` 现显式指定 `-DCMAKE_RC_COMPILER=<LLVM>/llvm-rc.exe`。
+
 ## [0.9.1] (vsx 0.3.1)
 
 ### Added
@@ -32,7 +46,6 @@
 ### Fixed
 
 - **LLVM ORC JIT 符号解析失败**：`qk_surrogate` / `qk_polymer_*` / `qk_qms_*` 等原语此前以非 inline 定义散落在被多处 include 的 `JIT.hpp` 中，导致 JIT 报 `Symbols not found`；改为单点定义后修复。
-
 ## [0.9.0] (vsx 0.3.0)
 
 ### Added

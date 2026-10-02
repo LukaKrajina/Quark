@@ -39,6 +39,9 @@ if errorlevel 1 ( echo VCVARS_FAILED & exit /b 1 )
 rem ---------------------------------------------------------------------------
 rem  CMake configure (use clang-cl)
 rem ---------------------------------------------------------------------------
+rem  RC 编译器必须显式指定为 llvm-rc：clang-cl 工具链下 CMake 会生成
+rem  cmake_llvm_rc 包装规则（clang 预处理 + RC 编译），若该规则配上自动探测到的
+rem  Windows SDK rc.exe，会把 clang 风格参数喂给 rc.exe 导致资源编译失败。
 if not exist runtime\build (
     echo === CONFIGURE ===
     "%CMAKE%" -S runtime -B runtime\build -G Ninja ^
@@ -52,6 +55,7 @@ if not exist runtime\build (
       -DCMAKE_PREFIX_PATH="C:/Libraries/zstd" ^
       -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL ^
       -DCMAKE_BUILD_TYPE=Release ^
+      -DCMAKE_RC_COMPILER="C:/Program Files/LLVM/bin/llvm-rc.exe" ^
       -DOpenMP_CXX_FLAGS=-fopenmp ^
       -DOpenMP_CXX_LIB_NAMES=libomp ^
       -DOpenMP_libomp_LIBRARY=C:/Program Files/LLVM/lib/libomp.lib ^

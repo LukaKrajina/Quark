@@ -265,6 +265,101 @@ connection.onNotification('quark/migrateCode', async (params: { fsPath: string }
     }
 });
 
+// ─── 一键构建 Android APK ────────────────────────────────────────────────
+// 复用 CLI `qk build apk` 的编排脚本 scripts/build-apk.sh（AOT 交叉编译 + Gradle 打包）。
+// 该脚本属于源码树文件，不在 vsix 内，所以按 QUARK_ROOT → 工作区根 → cwd/自身 向上查找。
+function locateBuildApkScript(workspaceRoot?: string): string {
+    const candidates: string[] = [];
+    if (process.env.QUARK_ROOT) candidates.push(process.env.QUARK_ROOT);
+    if (workspaceRoot) candidates.push(workspaceRoot);
+    let dir = process.cwd();
+    for (let i = 0; i < 6; i++) { candidates.push(dir); dir = path.dirname(dir); }
+    dir = __dirname;
+    for (let i = 0; i < 6; i++) { candidates.push(dir); dir = path.dirname(dir); }
+    for (const root of candidates) {
+        const p = path.join(root, 'scripts', 'build-apk.sh');
+        if (fs.existsSync(p)) return p;
+    }
+    return '';
+}
+
+/** file:// URI → 本地路径（含 Windows 盘符与百分号转义处理） */
+function uriToFsPath(uri: string): string {
+    let p = uri.replace(/^file:\/\//, '');
+    if (/^\/[a-zA-Z]:/.test(p)) p = p.slice(1);
+    return decodeURIComponent(p);
+}
+
+/**
+ * 选择可用的 bash。
+ * Windows 上 PATH 里的 `bash` 常指向 %LOCALAPPDATA%\Microsoft\WindowsApps\bash.exe
+ * ——那是 WSL 启动器，收到 `D:\...` 这类 Windows 路径无法解析；Git Bash 则可以直接用，
+ * 因此优先探测 Git Bash（可用 QUARK_BASH 覆盖）。
+ */
+function resolveBash(): string {
+    const explicit = process.env.QUARK_BASH;
+    if (explicit && fs.existsSync(explicit)) return explicit;
+    if (process.platform === 'win32') {
+        for (const p of ['C:\\Program Files\\Git\\bin\\bash.exe', 'C:\\Program Files (x86)\\Git\\bin\\bash.exe']) {
+            if (fs.existsSync(p)) return p;
+        }
+    }
+    return 'bash';
+}
+
+connection.onNotification('quark/buildApk', (params: { uri: string; release?: boolean; workspaceRoot?: string }) => {
+    const fsPath = uriToFsPath(params.uri);
+    connection.sendNotification('quark/showConsole');
+
+    if (!fs.existsSync(fsPath)) {
+        connection.sendNotification('quark/printConsole', `[Quark APK] 文件不存在：${fsPath}\n`);
+        return;
+    }
+    const script = locateBuildApkScript(params.workspaceRoot);
+    if (!script) {
+        connection.sendNotification('quark/printConsole',
+            '[Quark APK] 未找到 scripts/build-apk.sh。\n'
+            + '           请在 Quark 源码树内打开工作区，或设置环境变量 QUARK_ROOT 指向源码根目录。\n');
+        return;
+    }
+
+    const root = path.resolve(path.dirname(script), '..');
+    const args = [script, fsPath];
+    if (params.release) args.push('--release');
+
+    connection.sendNotification('quark/printConsole',
+        `[Quark APK] ${params.release ? 'release' : 'debug'} 构建开始：${path.basename(fsPath)}\n`
+        + `           脚本：${script}\n`
+        + '           需要 Android NDK（aarch64-linux-android*-clang++）与 bash；'
+        + '首次构建 Gradle 可能耗时较久。\n');
+
+    const bash = resolveBash();
+    connection.sendNotification('quark/printConsole', `           使用 shell：${bash}\n`);
+
+    const t0 = Date.now();
+    const child = spawn(bash, args, { cwd: root });
+    child.stdout?.on('data', (d: Buffer) => connection.sendNotification('quark/printConsole', d.toString()));
+    child.stderr?.on('data', (d: Buffer) => connection.sendNotification('quark/printConsole', d.toString()));
+    child.on('error', (e: Error) => {
+        connection.sendNotification('quark/printConsole',
+            `\n[Quark APK] 启动失败：${e.message}\n`
+            + '           Windows 下需要 bash（安装 Git Bash 并加入 PATH），或改用 WSL 执行。\n');
+        connection.sendNotification('quark/performance', {
+            action: 'apk', compileMs: Date.now() - t0, execMs: 0, backend: 'gradle', status: 'error', at: Date.now(),
+        });
+    });
+    child.on('close', (code: number | null) => {
+        const ms = Date.now() - t0;
+        connection.sendNotification('quark/printConsole', code === 0
+            ? `\n[Quark APK] 构建完成 ✓（${(ms / 1000).toFixed(1)}s）产物见 scripts/build-apk.sh 输出目录。\n`
+            : `\n[Quark APK] 构建失败（exit ${code}），请查看上方日志。\n`);
+        connection.sendNotification('quark/performance', {
+            action: 'apk', compileMs: ms, execMs: 0, backend: 'gradle',
+            status: code === 0 ? 'done' : 'error', at: Date.now(),
+        });
+    });
+});
+
 connection.onCompletion(
     (_textDocumentPosition): CompletionItem[] => {
         const items: CompletionItem[] = [];
@@ -707,9 +802,21 @@ async function compileToBinary(textDocument: TextDocument, arch: string): Promis
         connection.sendNotification('quark/clearConsole');
         connection.sendNotification('quark/printConsole', `[Quark AOT] Compiling to native binary (${arch}): ${baseName}\n`);
 
+        const isAndroid = arch === 'android' || arch === 'arm64-android';
+        if (isAndroid) {
+            connection.sendNotification('quark/printConsole',
+                '[Quark AOT] Android 目标需要 NDK 交叉编译器 aarch64-linux-android{21,24,26}-clang++。\n'
+                + '           可用环境变量指定：QUARK_ANDROID_CLANGXX（clang++ 路径）/ QUARK_ANDROID_SYSROOT（sysroot）'
+                + ' / QUARK_ANDROID_RT_DIR（交叉编译出的 libquark_rt.so 目录）。\n'
+                + '           要打包成 APK 请用命令行：qk build apk <file.qk> [--release]\n');
+        }
+
         await ensureDaemon();
+        // 帧载荷必须是 "<arch> <mode> <output_name>\n<IR>"（见 runtime/src/main.cpp 的 CMD_AOT_COMPILE）。
+        // 此前多写了一个 "compile" 前缀，后端会把 arch 解析成 "compile"、mode 解析成目标名，
+        // 于是侧边栏选的目标实际不生效（始终按 host triple 编译）。
         await daemonRequest([
-            encodeFrame(Cmd.AOT_COMPILE, `compile ${arch} ${baseName}\n${llvmIR}`),
+            encodeFrame(Cmd.AOT_COMPILE, `${arch} -e ${baseName}\n${llvmIR}`),
         ], (out) => connection.sendNotification('quark/printConsole', out));
 
         connection.sendNotification('quark/performance', { action: 'compile', compileMs, execMs: 0, backend: '—', status: 'done', at: Date.now() });

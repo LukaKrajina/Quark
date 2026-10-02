@@ -66,6 +66,10 @@ namespace quark
                 target_triple = "i386-pc-windows-msvc";
             else if (arch == "arm64")
                 target_triple = "aarch64-pc-windows-msvc";
+            // Android 目标与宿主无关（Windows 宿主上同样编译 aarch64-linux-android，
+            // 链接交由 NDK 的 aarch64-linux-android*-clang++ 完成）
+            else if (arch == "android" || arch == "arm64-android")
+                target_triple = "aarch64-linux-android";
 #else
             if (arch == "x64")
                 target_triple = "x86_64-pc-linux-gnu";
@@ -135,13 +139,16 @@ namespace quark
             pass.run(*module);
             dest.flush();
             dest.close();
+            // Android 是 ELF 目标：即便宿主是 Windows，也不该带 .dll/.exe 后缀
+            // （APK 流程需要的是 libquark_main.so 这类名字）
+            const bool is_android = (arch == "android" || arch == "arm64-android");
             std::string ext = "";
             if (mode == "-m")
             {
 #ifdef _WIN32
-                ext = ".dll";
+                ext = is_android ? ".so" : ".dll";
 #elif __APPLE__
-                ext = ".dylib";
+                ext = is_android ? ".so" : ".dylib";
 #else
                 ext = ".so";
 #endif
@@ -149,7 +156,7 @@ namespace quark
             else
             {
 #ifdef _WIN32
-                ext = ".exe";
+                ext = is_android ? "" : ".exe";
 #endif
             }
 
@@ -159,7 +166,7 @@ namespace quark
             // Android 交叉编译：用 NDK 的 aarch64-linux-android-clang++（含 sysroot），
             // 而非宿主 clang++。优先取环境变量 QUARK_ANDROID_CLANGXX（绝对路径），
             // 否则在 PATH 中查找 NDK 交叉编译器。
-            const bool is_android = (arch == "android" || arch == "arm64-android");
+            // （is_android 已在上面计算，供输出后缀名使用）
             std::vector<llvm::StringRef> candidate_linkers;
             if (is_android)
             {
@@ -198,7 +205,22 @@ namespace quark
 
             if (!linker_path)
             {
-                llvm::errs() << "[AOT Error] Linker failed: No suitable C++ linker (clang/gcc) found in system PATH.\n";
+                if (is_android)
+                {
+                    // Android 目标必须用 NDK 交叉编译器链接（含 bionic sysroot），
+                    // 宿主 clang++/g++ 链接不出可用的 Android 产物。
+                    llvm::errs() << "[AOT Error] Android 目标需要 NDK 交叉编译器：未在 PATH 中找到 "
+                                    "aarch64-linux-android21/24/26-clang++。\n"
+                                 << "            请安装 Android NDK 并加入 PATH，或用环境变量 "
+                                    "QUARK_ANDROID_CLANGXX 指定其绝对路径，\n"
+                                    << "            必要时同时设置 QUARK_ANDROID_SYSROOT（NDK sysroot）与 "
+                                    "QUARK_ANDROID_RT_DIR（交叉编译出的 libquark_rt.so 目录）。\n"
+                                 << "            打包 APK 请用命令行：qk build apk <file.qk> [--release]\n";
+                }
+                else
+                {
+                    llvm::errs() << "[AOT Error] Linker failed: No suitable C++ linker (clang/gcc) found in system PATH.\n";
+                }
                 return false;
             }
 

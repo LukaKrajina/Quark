@@ -2,7 +2,7 @@
   "name": "quark-lang",
   "displayName": "Quark Language Support",
   "description": "Language support for the Quark Quantum Programming Language (.qk)",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "quarkproject",
   "icon": "icons/marketplace.png",
   "repository": {
@@ -88,6 +88,11 @@
         "command": "quark.clearPerformance",
         "title": "Clear Performance History",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "quark.buildApk",
+        "title": "Build APK (Android)",
+        "icon": "$(device-mobile)"
       }
     ],
     "viewsContainers": {
@@ -139,6 +144,11 @@
         },
         {
           "command": "quark.buildScript",
+          "when": "resourceLangId == quark",
+          "group": "navigation"
+        },
+        {
+          "command": "quark.buildApk",
           "when": "resourceLangId == quark",
           "group": "navigation"
         }
