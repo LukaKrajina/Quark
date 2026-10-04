@@ -2,6 +2,13 @@ import { Expression, Program, Statement, FunctionDeclaration, ReturnStatement, I
 import { verifyIR } from './irverify';
 import { buildTopology } from './topology';
 
+/**
+ * @[noise] 未给出强度时的默认噪声强度。
+ * 占位值：真实器件应由标定给出（或从 @[coherence] 的 T1/T2 推导）。
+ * 原先内联在 computeNoise() 里的字面量 0.01，提取为常量以便统一调整与溯源。
+ */
+const DEFAULT_NOISE_PARAM = 0.01;
+
 function isTopLevelItem(node: any): node is Item {
     if (node.type === 'VariableDeclarationList') {
         // 顶层「显式类型」多定义 → 全局变量列表；let/auto 多定义 → 脚本模式局部变量。
@@ -62,8 +69,8 @@ export class IRGenerator {
     private vtableConsts: string[] = [];
     private formTypeToName: Map<string, string> = new Map();
     private userFunctions: Map<string, FunctionDeclaration> = new Map();
-    /** 当前函数体的噪声通道（@[noise]/@[coherence]），门操作后注入 */
-    private currentNoise: { channel: number; param: number } | null = null;
+    /** 当前函数体的噪声通道列表（@[noise]/@[coherence]），门操作后依次注入 */
+    private currentNoise: { channel: number; param: number }[] | null = null;
     private importAliases: Map<string, string> = new Map();
     private importSigs: Map<string, { params: string[]; ret: string }> = new Map();
     private externSigs: Map<string, { params: string[]; ret: string }> = new Map();
@@ -307,7 +314,9 @@ export class IRGenerator {
             ``,
             `; --- QRC Quantum Reservoir ABI ---`,
             `declare %QReservoir* @qk_qrc_new(i32, i32)`,
+            `declare %QReservoir* @qk_qrc_new_ex(i32, i32, i32)`,
             `declare void @qk_qrc_train(%QReservoir*, i32, double)`,
+            `declare void @qk_qrc_train_ex(%QReservoir*, i32, double, double*, double*, i32, i32, i32)`,
             `declare %QObject* @qk_qrc_probe(%QReservoir*, %QObject*)`,
             `declare %QObject* @qk_qrc_predict(%QReservoir*, %QObject*)`,
             `declare void @qk_qrc_release(%QReservoir*)`,
@@ -2951,11 +2960,40 @@ export class IRGenerator {
 
             // ─── QRC 量子储备池内置函数 ──────────────────────────
             if (expr.name === 'qrc_new') {
-                const qubitsArg = this.visitExpression(expr.arguments[0]);
-                const layersArg = this.visitExpression(expr.arguments[1]);
+                // 防御：实参个数由语义层校验（Signature Error），但 IR 层必须对
+                // 畸形输入保持健壮 —— 否则少参调用会在此抛 TypeError 而中断整个编译。
+                const i32zero = { val: '0', type: 'i32' };
+                const qubitsArg = expr.arguments[0] ? this.visitExpression(expr.arguments[0]) : i32zero;
+                const layersArg = expr.arguments[1] ? this.visitExpression(expr.arguments[1]) : i32zero;
                 const resReg = this.nextReg();
-                this.emit(`${resReg} = call %QReservoir* @qk_qrc_new(i32 ${qubitsArg.val}, i32 ${layersArg.val})`);
+                // 三参数形式带显式 out_dim（原先固定 out_dim=1，只够标量演示任务）。
+                if (expr.arguments.length >= 3) {
+                    const outDimArg = this.visitExpression(expr.arguments[2]);
+                    this.emit(`${resReg} = call %QReservoir* @qk_qrc_new_ex(i32 ${qubitsArg.val}, i32 ${layersArg.val}, i32 ${outDimArg.val})`);
+                } else {
+                    this.emit(`${resReg} = call %QReservoir* @qk_qrc_new(i32 ${qubitsArg.val}, i32 ${layersArg.val})`);
+                }
                 return { val: resReg, type: '%QReservoir*' };
+            }
+
+            // 用真实训练数据训练（原 qrc_train 只跑合成正弦，仅够自检）。
+            if (expr.name === 'qrc_train_ex') {
+                // 同上：实参不足时用占位值继续生成，不在 IR 层抛异常。
+                const i32zero = { val: '0', type: 'i32' };
+                const ptrZero = { val: 'null', type: 'i8*' };
+                const pick = (i: number, dflt: LLVMValue): LLVMValue =>
+                    (expr.arguments[i] ? this.visitExpression(expr.arguments[i]) : dflt);
+                const resArg = pick(0, ptrZero);
+                const epochsArg = pick(1, i32zero);
+                const lrArg = pick(2, i32zero);
+                const inputsArg = pick(3, ptrZero);
+                const targetsArg = pick(4, ptrZero);
+                const nSamplesArg = pick(5, i32zero);
+                const nFeaturesArg = pick(6, i32zero);
+                const nOutputsArg = pick(7, i32zero);
+                const lrVal = lrArg.type === 'i32' ? `${lrArg.val}.0` : lrArg.val;
+                this.emit(`call void @qk_qrc_train_ex(%QReservoir* ${resArg.val}, i32 ${epochsArg.val}, double ${lrVal}, double* ${inputsArg.val}, double* ${targetsArg.val}, i32 ${nSamplesArg.val}, i32 ${nFeaturesArg.val}, i32 ${nOutputsArg.val})`);
+                return { val: 'void', type: 'void' };
             }
 
             if (expr.name === 'qrc_train') {
@@ -3677,8 +3715,13 @@ export class IRGenerator {
         this.currentNoise = null;
     }
 
-    /** 从 @[noise]/@[coherence] 物理特性推导噪声通道（channel + 强度） */
-    private computeNoise(physical?: any): { channel: number; param: number } | null {
+    /**
+     * 从 @[noise]/@[coherence] 物理特性推导噪声通道列表。
+     *
+     * 返回**多个**独立信道，由 emitNoiseIfNeeded 依次注入（原先只能返回单通道，
+     * 被迫把不同物理来源折叠成一个强度）。
+     */
+    private computeNoise(physical?: any): { channel: number; param: number }[] | null {
         if (!physical) return null;
         if (physical.noise) {
             const chMap: Record<string, number> = {
@@ -3686,21 +3729,49 @@ export class IRGenerator {
             };
             const ch = chMap[physical.noise];
             if (ch === undefined) return null;
-            return { channel: ch, param: 0.01 }; // 首版默认强度，可后续硬件标定
+            // 强度未由 @[noise(...)] 指定时沿用默认占位值（见 DEFAULT_NOISE_PARAM）。
+            return [{ channel: ch, param: DEFAULT_NOISE_PARAM }];
         }
         if (physical.coherence) {
-            // 相干时间：首版映射到振幅阻尼（T1），强度从 t1 粗略推导
-            const t1 = physical.coherence.t1;
-            return { channel: 2, param: Math.min(1.0, 1.0 / Math.max(t1, 1.0)) };
+            // 相干时间 → 噪声通道（多通道）。
+            //
+            // 真实器件同时存在两个**独立**的退相干来源：
+            //   T1（能量弛豫 / 振幅衰减） → 振幅阻尼（channel 2）
+            //   T_φ（纯退相 / 相位信息丢失）→ 相位阻尼（channel 1）
+            // 二者由 T2 关联：   1/T2 = 1/(2·T1) + 1/T_φ
+            // 故纯退相速率：     1/T_φ = 1/T2 − 1/(2·T1)
+            //
+            // 旧实现只能返回一个通道：先是完全丢弃 T2（只用 1/T1），后虽改为用 T2
+            // 标定强度，却仍把两个物理来源混成一个数。现在返回两个独立信道，
+            // 各自用自己的时间常数，物理上更贴合真实器件。
+            //
+            // 语义层保证 0 < T2 ≤ T1（E-PHY），故 1/T_φ ≥ 1/T2 − 1/(2·T2) > 0，
+            // 即纯退相通道通常存在；T2 缺如（<=0）时只输出弛豫通道。
+            const t1 = Math.max(physical.coherence.t1, 1.0);
+            const t2 = physical.coherence.t2;
+            const channels: { channel: number; param: number }[] = [];
+
+            // (1) T1 弛豫 → 振幅阻尼
+            channels.push({ channel: 2, param: Math.min(1.0, 1.0 / t1) });
+
+            // (2) T2 中的纯退相部分 → 相位阻尼
+            if (t2 > 0) {
+                const invTphi = 1.0 / Math.max(t2, 1.0) - 1.0 / (2.0 * t1);
+                if (invTphi > 0) {
+                    channels.push({ channel: 1, param: Math.min(1.0, invTphi) });
+                }
+            }
+            return channels;
         }
         return null;
     }
 
-    /** 若当前函数带噪声元数据，则在门后注入噪声通道调用 */
+    /** 若当前函数带噪声元数据，则在门后依次注入各噪声通道调用（可多通道） */
     private emitNoiseIfNeeded(qubitType: string, qubitVal: string): void {
-        if (!this.currentNoise) return;
-        const p = this.currentNoise.param;
-        this.emit(`call void @__quantum__qis__apply_noise(${qubitType} ${qubitVal}, i32 ${this.currentNoise.channel}, double ${p.toFixed(6)})`);
+        if (!this.currentNoise || this.currentNoise.length === 0) return;
+        for (const n of this.currentNoise) {
+            this.emit(`call void @__quantum__qis__apply_noise(${qubitType} ${qubitVal}, i32 ${n.channel}, double ${n.param.toFixed(6)})`);
+        }
     }
 
     private getLLVMType(quarkType: string): string {

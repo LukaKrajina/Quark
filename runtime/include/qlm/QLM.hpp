@@ -371,8 +371,14 @@ namespace qlm
         // 梯度通过向量化 parameter-shift 内积回传。
         // 绕过 Tensor::backward() 中 grad=1 的硬编码，直接调用
         // grad_fn->apply_backward(g_out)，其中 g_out = ∂L_fm/∂⟨Z⟩。
+        // full_qgt（默认 true）—— 自然梯度所用的 Fubini-Study 度量精度：
+        //   true  : apply_full_qng_update，完整度量（含对角与非对角元），
+        //           精确体现参数空间的量子几何，成本 O(p²)（p = 参数数）。
+        //   false : apply_qng_update，仅对角元估计（estimate_fs_diagonal，
+        //           基于 ⟨Z⟩ 方差），成本 O(p)，但有纠缠时只是近似。
+        //           这是原实现的默认路径，现降级为显式选择的快速路径。
         void train_flow(std::vector<std::shared_ptr<quark::QObject>> &dataset,
-                        int epochs, double lr)
+                        int epochs, double lr, bool full_qgt = true)
         {
             size_t n_q = dataset.empty() ? num_qubits_ : dataset[0]->size();
             size_t total_params = num_layers * (n_q + 8);
@@ -415,7 +421,8 @@ namespace qlm
                     if (out.get_grad_fn())
                         out.get_grad_fn()->apply_backward(g_out);
 
-                    apply_qng_update(theta, lr, sample);
+                    if (full_qgt) apply_full_qng_update(theta, lr, sample);
+                    else apply_qng_update(theta, lr, sample);
                     sample->reset_to_ground_state();
                 }
                 std::cout << "      [FLOW] Epoch " << e + 1 << "/" << epochs

@@ -158,7 +158,7 @@ const CONTROL_KEYWORDS = [
 const OTHER_KEYWORDS = [
     'mod', 'use', 'pub', 'form', 'impl', 'trait', 'template', 'rank', 'self',
     'lattice', 'export', 'import', 'extern', 'requires', 'ensures', 'invariant',
-    'from', 'make', 'cap', 'native', 'fixed', 'flavor', 'addr', 'basis_state', 'path'
+    'from', 'make', 'cap', 'native', 'fixed', 'flavor', 'morph', 'addr', 'basis_state', 'path'
 ];
 
 const TYPE_KEYWORDS = new Set([
@@ -197,6 +197,16 @@ const ANNOTATION_KEYWORDS = [
     '@[noreturn]', '@[export]', '@[section]', '@[naked]'
 ];
 
+// 量子门：在 lexer 中已不是关键字（语句/表达式位置按标识符处理），
+// 补全与语义高亮共用此表。
+const QUANTUM_GATE_NAMES = [
+    'h', 'x', 'y', 'z', 's', 't', 'rz', 'rx', 'ry',
+    'cnot', 'toffoli', 'swap', 'qft', 'iqft', 'braid',
+    'measure_x', 'measure_y',
+    'cx', 'ch', 'crz', 'cswap', 'c_toffoli', 'cqft', 'cbraid',
+];
+const QUANTUM_GATE_SET = new Set(QUANTUM_GATE_NAMES);
+
 connection.onInitialize((params: InitializeParams) => {
     // 根据开发者系统语言选择悬停提示语言：中文（zh*）→ 中文，其余（en* 等）→ 英文。
     hoverLang = ((params.locale ?? '').toLowerCase().startsWith('zh')) ? 'zh' : 'en';
@@ -212,7 +222,23 @@ connection.onInitialize((params: InitializeParams) => {
             documentSymbolProvider: true,
             semanticTokensProvider: {
                 legend: {
-                    tokenTypes: ['keyword', 'type', 'function', 'variable', 'number', 'string', 'operator'],
+                    // 分类越细，编辑器主题给的颜色越分明（「各有各的颜色」）。
+                    // 索引即 SEM_TOKEN_* 常量，改动需与 tokenTypeFor* 保持一致。
+                    tokenTypes: [
+                        'keyword',      // 0  控制流 / 声明等通用关键字
+                        'type',         // 1  经典类型 int32 / double ...
+                        'function',     // 2  内建函数 qk_* / qchain_* ...
+                        'variable',     // 3  普通标识符
+                        'number',       // 4  数字字面量
+                        'string',       // 5  字符串字面量
+                        'operator',     // 6  运算符
+                        'class',        // 7  量子类型 Qubit / QObject / QModel ...
+                        'macro',        // 8  morph 态射宏
+                        'method',       // 9  量子门 h / x / cnot / rz ...
+                        'decorator',    // 10 注解标签 @layer / @[gate] ...
+                        'constant',     // 11 常量 true / false / null
+                        'enum'          // 12 flavor 味成员
+                    ],
                     tokenModifiers: []
                 },
                 full: true
@@ -361,24 +387,41 @@ connection.onNotification('quark/buildApk', (params: { uri: string; release?: bo
 });
 
 connection.onCompletion(
-    (_textDocumentPosition): CompletionItem[] => {
+    (params): CompletionItem[] => {
+        // ── 取光标前的标识符前缀（输入 "all" → "all"），据此智能过滤 ──
+        let prefix = '';
+        const doc = documents.get(params.textDocument.uri);
+        if (doc) {
+            const before = doc.getText().slice(0, doc.offsetAt(params.position));
+            const m = /[A-Za-z_][\w]*$/.exec(before);
+            if (m) prefix = m[0];
+        }
+
         const items: CompletionItem[] = [];
-        for (const kw of CONTROL_KEYWORDS) {
-            items.push({ label: kw, kind: CompletionItemKind.Keyword, detail: 'Control-flow keyword' });
-        }
-        for (const kw of OTHER_KEYWORDS) {
-            items.push({ label: kw, kind: CompletionItemKind.Keyword, detail: 'Declaration keyword' });
-        }
-        for (const t of TYPE_KEYWORDS) {
-            items.push({ label: t, kind: CompletionItemKind.Class, detail: 'Type' });
-        }
-        for (const fn of BUILTIN_FUNCTIONS) {
-            items.push({ label: fn, kind: CompletionItemKind.Function, detail: 'Built-in function' });
-        }
-        for (const ann of ANNOTATION_KEYWORDS) {
-            items.push({ label: ann, kind: CompletionItemKind.Keyword, detail: 'Annotation tag' });
-        }
-        return items;
+        const add = (label: string, kind: CompletionItemKind, detail: string, insertText?: string) => {
+            items.push({ label, kind, detail, insertText: insertText ?? label });
+        };
+        for (const kw of CONTROL_KEYWORDS) add(kw, CompletionItemKind.Keyword, 'Control-flow keyword');
+        for (const kw of OTHER_KEYWORDS) add(kw, CompletionItemKind.Keyword, 'Declaration keyword');
+        for (const t of TYPE_KEYWORDS) add(t, CompletionItemKind.Class, 'Type');
+        for (const fn of BUILTIN_FUNCTIONS) add(fn, CompletionItemKind.Function, 'Built-in function', `${fn}(`);
+        for (const g of QUANTUM_GATE_NAMES) add(g, CompletionItemKind.Function, 'Quantum gate', `${g}(`);
+        for (const ann of ANNOTATION_KEYWORDS) add(ann, CompletionItemKind.Property, 'Annotation tag');
+
+        // 无前缀时限量返回，避免一次弹出数百项造成卡顿
+        if (!prefix) return items.slice(0, 200);
+
+        // 过滤 + 相关度排序：精确匹配 > 前缀匹配 > 子串匹配（同档按长度，短者优先）
+        const lower = prefix.toLowerCase();
+        const rank = (label: string): number => {
+            const l = label.toLowerCase();
+            if (l === lower) return 0;
+            if (l.startsWith(lower)) return 1;
+            return 2;
+        };
+        return items
+            .filter(i => i.label.toLowerCase().includes(lower))
+            .sort((a, b) => rank(a.label) - rank(b.label) || a.label.length - b.label.length);
     }
 );
 
@@ -396,10 +439,44 @@ connection.onRequest(SemanticTokensRequest.type, (params: SemanticTokensParams) 
     const builder = new SemanticTokensBuilder();
     const lexer = new Lexer(document.getText());
 
+    // 语义 token 分类索引（须与 capabilities.semanticTokensProvider.legend 同序）
+    const SEM = {
+        KEYWORD: 0, TYPE: 1, FUNCTION: 2, VARIABLE: 3, NUMBER: 4, STRING: 5,
+        OPERATOR: 6, CLASS: 7, MACRO: 8, METHOD: 9, DECORATOR: 10, CONSTANT: 11, ENUM: 12,
+    } as const;
+
+    const QUANTUM_TYPE_NAMES = new Set([
+        'Qubit', 'QObject', 'QModel', 'QReservoir', 'QRegister', 'Result',
+        'DiracState', 'BellState', 'QuantumRegister',
+    ]);
+    // 量子门在 lexer 中已不是关键字（语句/表达式位置按标识符处理），故需按名称识别
+    // （QUANTUM_GATE_SET 为模块级定义，此处直接使用）
+    // '@layer' → 'layer'、'@[gate]' → 'gate'
+    const ANNOTATION_NAMES = new Set(
+        ANNOTATION_KEYWORDS.map(a => a.replace(/^[@\[]/, '').replace(/\]$/, ''))
+    );
+    const CONSTANT_NAMES = new Set(['true', 'false', 'null']);
+
     const tokenTypeForKeyword = (value: string): number => {
-        if (TYPE_KEYWORDS.has(value)) return 1; // type
-        if (BUILTIN_FUNCTIONS.includes(value)) return 2; // function
-        return 0; // keyword
+        if (TYPE_KEYWORDS.has(value)) {
+            return QUANTUM_TYPE_NAMES.has(value) ? SEM.CLASS : SEM.TYPE;
+        }
+        if (BUILTIN_FUNCTIONS.includes(value)) return SEM.FUNCTION;
+        if (ANNOTATION_NAMES.has(value)) return SEM.DECORATOR;
+        if (CONSTANT_NAMES.has(value)) return SEM.CONSTANT;
+        if (value === 'morph') return SEM.MACRO;              // 态射宏声明
+        if (value === 'flavor') return SEM.ENUM;              // 枚举（味）定义
+        if (QUANTUM_GATE_SET.has(value)) return SEM.METHOD; // 量子门
+        return SEM.KEYWORD;
+    };
+
+    /** 标识符 token 的分类：量子门 / morph 宏调用 / 注解名 各自着色 */
+    const tokenTypeForIdentifier = (value: string): number => {
+        if (QUANTUM_GATE_SET.has(value)) return SEM.METHOD;
+        if (value === 'morph') return SEM.MACRO;
+        if (ANNOTATION_NAMES.has(value)) return SEM.DECORATOR;
+        if (value === 'true' || value === 'false') return SEM.CONSTANT; // null 是关键字
+        return SEM.VARIABLE;
     };
 
     const operatorTokenTypes = new Set<TokenType>([
@@ -414,15 +491,17 @@ connection.onRequest(SemanticTokensRequest.type, (params: SemanticTokensParams) 
     let token = lexer.getNextToken();
     while (token.type !== TokenType.EOF) {
         const length = token.length > 0 ? token.length : token.value.length || 1;
-        let typeIndex = 3; // variable 默认
+        let typeIndex: number = SEM.VARIABLE;
         if (token.type === TokenType.Keyword) {
             typeIndex = tokenTypeForKeyword(token.value);
+        } else if (token.type === TokenType.Identifier) {
+            typeIndex = tokenTypeForIdentifier(token.value);
         } else if (token.type === TokenType.Number) {
-            typeIndex = 4;
+            typeIndex = SEM.NUMBER;
         } else if (token.type === TokenType.String) {
-            typeIndex = 5;
+            typeIndex = SEM.STRING;
         } else if (operatorTokenTypes.has(token.type)) {
-            typeIndex = 6; // operator
+            typeIndex = SEM.OPERATOR;
         }
 
         builder.push(

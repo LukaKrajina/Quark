@@ -24,7 +24,13 @@ struct __attribute__((visibility("hidden"))) QReservoirHandle
 extern "C"
 {
     QUARK_HOST_EXPORT QReservoirHandle *qk_qrc_new(int32_t qubits, int32_t layers);
+    // out_dim 可显式指定（原 qk_qrc_new 固定 out_dim=1，仅够标量演示任务）。
+    QUARK_HOST_EXPORT QReservoirHandle *qk_qrc_new_ex(int32_t qubits, int32_t layers, int32_t out_dim);
     QUARK_HOST_EXPORT void qk_qrc_train(QReservoirHandle *res, int32_t epochs, double lr);
+    // 用真实训练数据训练（原 qk_qrc_train 只跑合成正弦序列，仅够自检）。
+    QUARK_HOST_EXPORT void qk_qrc_train_ex(QReservoirHandle *res, int32_t epochs, double lr,
+                                           const double *inputs, const double *targets,
+                                           int32_t n_samples, int32_t n_features, int32_t n_outputs);
     QUARK_HOST_EXPORT QObject *qk_qrc_probe(QReservoirHandle *res, QObject *data);
     QUARK_HOST_EXPORT QObject *qk_qrc_predict(QReservoirHandle *res, QObject *data);
     QUARK_HOST_EXPORT void qk_qrc_release(QReservoirHandle *res);
@@ -32,21 +38,58 @@ extern "C"
 
 #if defined(QUARK_RT_BUILD)
 
-QReservoirHandle *qk_qrc_new(int32_t qubits, int32_t layers)
+// out_dim 可显式指定：原先固定为 1（只够标量时序预测这类演示任务），
+// 现由调用方按真实任务的输出维度给出（多维回归 / 多类读出等）。
+QReservoirHandle *qk_qrc_new_ex(int32_t qubits, int32_t layers, int32_t out_dim)
 {
-    if (!global_qm || qubits <= 0)
+    if (!global_qm || qubits <= 0 || layers <= 0 || out_dim <= 0)
         return nullptr;
     auto *h = new QReservoirHandle();
-    // out_dim=1：演示任务为标量时序预测
     h->impl = new qml::QuantumReservoir(global_qm,
                                         static_cast<size_t>(qubits),
                                         static_cast<size_t>(layers),
-                                        /*out_dim=*/1);
+                                        static_cast<size_t>(out_dim));
     std::cout << "[QRC ABI] Reservoir created (" << qubits << " qubits, "
-              << layers << " layers).\n";
+              << layers << " layers, out_dim=" << out_dim << ").\n";
     return h;
 }
 
+// 兼容旧的两参数签名：out_dim 缺省为 1（标量输出）。
+QReservoirHandle *qk_qrc_new(int32_t qubits, int32_t layers)
+{
+    return qk_qrc_new_ex(qubits, layers, 1);
+}
+
+// 用真实训练数据训练线性读出。
+// inputs  : 扁平的 n_samples × n_features（行主序）
+// targets : 扁平的 n_samples × n_outputs
+// 这是生产路径：调用方提供自己的时序/回归数据。
+void qk_qrc_train_ex(QReservoirHandle *res, int32_t epochs, double lr,
+                     const double *inputs, const double *targets,
+                     int32_t n_samples, int32_t n_features, int32_t n_outputs)
+{
+    if (!res || !res->impl || !inputs || !targets)
+        return;
+    if (n_samples <= 0 || n_features <= 0 || n_outputs <= 0)
+        return;
+
+    const size_t ns = static_cast<size_t>(n_samples);
+    const size_t nf = static_cast<size_t>(n_features);
+    const size_t no = static_cast<size_t>(n_outputs);
+
+    std::vector<std::vector<double>> in(ns);
+    std::vector<std::vector<double>> tgt(ns);
+    for (size_t s = 0; s < ns; ++s)
+    {
+        in[s].assign(inputs + s * nf, inputs + s * nf + nf);
+        tgt[s].assign(targets + s * no, targets + s * no + no);
+    }
+
+    res->impl->train(in, tgt, epochs, lr);
+}
+
+// 兼容旧签名：用合成正弦序列训练（自检 / 验证无贫瘠高原的演示任务，
+// 非生产路径 —— 真实数据请用 qk_qrc_train_ex）。
 void qk_qrc_train(QReservoirHandle *res, int32_t epochs, double lr)
 {
     if (!res || !res->impl)

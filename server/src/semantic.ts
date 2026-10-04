@@ -6,6 +6,16 @@ import { buildTopology } from "./topology";
 import { synthesizeGates } from "./gate-synth";
 import { Type, T, cap, func, array, parseType, typeToString, typeEquals, isAssignable, isNumeric, isNumericCoercible, isConditionType } from "./types";
 
+/**
+ * 是否为「扁平 double 缓冲」：`cap<double>` 或 `arr<double, N>`。
+ * 二者在 ABI 层都退化为 double 数组首指针，故 C ABI 接受任一种。
+ */
+function isDoubleBuffer(t: Type): boolean {
+    if (t.kind === 'cap') return t.inner.kind === 'float' && t.inner.width === 64;
+    if (t.kind === 'array') return t.elem.kind === 'float' && t.elem.width === 64;
+    return false;
+}
+
 function isTopLevelItem(node: any): node is Item {
     if (node.type === 'VariableDeclarationList') {
         // 顶层「显式类型」多定义（int32 a=1, b=2;）→ 全局变量列表（Item）；
@@ -1456,10 +1466,12 @@ export class SemanticAnalyzer {
             // QReservoir 是「固定随机电路 + 线性读出」的储备池资源，
             // 不是线性类型（可共享、可复用），储备池内部 qubit 的线性语义
             // 由运行时（QVM 的 expectation_z 非破坏观测）保证。
+            // qrc_new(qubits, layers)            —— out_dim 缺省为 1（标量输出）
+            // qrc_new(qubits, layers, out_dim)   —— 显式输出维度（多维回归 / 多类读出）
             if (expr.name === 'qrc_new') {
-                if (expr.arguments.length !== 2) {
+                if (expr.arguments.length !== 2 && expr.arguments.length !== 3) {
                     this.errors.push({
-                        message: `Signature Error: 'qrc_new' expects 2 arguments (qubits: int32, layers: int32).`,
+                        message: `Signature Error: 'qrc_new' expects 2 arguments (qubits: int32, layers: int32) or 3 (qubits, layers, out_dim: int32).`,
                         line: expr.line, column: expr.column, length: expr.length
                     });
                 } else {
@@ -1484,6 +1496,39 @@ export class SemanticAnalyzer {
                     }
                     this.visitExpression(expr.arguments[1]);
                     this.visitExpression(expr.arguments[2]);
+                }
+                return T.void;
+            }
+
+            // 用真实训练数据训练线性读出（生产路径；qrc_train 只跑合成正弦自检）。
+            // qrc_train_ex(res, epochs, lr, inputs, targets, n_samples, n_features, n_outputs)
+            if (expr.name === 'qrc_train_ex') {
+                if (expr.arguments.length !== 8) {
+                    this.errors.push({
+                        message: `Signature Error: 'qrc_train_ex' expects 8 arguments (res: QReservoir, epochs: int32, lr: double, inputs: cap<double>, targets: cap<double>, n_samples: int32, n_features: int32, n_outputs: int32).`,
+                        line: expr.line, column: expr.column, length: expr.length
+                    });
+                } else {
+                    const arg0Type = this.visitExpression(expr.arguments[0]);
+                    if (!(arg0Type.kind === 'quantum' && arg0Type.cls === 'QReservoir') && arg0Type.kind !== 'unknown') {
+                        this.errors.push({
+                            message: `Type Error: First argument of 'qrc_train_ex' must be QReservoir, got '${typeToString(arg0Type)}'.`,
+                            line: expr.arguments[0].line, column: expr.arguments[0].column, length: expr.arguments[0].length
+                        });
+                    }
+                    // inputs / targets：cap<double> 与 arr<double, N> 均可
+                    // （两者在 ABI 层都退化为扁平 double 缓冲的首指针）。
+                    for (const idx of [3, 4]) {
+                        const bt = this.visitExpression(expr.arguments[idx]);
+                        if (bt.kind !== 'unknown' && !isDoubleBuffer(bt)) {
+                            this.errors.push({
+                                message: `Type Error: Argument ${idx + 1} of 'qrc_train_ex' (${idx === 3 ? 'inputs' : 'targets'}) must be cap<double> or arr<double, N>, got '${typeToString(bt)}'.`,
+                                line: expr.arguments[idx].line, column: expr.arguments[idx].column, length: expr.arguments[idx].length
+                            });
+                        }
+                    }
+                    // 其余：epochs / lr / n_samples / n_features / n_outputs
+                    for (const idx of [1, 2, 5, 6, 7]) this.visitExpression(expr.arguments[idx]);
                 }
                 return T.void;
             }

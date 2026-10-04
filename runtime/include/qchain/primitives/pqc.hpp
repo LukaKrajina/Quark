@@ -24,6 +24,7 @@
 #include "uov.hpp"
 #include <memory>
 #include <utility>
+#include <stdexcept>
 
 namespace qchain::pqc
 {
@@ -564,22 +565,77 @@ namespace qchain::pqc
         size_t remaining() const { return leaves_sk.size() - next_index; }
     };
 
+    // ─── KEM 方案工厂 ─────────────────────────────────────────────────
+    //
+    // 根据 KemScheme 创建 IKem 实例（多态，供服务/通道统一使用）。
+    //
+    // 安全策略（重要 —— 避免「请求 A 却拿到 B」的安全错觉）：
+    //   • ML_KEM_768  —— 本仓库唯一已完成的生产级 KEM（FIPS 203，NIST 第 3 级），
+    //     所有默认路径都应使用它。
+    //   • ML_KEM_512 / ML_KEM_1024 —— 枚举已预留，但本构建未落地对应参数集，
+    //     显式请求会抛异常（原先静默落回其它实现，属危险的隐式降级）。
+    //   • LWE_REFERENCE —— LweKem 为「演示/参考规模」（n=256, q=4096），
+    //     不具备任何宣称的安全等级。必须显式定义 QUARK_ALLOW_REFERENCE_CRYPTO
+    //     才能启用，仅供研究/教学；未定义时请求即抛异常。
+    inline std::unique_ptr<IKem> make_kem_scheme(KemScheme s)
+    {
+        switch (s)
+        {
+        case KemScheme::ML_KEM_768:
+            return std::make_unique<MlKem768Kem>();
+        case KemScheme::LWE_REFERENCE:
+#if defined(QUARK_ALLOW_REFERENCE_CRYPTO)
+            return std::make_unique<LweKem>();
+#else
+            throw std::runtime_error(
+                "qchain::pqc::make_kem_scheme: LWE_REFERENCE is a demonstration-scale "
+                "Regev LWE (n=256, q=4096) with no claimed security level. Define "
+                "QUARK_ALLOW_REFERENCE_CRYPTO to opt in for research use only.");
+#endif
+        case KemScheme::ML_KEM_512:
+        case KemScheme::ML_KEM_1024:
+        default:
+            throw std::runtime_error(
+                "qchain::pqc::make_kem_scheme: requested ML-KEM parameter set is not "
+                "implemented in this build (only ML-KEM-768 / FIPS 203 is available).");
+        }
+    }
+
     // ─── 签名方案工厂 ─────────────────────────────────────────────────
     //
     // 根据 SigScheme 创建对应的 ISignatureScheme 实例（多态，供钱包/服务统一使用）。
-    // 已实现：ML_DSA（MlDsa65Signature）、UOV（UovSignatureScheme）、
-    //        LAMPORT_OTS（LamportOts）。SLH_DSA / FN_DSA / MERKLE_XMSS 留待后续接入。
+    //
+    // 已实现并接入：ML_DSA（MlDsa65Signature，FIPS 204）、UOV（UovSignatureScheme）、
+    //              LAMPORT_OTS（LamportOts，一次性）。
+    //
+    // 不静默降级：SLH_DSA / FN_DSA 枚举已预留但未实现，请求即抛异常；
+    // MERKLE_XMSS 虽有 MerkleSignatureScheme 实现，但它是**有状态**方案
+    // （私钥材料存于实例内、keygen 只返回公钥、sign 消耗叶），与无状态的
+    // ISignatureScheme 接口不兼容 —— 强行适配会丢失状态或复用叶，而 Lamport
+    // 叶复用会直接泄露私钥。故不纳入工厂，请直接使用 MerkleSignatureScheme
+    // 并自行管理状态（见 qchain_service.hpp 的 merkle_height 配置）。
     inline std::unique_ptr<ISignatureScheme> make_sig_scheme(SigScheme s)
     {
         switch (s)
         {
+        case SigScheme::ML_DSA:
+            return std::make_unique<MlDsa65Signature>();
         case SigScheme::UOV:
             return std::make_unique<UovSignatureScheme>();
         case SigScheme::LAMPORT_OTS:
             return std::make_unique<LamportOts>();
-        case SigScheme::ML_DSA:
+        case SigScheme::SLH_DSA:
+        case SigScheme::FN_DSA:
+            throw std::runtime_error(
+                "qchain::pqc::make_sig_scheme: SLH-DSA (FIPS 205) / FN-DSA (FIPS 206) "
+                "are reserved in the enum but not implemented in this build.");
+        case SigScheme::MERKLE_XMSS:
+            throw std::runtime_error(
+                "qchain::pqc::make_sig_scheme: MERKLE_XMSS is a stateful scheme and is "
+                "incompatible with the stateless ISignatureScheme interface; use "
+                "MerkleSignatureScheme directly with explicit state management.");
         default:
-            return std::make_unique<MlDsa65Signature>(); // 默认 ML-DSA-65（FIPS 204）
+            throw std::runtime_error("qchain::pqc::make_sig_scheme: unknown scheme");
         }
     }
 

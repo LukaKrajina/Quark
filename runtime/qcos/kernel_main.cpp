@@ -50,6 +50,12 @@ alignas(16) static unsigned char g_stack_b[4096];
 static qcos::Thread g_thread_a;
 static qcos::Thread g_thread_b;
 
+// ---- idle 线程：无其它就绪线程时运行 ----
+// 原先「无就绪线程」直接 halt()，会永久停机、此后不再响应任何中断。
+// idle 线程始终 RUNNABLE 且权重最低，保证调度器永远有可运行线程。
+alignas(16) static unsigned char g_stack_idle[4096];
+static qcos::Thread g_thread_idle;
+
 // ---------------------------------------------------------------------------
 //  中断分派：保存当前线程上下文 → 处理中断 → 选新线程 → 返回新栈指针
 // ---------------------------------------------------------------------------
@@ -80,11 +86,23 @@ extern "C" qcos::u64 qcos_interrupt_dispatch(qcos::InterruptFrame* frame)
     // 选新线程（调度器 current 已更新；首次/无任务则选最早截止）
     Thread* next = g_sched.current();
     if (!next) next = g_sched.pick_next();
-    if (!next) halt();                      // 无就绪线程：停机（简化，真实应为 idle）
+    // idle 线程始终 RUNNABLE，故 pick_next() 正常不会返回空；
+    // 这里保留 halt() 仅作兜底（如 idle 线程被移除的异常情形）。
+    if (!next) halt();
     next->state = ThreadState::RUNNING;
 
     // 返回新线程栈指针，stub 据此切换 rsp 并 iretq
     return next->kernel_rsp;
+}
+
+// ---- idle 线程体：开中断 + hlt 低功耗等待，由下一个中断唤醒 ----
+static void task_idle(void*)
+{
+    for (;;)
+    {
+        asm volatile("sti");
+        asm volatile("hlt");
+    }
 }
 
 // ---- 演示线程：打印 'A' / 'B' 并忙等 ----
@@ -137,6 +155,11 @@ extern "C" void kernel_main()
     g_thread_b.id = 2; g_thread_b.weight = 100; g_thread_b.slice = 5;
     g_sched.add(&g_thread_a);
     g_sched.add(&g_thread_b);
+
+    // idle：权重取最小，EEVDF 下 vdeadline 推进最快，故仅在无其它就绪线程时被选中。
+    thread_init(&g_thread_idle, task_idle, nullptr, g_stack_idle + sizeof(g_stack_idle));
+    g_thread_idle.id = 0; g_thread_idle.weight = 1; g_thread_idle.slice = 1;
+    g_sched.add(&g_thread_idle);
 
     // ---- 首次调度并进入首个线程（noreturn，此后由 PIT 中断驱动抢占）----
     g_sched.tick();                                     // 选首个线程（最早截止）

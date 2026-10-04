@@ -129,6 +129,10 @@ namespace qhal
     private:
         StabilizerCode code_;
         std::vector<bool> punctured_;  // 已穿孔的物理比特位置
+        // 动态穿孔的延迟阈值（毫秒）。原先是 apply_dynamic_puncturing 函数内的
+        // 硬编码局部常量 2.5 —— 既无物理模型也无实验标定依据，且无法按硬件/链路
+        // 调整。改为成员后可依实测标定注入；默认 2.5 仅为保持历史行为。
+        double critical_latency_threshold_ = 2.5;
 
         // 删除生成元的第 pos 位（并把更高位右移）。
         static uint64_t remove_bit(uint64_t mask, size_t pos)
@@ -154,6 +158,11 @@ namespace qhal
         }
 
         const StabilizerCode &code() const { return code_; }
+
+        // 动态穿孔阈值（ms）：链路延迟超过该值即穿孔以抑制退相干。
+        // 可按硬件标定注入，默认 2.5（历史行为，非标定值）。
+        void set_critical_latency_threshold(double ms) { critical_latency_threshold_ = ms; }
+        double critical_latency_threshold() const { return critical_latency_threshold_; }
 
         // 穿孔第 position 个物理比特：从所有生成元中投影掉该比特。
         // 若某生成元在该比特上有非平凡作用，则丢弃（该生成元不再约束），
@@ -186,8 +195,7 @@ namespace qhal
         // 动态穿孔：延迟超过阈值时，为抑制退相干而穿孔（保持 QVM 调用签名）。
         void apply_dynamic_puncturing(double real_time_latency_ms)
         {
-            const double critical_latency_threshold = 2.5;
-            if (real_time_latency_ms > critical_latency_threshold && code_.n_physical > 1)
+            if (real_time_latency_ms > critical_latency_threshold_ && code_.n_physical > 1)
             {
                 // 穿孔最低位物理比特。
                 size_t pos = 0;

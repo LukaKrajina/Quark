@@ -25,6 +25,110 @@ const isTypeRef = (raw: string): boolean => {
     return TYPE_NAMES.has(name) || name.startsWith('form.') || name.startsWith('closure.') || name.startsWith('env.');
 };
 
+/** 支配分析所需的基本块视图（由 verifyIR 在扫描时填充） */
+interface IRBlock {
+    name: string;
+    /** 块内定义的寄存器 → 首次定义行号 */
+    defs: Map<string, number>;
+    /** 块内的寄存器使用 */
+    uses: { reg: string; line: number }[];
+    /** 后继块名（从终结符 br/switch 的 `label %X` 提取） */
+    succs: string[];
+}
+
+/**
+ * SSA 支配性质检查（真正的支配关系，而非「按文本顺序」近似）。
+ *
+ * 不变量：寄存器在其定义块**支配**的所有块中可见。若使用点所在块不被定义块
+ * 支配，即为真正的 SSA 违规 —— 典型情形是「某分支内定义、另一分支未定义，
+ * 却在汇合块使用该寄存器」，此时按文本顺序检查会漏报（定义文本上确实靠前）。
+ *
+ * 为降低误报：
+ *   - 仅在可达块上检查（不可达块的支配集无意义）；
+ *   - 同块内的使用交给既有的文本顺序检查（此处跳过）；
+ *   - 函数参数（%argN / %env）不在任何块内定义，此处跳过（它们支配所有块）。
+ */
+function checkDominance(blocks: IRBlock[], fnName: string): IRDiagnostic[] {
+    const diags: IRDiagnostic[] = [];
+    const n = blocks.length;
+    if (n === 0) return diags;
+
+    const index = new Map<string, number>();
+    blocks.forEach((b, i) => index.set(b.name, i));
+
+    // 前驱边
+    const preds: number[][] = blocks.map(() => []);
+    for (let i = 0; i < n; i++) {
+        for (const s of blocks[i].succs) {
+            const j = index.get(s);
+            if (j !== undefined) preds[j].push(i);
+        }
+    }
+
+    const entryIdx = index.get('entry') ?? 0;
+
+    // 可达块（从 entry 出发）
+    const reachable = new Set<number>();
+    const stack: number[] = [entryIdx];
+    while (stack.length) {
+        const v = stack.pop()!;
+        if (reachable.has(v)) continue;
+        reachable.add(v);
+        for (const s of blocks[v].succs) {
+            const j = index.get(s);
+            if (j !== undefined && !reachable.has(j)) stack.push(j);
+        }
+    }
+
+    // 支配集迭代求不动点：
+    //   Dom(entry) = {entry}；Dom(b) = {b} ∪ ⋂_{p ∈ preds(b)} Dom(p)
+    const all = new Set<number>();
+    for (let i = 0; i < n; i++) all.add(i);
+    const dom: Set<number>[] = blocks.map((_, i) => new Set(i === entryIdx ? [entryIdx] : all));
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (let i = 0; i < n; i++) {
+            if (i === entryIdx) continue;
+            let inter: Set<number> | null = null;
+            for (const p of preds[i]) {
+                if (inter === null) inter = new Set(dom[p]);
+                else for (const v of Array.from(inter)) if (!dom[p].has(v)) inter.delete(v);
+            }
+            const next = new Set<number>(inter ?? new Set<number>());
+            next.add(i);
+            if (next.size !== dom[i].size || Array.from(next).some(v => !dom[i].has(v))) {
+                dom[i] = next;
+                changed = true;
+            }
+        }
+    }
+
+    // 寄存器 → 首次定义所在块
+    const defBlock = new Map<string, number>();
+    for (let i = 0; i < n; i++) {
+        for (const r of blocks[i].defs.keys()) if (!defBlock.has(r)) defBlock.set(r, i);
+    }
+
+    for (let i = 0; i < n; i++) {
+        if (!reachable.has(i)) continue; // 不可达块不检查
+        for (const u of blocks[i].uses) {
+            const d = defBlock.get(u.reg);
+            if (d === undefined) continue;  // 参数 / 未在块内定义 → 既有检查负责
+            if (d === i) continue;          // 同块 → 文本顺序检查负责
+            if (!dom[i].has(d)) {
+                diags.push({
+                    line: u.line,
+                    message: `SSA violation: register '${u.reg}' defined in block '${blocks[d].name}' ` +
+                        `does not dominate its use in block '${blocks[i].name}' in function '${fnName}'`,
+                });
+            }
+        }
+    }
+    return diags;
+}
+
 export function verifyIR(ir: string): IRDiagnostic[] {
     const diagnostics: IRDiagnostic[] = [];
     const lines = ir.split('\n');
@@ -44,6 +148,20 @@ export function verifyIR(ir: string): IRDiagnostic[] {
     let blockTerminated = false;
     let blockHasInstruction = false;
     const definedRegs = new Set<string>();
+
+    // ── 支配分析：当前函数的基本块视图（函数结束时交给 checkDominance）──
+    let blocks: IRBlock[] = [];
+    let curBlock: IRBlock | null = null;
+    const ensureBlock = (): IRBlock => {
+        if (!curBlock) {
+            curBlock = {
+                name: blocks.length === 0 ? 'entry' : `__implicit_${blocks.length}`,
+                defs: new Map(), uses: [], succs: [],
+            };
+            blocks.push(curBlock);
+        }
+        return curBlock;
+    };
 
     const flushBlock = (line: number) => {
         // 一个基本块结束（下一个 label 或函数结束）时，校验终结符
@@ -73,6 +191,8 @@ export function verifyIR(ir: string): IRDiagnostic[] {
             blockTerminated = false;
             blockHasInstruction = false;
             definedRegs.clear();
+            blocks = [];
+            curBlock = null;
             // 函数参数（%arg0, %arg1, ...）在函数入口即已定义，加入 definedRegs，
             // 否则参数在 store 到 alloca 时会被误报 "used before definition"。
             // 精确匹配 %argN 参数名，避免误匹配命名类型（如 %Qubit*）。
@@ -104,6 +224,8 @@ export function verifyIR(ir: string): IRDiagnostic[] {
             if (!hasEntry) {
                 diagnostics.push({ line: fnStartLine, message: `function '${fnName}' is missing an 'entry:' block` });
             }
+            // 真正的支配检查（补充「按文本顺序」近似的漏报）
+            diagnostics.push(...checkDominance(blocks, fnName));
             inFunction = false;
             continue;
         }
@@ -115,6 +237,9 @@ export function verifyIR(ir: string): IRDiagnostic[] {
             if (labelMatch[1] === 'entry') hasEntry = true;
             blockHasInstruction = false;
             blockTerminated = false;
+            // 开启新块（供支配分析）
+            curBlock = { name: labelMatch[1], defs: new Map(), uses: [], succs: [] };
+            blocks.push(curBlock);
             continue;
         }
 
@@ -131,6 +256,10 @@ export function verifyIR(ir: string): IRDiagnostic[] {
                 diagnostics.push({ line, message: `SSA violation: register '${definedName}' defined more than once` });
             }
             definedRegs.add(definedName);
+            const b = ensureBlock();
+            if (!b.defs.has(definedName)) b.defs.set(definedName, line);
+        } else {
+            ensureBlock();
         }
 
         // 使用：扫描指令中的 %N（排除定义位置本身与命名类型引用）。
@@ -144,6 +273,7 @@ export function verifyIR(ir: string): IRDiagnostic[] {
             if (u === definedName) continue; // 定义位置
             if (isTypeRef(u)) continue;       // 命名类型（%Qubit* 等），非寄存器
             if (allLabels.has(u.slice(1))) continue; // 基本块标签（br label %X）
+            curBlock?.uses.push({ reg: u, line });   // 供支配分析
             if (!definedRegs.has(u)) {
                 diagnostics.push({ line, message: `SSA violation: register '${u}' used before definition in function '${fnName}'` });
             }
@@ -152,6 +282,14 @@ export function verifyIR(ir: string): IRDiagnostic[] {
         // 终结符判定
         if (TERMINATORS.has(firstToken)) {
             blockTerminated = true;
+            // 提取后继（br label %X / br i1 %c, label %A, label %B / switch ... label %D）
+            if (curBlock) {
+                const succs = s.match(/label\s+%([\w.]+)/g) ?? [];
+                for (const m of succs) {
+                    const name = m.replace(/label\s+%/, '');
+                    if (!curBlock.succs.includes(name)) curBlock.succs.push(name);
+                }
+            }
         }
         blockHasInstruction = true;
     }
@@ -161,6 +299,7 @@ export function verifyIR(ir: string): IRDiagnostic[] {
         if (!hasEntry) {
             diagnostics.push({ line: fnStartLine, message: `function '${fnName}' is missing an 'entry:' block` });
         }
+        diagnostics.push(...checkDominance(blocks, fnName));
     }
 
     return diagnostics;

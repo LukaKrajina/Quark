@@ -126,6 +126,31 @@ test('topology: deadline violation is flagged (E-TOP006)', () => {
     assert.ok(errors.some(e => e.code === 'E-TOP006'));
 });
 
+// ─── 坐标维度：投影合法，但维度差 > 1 需诊断（E-TOP007）───────────────
+test('topology: coord dimension spread of 1 is legal (projection edge)', () => {
+    // 维度差恰为 1 → 构成 projection 投影边（原 E-TOP002 已放宽为合法），不应报错。
+    const { errors } = topo(
+        '@layer(time=0, thread=0, coord=(0))\nint32 a() { return 0; }\n' +
+        '@layer(time=0, thread=0, coord=(0,0))\nint32 b() { return 0; }');
+    assert.ok(!errors.some(e => e.code === 'E-TOP007'), 'dimension spread of 1 must stay legal');
+});
+
+test('topology: coord dimension spread > 1 is flagged (E-TOP007)', () => {
+    // 维度差为 2（1 维 vs 3 维）：跨越一个以上维度的投影在几何上无良定义路径。
+    const { errors } = topo(
+        '@layer(time=0, thread=0, coord=(0))\nint32 a() { return 0; }\n' +
+        '@layer(time=0, thread=0, coord=(0,0,0))\nint32 b() { return 0; }');
+    assert.ok(errors.some(e => e.code === 'E-TOP007'),
+        'expect E-TOP007 for coord dimension spread > 1');
+});
+
+test('topology: uniform coord dimensions produce no E-TOP007', () => {
+    const { errors } = topo(
+        '@layer(time=0, thread=0, coord=(0,0))\nint32 a() { return 0; }\n' +
+        '@layer(time=1, thread=0, coord=(1,1))\nint32 b() { return 0; }');
+    assert.ok(!errors.some(e => e.code === 'E-TOP007'), 'uniform dimensions must not be flagged');
+});
+
 // ─── IR 生成：调度表 + 拓扑入口 ───────────────────────────────────
 test('ir: @layer functions generate topology entry + dispatch table', () => {
     const ast = parse('@layer(time=0, thread=0, coord=(0,0))\nint32 a() { return 0; }');

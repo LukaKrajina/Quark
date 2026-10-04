@@ -418,37 +418,49 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../quarkRSP quarkRSP)
 # ==========================================
 # 8. TARGET: SPACETIME DEMO（快子场+切片数值基准）
 #     header-only 模板，仅依赖 C++ 标准库，无额外第三方依赖。
+#
+#    这四个是**演示/基准**程序，不是运行时的组成部分，原先无条件进入默认
+#    构建（拖慢每次构建、且与生产目标混在一起）。现由 QUARK_BUILD_DEMOS
+#    控制，默认 OFF：
+#        cmake -DQUARK_BUILD_DEMOS=ON ..
+#
+#    注意：自检类目标（qcos_smoke / qchain_selftest / mir_module_test）不受
+#    此开关影响，仍默认构建 —— 它们是会校验正确性的自测，不是演示。
 # ==========================================
-add_executable(spacetime_demo src/spacetime_demo.cpp)
-target_include_directories(spacetime_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-if(MSVC)
-    target_compile_options(spacetime_demo PRIVATE /O2)
-else()
-    target_compile_options(spacetime_demo PRIVATE -O2)
-endif()
+option(QUARK_BUILD_DEMOS "Build the spacetime/nucleation demonstration binaries" OFF)
 
-add_executable(spacetime_demo2 src/spacetime_demo2.cpp)
-target_include_directories(spacetime_demo2 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-if(MSVC)
-    target_compile_options(spacetime_demo2 PRIVATE /O2)
-else()
-    target_compile_options(spacetime_demo2 PRIVATE -O2)
-endif()
+if(QUARK_BUILD_DEMOS)
+    add_executable(spacetime_demo src/spacetime_demo.cpp)
+    target_include_directories(spacetime_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    if(MSVC)
+        target_compile_options(spacetime_demo PRIVATE /O2)
+    else()
+        target_compile_options(spacetime_demo PRIVATE -O2)
+    endif()
 
-add_executable(nucleation_demo src/nucleation_demo.cpp)
-target_include_directories(nucleation_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-if(MSVC)
-    target_compile_options(nucleation_demo PRIVATE /O2)
-else()
-    target_compile_options(nucleation_demo PRIVATE -O2)
-endif()
+    add_executable(spacetime_demo2 src/spacetime_demo2.cpp)
+    target_include_directories(spacetime_demo2 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    if(MSVC)
+        target_compile_options(spacetime_demo2 PRIVATE /O2)
+    else()
+        target_compile_options(spacetime_demo2 PRIVATE -O2)
+    endif()
 
-add_executable(spacetime_demo3 src/spacetime_demo3.cpp)
-target_include_directories(spacetime_demo3 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-if(MSVC)
-    target_compile_options(spacetime_demo3 PRIVATE /O2)
-else()
-    target_compile_options(spacetime_demo3 PRIVATE -O2)
+    add_executable(nucleation_demo src/nucleation_demo.cpp)
+    target_include_directories(nucleation_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    if(MSVC)
+        target_compile_options(nucleation_demo PRIVATE /O2)
+    else()
+        target_compile_options(nucleation_demo PRIVATE -O2)
+    endif()
+
+    add_executable(spacetime_demo3 src/spacetime_demo3.cpp)
+    target_include_directories(spacetime_demo3 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    if(MSVC)
+        target_compile_options(spacetime_demo3 PRIVATE /O2)
+    else()
+        target_compile_options(spacetime_demo3 PRIVATE -O2)
+    endif()
 endif()
 
 # ==========================================

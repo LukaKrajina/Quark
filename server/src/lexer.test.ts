@@ -55,5 +55,6 @@ test('lexer: line/column tracking', () => {
 });
 
 test('lexer: throws on unknown character', () => {
-    assert.throws(() => tokenize('#'));
+    // `#` 现为 morph 宏的字符串化 token，改用仍不受支持的 `` ` ``（反引号）。
+    assert.throws(() => tokenize('`'));
 });

@@ -117,7 +117,33 @@ export class TopologyBuilder {
     // 原 E-TOP002 强制维度一致，已放宽——不同维度的块不再报错，由 deriveEdges
     // 推导为 projection 边。此处保留占位，便于后续诊断「维度差 > 1」等异常投影。
     private validateCoordDims(blocks: Block[]): void {
-        // 曲面体坐标：维度不同是合法的（投影边），无需一致性校验。
+        // 曲面体坐标：维度不同是合法的（低维 ↔ 高维构成 projection 投影边），
+        // 因此不做维度一致性校验（原 E-TOP002 已放宽）。
+        //
+        // 但「维度差 > 1」属异常投影：跨越一个以上维度的指数/对数映射在几何上
+        // 没有良定义的投影路径（相邻维度间才有自然的投影对应），故诊断 E-TOP007。
+        if (blocks.length < 2) return;
+
+        let minDim = Number.POSITIVE_INFINITY;
+        let maxDim = 0;
+        for (const b of blocks) {
+            const d = b.layer.coord.length;
+            if (d < minDim) minDim = d;
+            if (d > maxDim) maxDim = d;
+        }
+
+        if (maxDim - minDim > 1) {
+            // 以维度最小的块作为诊断定位点。
+            const low = blocks.find(b => b.layer.coord.length === minDim)!;
+            this.errors.push({
+                code: 'E-TOP007',
+                message: `Topology Error: coord dimension spread is ${maxDim - minDim} (>1) `
+                    + `(min ${minDim}D, max ${maxDim}D); projection across more than one `
+                    + `dimension is not well-defined.`,
+                line: low.fn.line,
+                column: low.fn.column,
+            });
+        }
     }
 
     // ---- 运行形状聚合 -------------------------------------------------------

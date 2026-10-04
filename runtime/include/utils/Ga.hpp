@@ -104,9 +104,11 @@ namespace ga
                 }
 #elif defined(QUARK_SIMD_LASX) || defined(QUARK_SIMD_LSX)
                 // 龙芯 LSX（128 位）/ LASX（256 位）向量扩展：
-                // 检测宏已就绪（见 GpuBackend.hpp）；intrinsic 内核待补
-                // （lsxintrin.h / lasxintrin.h，__lsx_* / __lasx_*）。
-                // 当前回退标量，保证正确性；后续可替换为 __lsx_vfmadd_s 等向量实现。
+                // 手写 intrinsic 内核（__lsx_vfmadd_s / __lasx_vfmadd_ps）尚未落地，
+                // 且无法在本机（x86）验证，故不引入未经验证的 intrinsic。
+                // 改用 OpenMP SIMD 提示，由编译器按目标架构自动向量化 —— 正确性
+                // 与标量一致，且在支持 LSX/LASX 的龙芯上可获得向量加速。
+#pragma omp simd
                 for (size_t i = 0; i < length; ++i)
                 {
                     std::complex<float> val = state[i];
@@ -233,6 +235,8 @@ namespace ga
                 gate_sequence = std::move(fused_sequence);
             }
 
+            inline static double poa_bound_ = 2.5; // 占位默认值，需按实测标定
+
             static double potential_function(const std::vector<QuantumGate>& seq) {
                 double phi = 0.0;
                 for (const auto& g : seq) phi += channel_importance(g);
@@ -250,7 +254,12 @@ namespace ga
                 return icm_channel_importance(R, f);
             }
             
-            static constexpr double price_of_anarchy_bound() { return 2.5; }
+            // 价格无政府状态（Price of Anarchy）上界。
+            // 原先硬编码为 2.5 且从未被调用 —— 该数值既无理论推导也无实验标定，
+            // 直接暴露为常量会被误当作有保证的界。改为可配置：应由资源博弈模块
+            // 按实测标定后注入；默认 2.5 仅为保持历史行为，不代表任何保证。
+            static double price_of_anarchy_bound() { return poa_bound_; }
+            static void set_price_of_anarchy_bound(double bound) { poa_bound_ = bound; }
         };
 
         class KokkosInterface

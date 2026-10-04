@@ -307,6 +307,16 @@ export const KEYWORD_DOCS: Record<string, HoverDoc> = {
         syntax: 'flavor Name {\n    A,\n    B = 5,\n    C       // C 自动 = 6\n}',
         example: 'flavor Channel { DEPOLARIZING, DEPHASING, AMPLITUDE_DAMPING, PAULI }\nint32 m = Channel.PAULI;   // 3',
     },
+    morph: {
+        purpose: '态射宏：全局、卫生的编译期宏系统，在编译期把「语法模式」变换为「代码」。',
+        purposeEn: 'Morph: the global, hygienic compile-time macro system — transforms a syntax pattern into code.',
+        syntax: 'morph 名字($元变量: 种类, ...) {\n    模板\n}\n\n// 调用（统一 name!(...) 形式）\n名字!(实参, ...);',
+        params: '元变量种类：`expr`（表达式）、`stmt`（语句）、`items`（0+ 顶层项）、`type`（类型，含泛型后缀）、`ident`（标识符）、`literal`（字面量）、`tt`（任意 token 树）。重复用 `$(...)*` / `$(...)+`；`#$名字` 把捕获片段字符串化。',
+        paramsEn: 'Metavariable kinds: `expr` (expression), `stmt` (statement), `items` (0+ top-level items), `type` (type, incl. generic suffix), `ident` (identifier), `literal` (number/string), `tt` (any token tree). Repetition uses `$(...)*` / `$(...)+`; `#$name` stringifies the captured fragment.',
+        detail: '三条硬约束：① **全局** —— 仅顶层声明，与内建同命名空间，不允许局部宏，展开不依赖局部作用域；② **卫生 = 规范不变性** —— 模板引入的绑定（`let` / `fn` 名 / 参数 / 类型声明）在每次展开时 α-重命名取新原子，杜绝变量捕获；③ **不使用 #define** —— 展开发生在词法层（parse 之前），产物重新进入类型 / 借用 / 拓扑检查。宏可展开出宏，限深递归（上限 64）。\n\n**约定**：模板是不含末尾分号的语句/表达式序列，调用点照常写 `;`；需要保证优先级时请在模板中自行加括号 `($e)`。',
+        detailEn: 'Three invariants: (1) **global** — top-level only, sharing the namespace with builtins, no local macros, expansion independent of local scope; (2) **hygiene as gauge invariance** — binders introduced by the template (`let`, `fn` names, parameters, typed declarations) are alpha-renamed to fresh atoms on every expansion, preventing variable capture; (3) **no #define** — expansion happens at the lexical layer (before parsing) and the result re-enters type / borrow / topology checking. A macro may expand into another macro, with a depth limit of 64.\n\n**Convention**: a template is a statement/expression sequence *without* the trailing semicolon — supply `;` at the call site. Parenthesize explicitly `($e)` when precedence matters.',
+        example: 'morph twice($e: expr) { ($e) + ($e) }\nint32 y = twice!(x * 3);      // → (x * 3) + (x * 3)\n\nmorph make_syscalls($($name: ident),*) {\n    $(fn $name() -> int32 { return 0; })*\n}\nmake_syscalls!(do_init, do_tick);   // 生成 fn do_init() 与 fn do_tick()',
+    },
     addr: {
         purpose: '取函数地址（返回低 32 位整数地址）。',
         purposeEn: 'Takes a function\'s address (returns the low 32 bits).',

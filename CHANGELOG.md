@@ -5,6 +5,22 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.9.3] (vsx 0.3.3)
+
+### Added
+
+- **`@[coherence]` 多通道退相干建模**：`computeNoise()` 原只能返回单一噪声通道，被迫把不同物理来源折叠成一个强度。现返回**通道列表**，由 `emitNoiseIfNeeded()` 依次注入：T1（能量弛豫）→ 振幅阻尼（channel 2），T2 中的纯退相部分 → 相位阻尼（channel 1），按严格分解 `1/T_φ = 1/T2 − 1/(2·T1)` 各自用自身时间常数定强度。实测 `@[coherence(100,50)]` 产出 `i32 2 / 0.010000` 与 `i32 1 / 0.015000`（= 1/50 − 1/200），与物理公式吻合。`@[noise]` 路径仍为单通道，行为不变。
+- **morph 宏的编辑器支持**：`hover-docs.ts` 新增 `morph` 中英双语悬停文档（作用 / 语法 / 元变量七种类 / 三条硬约束 / 示例）；`syntaxes/quark.tmLanguage.json` 新增 `morph` 关键字高亮与宏元变量 `$name`、字符串化 `#$name` 的高亮规则；`server.ts` 关键字表补入 `morph`（补全与语义高亮）。
+- **编辑器高亮细分（各有各的颜色）**：语义 token legend 由 7 类扩为 13 类（`keyword` / `type` / `class` / `function` / `macro` / `method` / `decorator` / `constant` / `enum` / `number` / `string` / `operator` / `variable`），并按类别着色：控制流与声明关键字、经典类型 vs 量子类型（`Qubit` 等走 `class`）、内建函数、量子门（`h`/`x`/`cnot`… 走 `method`）、`morph` 宏（`macro`）、注解标签 `@layer`/`@[gate]`（`decorator`）、`flavor`（`enum`）、`true`/`false`/`null`（`constant`）。量子门在词法层已不是关键字，故补按名称识别，使调用点也能正确着色。
+- **智能感知补全（前缀过滤 + 相关度排序）**：补全此前一次性返回全部条目、无过滤，依赖客户端兜底。现按光标前标识符前缀（输入 `all` 即得 `alloc` 等）在服务端过滤，并按「精确匹配 > 前缀匹配 > 子串匹配」排序（同档按长度短者优先）；新增**量子门**类别补全，并为函数/门补 `insertText`（自动带 `(`），注解标签改用 `Property` 图标以便与关键字区分；无前缀时限量 200 条避免弹出卡顿。
+- **Linux/WSL 侧交叉验证**：本轮 C++ 改动（qchain 密码学 KEM 工厂与开关、签名工厂去静默降级、时空加密改用 ML-KEM-768、区间约束的仿射与变量-变量传播、端点预测器告警、内核 idle 线程）已在 WSL (Ubuntu, clang++ 21) 下以 `-fsyntax-only` 全部通过。依赖 Kokkos 的部分（`utils/Ga.hpp` 等）未能在 Linux 侧验证——WSL 复用的是 Windows 版 Kokkos（其 `CUDAToolkit_ROOT` 为 Windows 路径），需在 WSL 内独立安装 Linux 版 Kokkos 后方可完整构建。
+- **测试与文档回填**：新增 15 项测试——SSA 支配树（4 项，含「分支内定义、汇合块使用」这一文本顺序检查会漏报的用例，以及 entry 定义 / 循环回边 / 函数参数三类**不应误报**的用例）、`E-TOP007` 触发与「维度差为 1 仍属合法投影」（3 项）、QRC `qrc_new` 三参形态与 `qrc_train_ex` 签名/类型检查（8 项）。全量测试 255 → 270。语言手册 §12.10 补 `qrc_new(qubits, layers, out_dim)` 第三参与 `qrc_train_ex`（真实训练数据；`inputs`/`targets` 为扁平 `double` 缓冲，类型可用 `cap<double>` 或 `arr<double, N>`），并明确 `qrc_train` 跑合成正弦仅属自检、非通用训练入口；§19.2 错误表补 `E-TOP007`，并订正 `E-TOP002`（维度不一致检查此前已放宽为 no-op）。
+- **morph 态射宏系统（全局 · 卫生即规范不变性 · 宏即用户定义的内建）**：新增元编程机制 `morph`，在编译期把「语法模式」变换为「代码」，是对 `#define` 文本宏的范式替代，三条硬约束：① **全局**——仅顶层声明，与内建函数同命名空间，不允许局部宏，展开不依赖局部作用域（与程序组合可交换）；② **卫生 = 规范不变性**——模板引入的绑定（`let` / `fn` 名 / 参数 / 类型声明）在每次展开时 α-重命名取新原子，杜绝 `#define SWAP` 式变量捕获；③ **不用 `#define`**——展开发生在词法层、parse 之前，产物重新进入类型 / 借用 / 拓扑检查。一期元变量：`expr` / `stmt` / `items` / `type` / `ident` / `literal` / `tt`；支持 `$(...)*` / `$(...)+` 重复生成、`#$name` 字符串化、限深递归（上限 64）；调用统一 `name!(...)`。实现落在 `server/src/morph.ts`（token 树构建 → 模式/模板解析 → 匹配/实例化 → 不动点展开），配合 `lexer.ts`（新增 `morph` 关键字、`$` / `#` token、`Lexer.fromTokens`）与 `parser.ts`（`parse()` 词法层接入，零侵入 AST）。`morph.test.ts` 覆盖卫生 / 全局 / 重复 / 种类报错 / 递归 / 字符串化共 12 项。
+
+### Fixed
+
+- **少参调用 `qrc_train_ex` / `qrc_new` 导致 IR 生成崩溃**：新加的 codegen 直接索引 `arguments[3..7]`，实参不足时抛 `TypeError: Cannot read properties of undefined` 中断整个编译（语义层虽会另报 `Signature Error`，但 IR 层不应崩溃）。现对缺失实参填占位值继续生成，并补 `assert.doesNotThrow` 防回归测试。
+
 ## [0.9.2] (vsx 0.3.2)
 
 ### Added

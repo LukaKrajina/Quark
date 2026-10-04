@@ -753,17 +753,36 @@ model.export("model.qkm");
 | 函数 | 签名 | 返回 |
 | --- | --- | --- |
 | `qrc_new` | `qrc_new(int32 qubits, int32 layers)` | `QReservoir` |
+| `qrc_new` | `qrc_new(int32 qubits, int32 layers, int32 out_dim)` | `QReservoir` |
 | `qrc_train` | `qrc_train(QReservoir res, int32 epochs, double lr)` | `void` |
+| `qrc_train_ex` | `qrc_train_ex(QReservoir res, int32 epochs, double lr, cap<double> inputs, cap<double> targets, int32 n_samples, int32 n_features, int32 n_outputs)` | `void` |
 | `qrc_release` | `qrc_release(QReservoir res)` | `void` |
 | `qrc_probe` | `qrc_probe(QReservoir res, QObject data)` | `QObject` |
 | `qrc_predict` | `qrc_predict(QReservoir res, QObject data)` | `QObject` |
 
+**输出维度 `out_dim`**：`qrc_new` 的第三参指定读出输出的维度（多维回归 / 多类读出）。
+两参形式等价于 `out_dim = 1`（标量输出，向后兼容）。
+
+**训练数据**：
+- `qrc_train(res, epochs, lr)` —— 用**合成正弦时序**训练线性读出。这是经典 QRC 自检
+  任务（用于验证「无贫瘠高原」），**不是**通用训练入口。
+- `qrc_train_ex(res, epochs, lr, inputs, targets, n_samples, n_features, n_outputs)` ——
+  用**真实训练数据**训练。`inputs` / `targets` 为扁平 `double` 缓冲（行主序，
+  长度分别为 `n_samples × n_features` 与 `n_samples × n_outputs`），类型可用
+  `cap<double>` 或 `arr<double, N>`（二者在 ABI 层均退化为 double 数组首指针）。
+
 ```qk
-auto res = qrc_new(4, 3);           // 4 qubit、3 层储备池
-qrc_train(res, 50, 0.01);           // 合成正弦时序训练线性读出（无贫瘠高原）
-auto feat = qrc_probe(res, data);   // 测态编码输入 → ⟨Z⟩ 特征（qubit 编码）
-auto pred = qrc_predict(res, data); // 读出预测（qubit 编码）
-qrc_release(res);                   // 释放储备池
+auto res = qrc_new(4, 3);              // 4 qubit、3 层储备池（标量输出，out_dim = 1）
+qrc_train(res, 50, 0.01);              // 自检：合成正弦时序训练（演示用）
+auto feat = qrc_probe(res, data);      // 测态编码输入 → ⟨Z⟩ 特征（qubit 编码）
+auto pred = qrc_predict(res, data);    // 读出预测（qubit 编码）
+qrc_release(res);                      // 释放储备池
+
+// 多维输出 + 真实训练数据
+auto mr = qrc_new(6, 3, 4);            // 6 qubit、3 层、输出维度 4
+qrc_train_ex(mr, 100, 0.01, xs, ys,   // xs: n×in  flat double buffer
+             n_samples, n_features, 4);// ys: n×4   flat double buffer
+qrc_release(mr);
 ```
 
 ### 12.11 TQNF 拓扑量子神经场
@@ -1046,6 +1065,81 @@ int32 label = fuse (m) {
     _: 0
 };
 ```
+
+### 14.7 morph（态射宏 / 全局卫生宏）
+
+`morph` 是 qk 的**宏系统**：一种在编译期把「语法模式」变换为「代码」的元编程机制，是函数/内建在**语法层**的对偶。它有三条硬约束，构成与 `#define` 完全不同的新范式：
+
+1. **全局**：`morph` 只能是顶层声明，与内建函数同命名空间，不允许局部宏（函数体里不能 `morph`）。宏展开不依赖任何局部作用域，因此与程序组合可交换（指称透明）。
+2. **卫生 = 规范不变性**：模板引入的绑定（`let` / `fn` 名 / 参数 / 类型声明）在每次展开时取**新原子**（α-重命名），使展开结果在「重命名」下不可区分——类比的规范场：名字不可观测，只有 α-等价类（规范不变量）才有意义（Gabbay–Pitts 名义集合）。因此不会出现 `#define SWAP(a,b){int tmp=a;...}` 那种变量捕获 bug。
+3. **不使用 `#define`**：`morph` 是正经的顶层语言构造，展开发生在词法层（parse 之前），产物重新进入类型检查 / 借用检查 / 拓扑推导。
+
+#### 声明与调用
+
+```qk
+// 声明：morph 名字( $元变量: 种类, ... ) { 模板 }
+morph twice($e: expr) { ($e) + ($e) }
+
+// 调用：统一 name!(...) 形式（表达式 / 语句 / 顶层均可）
+int32 y = twice!(x * 3);       // 展开为 (x * 3) + (x * 3)
+```
+
+#### 元变量种类（一期）
+
+| 种类 | 匹配 | 用途 |
+| --- | --- | --- |
+| `expr` | 一个表达式（直到顶层 `,` 或参数末尾） | 值片段 |
+| `stmt` | 一条语句（直到顶层 `,` / `;`） | 控制流片段 |
+| `items` | 0+ 顶层项（贪婪到参数末尾） | 生成 form / fn / flavor 一族 |
+| `type` | 一个类型名（含 `cap<T>` / `arr<T,N>` / `lattice<T,B>` 泛型后缀） | 类型参数化 |
+| `ident` | 一个标识符 | 函数 / 变量名 |
+| `literal` | 一个数字或字符串字面量 | 常量 |
+| `tt` | 任意一个 token 树（叶子或括号组） | 万能兜底 |
+
+#### 重复（生成一族）
+
+用 `$( ... )` 包裹可重复片段，`*` 表示 0 次或多次、`+` 表示 1 次或多次，分隔符写在 `)` 与 `*`/`+` 之间：
+
+```qk
+morph make_syscalls($($name: ident),*) {
+    $(fn $name() -> int32 { return 0; })*
+}
+make_syscalls!(do_init, do_tick);   // 生成 fn do_init() 与 fn do_tick()
+```
+
+#### 字符串化
+
+模板里的 `#$name` 把捕获片段转成字符串字面量（展开期 `stringify`）：
+
+```qk
+morph log_call($f: ident) { qk_sys_log(#$f); }
+log_call!(init);    // → qk_sys_log("init");
+```
+
+#### 卫生示例
+
+```qk
+morph swap_into($a: expr, $b: expr) { let tmp = $a; $a = $b; $b = tmp }
+
+@layer(time=0, thread=0, coord=(0)) int32 main() {
+    int32 tmp = 42;              // 使用处的 tmp
+    int32 x = 1; int32 y = 2;
+    swap_into!(x, y);            // 模板里的 tmp 被 α-重命名为新名，不覆盖外面的 tmp
+    // x == 2, y == 1, tmp == 42
+}
+```
+
+#### 递归（限深）
+
+宏可展开出宏，受固定深度上限（64）约束；超限会报「recursion limit」：
+
+```qk
+morph A($e: expr) { B!($e) }
+morph B($e: expr) { ($e) + 1 }
+int32 z = A!(2);    // → (2) + 1
+```
+
+> 约定：模板是一个**不含末尾分号**的语句/表达式序列，调用点照常写 `;` 作为终结符（形如 Rust `macro_rules!`）。模板若要保证优先级，请自行加括号 `($e)`。
 
 ---
 
@@ -1388,7 +1482,7 @@ retrocausal_ctc_gain retrocausal_ctc_dephasing
 // 非欧几里德曲面体几何
 geodesic_distance inversion hyperbolic_metric hyperbolic_distance
 // 类型系统与模块
-mod use pub form impl trait template rank self flavor fuse
+mod use pub form impl trait template rank self flavor fuse morph
 export import requires ensures invariant result from
 // 神经/软逻辑原语
 surrogate tanh_quantize lif_step mellowmax2 logsumexp2 boltzmann2
@@ -1431,7 +1525,7 @@ cx ch crz cswap c_toffoli cqft cbraid
 | `Impl Error` | 未实现 trait 方法 / trait 不存在 |
 | `Contract Error` | `requires` / `ensures` / `invariant` 类型非布尔 |
 | `Ambiguity Warning` | 门名与变量名冲突 |
-| `Topology Error` | `E-TOP001` 显式函数缺 `@layer` / `E-TOP002` 坐标维度不一致 / `E-TOP003` 坐标占用 / `E-TOP005` 叠加链空槽 / `E-TOP006` 传播延迟超 deadline |
+| `Topology Error` | `E-TOP001` 显式函数缺 `@layer` / `E-TOP003` 坐标占用 / `E-TOP005` 叠加链空槽 / `E-TOP006` 传播延迟超 deadline / `E-TOP007` coord 维度跨度 > 1（跨一个以上维度的投影无良定义路径；**维度差恰为 1 是合法投影**，原 `E-TOP002` 维度不一致检查已放宽为 no-op） |
 | `Quantum Attr Error` | `E-QUNI` `@[unitary]`/`@[gate]` 函数含测量（不可逆）/ `E-QSYN` `@[undo]`/`@[steer]` 缺 `@[gate]`/`@[unitary]` 前提 |
 | `Physical Error` | `E-PHY` `@[coherence]` 违反 `0 < T2 ≤ T1` / `@[noise]` 未知噪声模型 |
 

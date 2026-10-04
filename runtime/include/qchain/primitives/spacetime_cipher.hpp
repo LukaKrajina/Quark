@@ -14,6 +14,7 @@
 //
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <vector>
 #include "../../spacetime/Foliation.hpp"
 #include "../../spacetime/InitialConditions.hpp"
@@ -131,11 +132,21 @@ namespace qchain::spacetime_crypto
         }
 
         // 完整混合流程：后量子 KEM 交换共享密钥 → 派生时空密钥 → 加/解密。
-        //   encrypt_hybrid(kem_sk, kem_pk, plaintext) -> (ciphertext, encapsulated_seed)
-        static std::pair<Bytes, Bytes> encaps_seed(const Bytes &kem_public_key)
+        //   encaps_seed(kem_pk) -> (ciphertext, shared_secret)
+        //
+        // 原实现硬编码 pqc::LweKem —— 那是「演示/参考规模」的 Regev LWE
+        // （n=256, q=4096），无宣称安全等级，用它封装真实数据密钥是不安全的。
+        // 现改为经工厂取生产级 ML-KEM-768（FIPS 203）；kem 可注入以便替换/测试。
+        static std::pair<Bytes, Bytes> encaps_seed(const Bytes &kem_public_key,
+                                                   pqc::IKem *kem = nullptr)
         {
-            pqc::LweKem kem;
-            auto [ct, ss] = kem.encaps(kem_public_key);
+            std::unique_ptr<pqc::IKem> owned;
+            if (!kem)
+            {
+                owned = pqc::make_kem_scheme(pqc::KemScheme::ML_KEM_768);
+                kem = owned.get();
+            }
+            auto [ct, ss] = kem->encaps(kem_public_key);
             return {ct, ss};
         }
     };

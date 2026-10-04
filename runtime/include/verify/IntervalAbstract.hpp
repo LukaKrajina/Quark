@@ -130,7 +130,68 @@ namespace qhal::verify {
         }
 
     private:
-        // 从表达式提取约束并传播到变量区间（只处理简单形式 x op c / c op x）
+        // ── 辅助：常量取值（i32 / double / bool）─────────────────────────
+        static int64_t constValue(const SExpr& e) {
+            if (e.type == "double") return static_cast<int64_t>(std::stod(e.value));
+            if (e.type == "bool") return e.value == "true" ? 1 : 0;
+            return static_cast<int64_t>(std::stoll(e.value));
+        }
+
+        // ── 辅助：op 取反（用于 c op x → x 反op c 的归一化）──────────────
+        static std::string mirrorOp(const std::string& op) {
+            if (op == "<") return ">";
+            if (op == "<=") return ">=";
+            if (op == ">") return "<";
+            if (op == ">=") return "<=";
+            return op; // "==" 对称
+        }
+
+        static Interval intervalOf(const std::map<std::string, Interval>& env, const std::string& n) {
+            auto it = env.find(n);
+            return it != env.end() ? it->second : Interval::full();
+        }
+
+        // 用「x op c」收紧 x 的区间（op 已归一化为变量在左）
+        static void applyBound(std::map<std::string, Interval>& env,
+                               const std::string& varName, const std::string& op, int64_t c) {
+            Interval cur = intervalOf(env, varName);
+            if (op == "<") cur.hi = std::min(cur.hi, c - 1);
+            else if (op == "<=") cur.hi = std::min(cur.hi, c);
+            else if (op == ">") cur.lo = std::max(cur.lo, c + 1);
+            else if (op == ">=") cur.lo = std::max(cur.lo, c);
+            else if (op == "==") { cur.lo = std::max(cur.lo, c); cur.hi = std::min(cur.hi, c); }
+            if (cur.lo > cur.hi) cur = Interval::bottom();
+            env[varName] = cur;
+        }
+
+        // 尝试把 e 解析为「变量 + 常量偏移」：var、var + c、c + var、var - c
+        static bool asAffineVar(const SExpr& e, std::string& varName, int64_t& offset) {
+            if (e.kind == SExpr::Kind::Var) { varName = e.name; offset = 0; return true; }
+            if (e.kind == SExpr::Kind::App && (e.op == "+" || e.op == "-") && e.args.size() == 2) {
+                const SExpr& a = e.args[0];
+                const SExpr& b = e.args[1];
+                if (a.kind == SExpr::Kind::Var && b.kind == SExpr::Kind::Const) {
+                    varName = a.name;
+                    const int64_t c = constValue(b);
+                    offset = (e.op == "+") ? c : -c;
+                    return true;
+                }
+                if (e.op == "+" && b.kind == SExpr::Kind::Var && a.kind == SExpr::Kind::Const) {
+                    varName = b.name;
+                    offset = constValue(a);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // 从表达式提取约束并传播到变量区间。
+        //
+        // 原实现仅支持 `x op c`（变量与常量），其余形式一律「暂不传播」而放弃，
+        // 导致含 x+1<c 或 x<y 的义务完全得不到区间信息。现支持：
+        //   (a) 常量界：   x op c        /  c op x
+        //   (b) 仿射界：   x + k op c    /  c op x + k
+        //   (c) 变量-变量：x op y        （用对方当前区间互相收紧，双向对称）
         static void propagate(const SExpr& e, std::map<std::string, Interval>& env) {
             if (e.kind == SExpr::Kind::App && e.op == "&&") {
                 propagate(e.args[0], env);
@@ -144,33 +205,61 @@ namespace qhal::verify {
 
             const SExpr& l = e.args[0];
             const SExpr& r = e.args[1];
-            std::string varName;
-            int64_t c = 0;
-            bool varOnLeft = false;
-            if (l.kind == SExpr::Kind::Var && r.kind == SExpr::Kind::Const && r.type == "i32") {
-                varName = l.name; c = std::stoll(r.value); varOnLeft = true;
-            } else if (r.kind == SExpr::Kind::Var && l.kind == SExpr::Kind::Const && l.type == "i32") {
-                varName = r.name; c = std::stoll(l.value); varOnLeft = false;
-            } else {
-                return; // 复杂约束暂不传播
+
+            // (a) x op c
+            if (l.kind == SExpr::Kind::Var && r.kind == SExpr::Kind::Const) {
+                applyBound(env, l.name, op, constValue(r));
+                return;
+            }
+            // (a') c op x → x 反op c
+            if (r.kind == SExpr::Kind::Var && l.kind == SExpr::Kind::Const) {
+                applyBound(env, r.name, mirrorOp(op), constValue(l));
+                return;
             }
 
-            Interval cur = env.count(varName) ? env[varName] : Interval::full();
-            // 归一化：var op c
-            std::string normOp = op;
-            if (!varOnLeft) {
-                if (op == "<") normOp = ">";
-                else if (op == "<=") normOp = ">=";
-                else if (op == ">") normOp = "<";
-                else if (op == ">=") normOp = "<=";
+            std::string ln, rn;
+            int64_t lo = 0, ro = 0;
+            const bool lAff = asAffineVar(l, ln, lo);
+            const bool rAff = asAffineVar(r, rn, ro);
+
+            // (b) x + lo op c  ⟺  x op (c - lo)
+            if (lAff && r.kind == SExpr::Kind::Const) {
+                applyBound(env, ln, op, constValue(r) - lo);
+                return;
             }
-            if (normOp == "<") cur.hi = std::min(cur.hi, c - 1);
-            else if (normOp == "<=") cur.hi = std::min(cur.hi, c);
-            else if (normOp == ">") cur.lo = std::max(cur.lo, c + 1);
-            else if (normOp == ">=") cur.lo = std::max(cur.lo, c);
-            else if (normOp == "==") { cur.lo = std::max(cur.lo, c); cur.hi = std::min(cur.hi, c); }
-            if (cur.lo > cur.hi) cur = Interval::bottom();
-            env[varName] = cur;
+            // (b') c op x + ro  ⟺  x 反op (c - ro)
+            if (rAff && l.kind == SExpr::Kind::Const) {
+                applyBound(env, rn, mirrorOp(op), constValue(l) - ro);
+                return;
+            }
+            // (c) x + lo op y + ro  ⟺  x op y + (ro - lo)
+            if (lAff && rAff) {
+                const int64_t delta = ro - lo;
+                const Interval ox = intervalOf(env, ln);
+                const Interval oy = intervalOf(env, rn);
+                Interval ix = ox, iy = oy;
+                // 双向收紧，两侧均基于**原始**区间计算，避免顺序依赖。
+                if (op == "<" || op == "<=") {
+                    const int64_t slack = (op == "<") ? 1 : 0; // x < y  ⇒ x ≤ y-1
+                    ix.hi = std::min(ox.hi, oy.hi + delta - slack);
+                    iy.lo = std::max(oy.lo, ox.lo - delta + slack);
+                } else if (op == ">" || op == ">=") {
+                    const int64_t slack = (op == ">") ? 1 : 0; // x > y  ⇒ x ≥ y+1
+                    ix.lo = std::max(ox.lo, oy.lo + delta + slack);
+                    iy.hi = std::min(oy.hi, ox.hi - delta - slack);
+                } else if (op == "==") {
+                    ix.lo = std::max(ox.lo, oy.lo + delta);
+                    ix.hi = std::min(ox.hi, oy.hi + delta);
+                    iy.lo = std::max(oy.lo, ox.lo - delta);
+                    iy.hi = std::min(oy.hi, ox.hi - delta);
+                }
+                if (ix.lo > ix.hi) ix = Interval::bottom();
+                if (iy.lo > iy.hi) iy = Interval::bottom();
+                env[ln] = ix;
+                env[rn] = iy;
+                return;
+            }
+            // 仍无法处理的形式（含乘法、函数调用等）：保守放弃传播。
         }
 
         // 区间语义下求值表达式

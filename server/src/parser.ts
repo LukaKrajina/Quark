@@ -1,4 +1,5 @@
 import { Token, TokenType, Lexer } from './lexer';
+import { expandMorphTokens } from './morph';
 import {
     Program,
     Statement,
@@ -223,6 +224,13 @@ export class Parser {
     }
 
     public parse(): Program {
+        // morph 态射宏展开（词法层）：先把 token 流整体取出交给 morph.ts 做
+        // 收集 + 不动点展开，再用 Lexer.fromTokens 切回解析。无 morph 时原样通过。
+        const expanded = expandMorphTokens(this.drainTokens());
+        this.lexer = Lexer.fromTokens(expanded);
+        this.currentToken = this.lexer.getNextToken();
+        this.lookahead = null;
+
         const startLine = this.currentToken.line;
         const startCol = this.currentToken.column;
         const program: Program = {
@@ -236,6 +244,15 @@ export class Parser {
             program.body.push(this.parseTopLevelItem());
         }
         return program;
+    }
+
+    /** 取出当前 lexer 中尚未消费的全部非 EOF token（morph 展开前） */
+    private drainTokens(): Token[] {
+        const tokens: Token[] = [];
+        while (this.currentToken.type !== TokenType.EOF) {
+            tokens.push(this.advance());
+        }
+        return tokens;
     }
 
     /**

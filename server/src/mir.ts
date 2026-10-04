@@ -260,7 +260,7 @@ const BUILTIN_RET_TY: Record<string, string> = {
     'qchain_causal_verify': 'int32',
     'qchain_cipher_encrypt': 'string', 'qchain_cipher_decrypt': 'string',
     // QRC 量子储备池
-    'qrc_new': 'QReservoir', 'qrc_train': 'void', 'qrc_release': 'void',
+    'qrc_new': 'QReservoir', 'qrc_train': 'void', 'qrc_train_ex': 'void', 'qrc_release': 'void',
     'qrc_probe': 'QObject', 'qrc_predict': 'QObject',
     // TQNF 拓扑量子神经场
     'dla_dim': 'int32',

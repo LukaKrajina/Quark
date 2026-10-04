@@ -34,7 +34,12 @@ namespace vedaros::algorithm
     private:
         qhal::IQuantumBackend *backend_;
         EndpointPredictor predictor_;
+        /** 是否注入了真实端点预测器（false = 恒等占位） */
+        bool injected_ = false;
 
+        // 恒等占位：Ĥ_1 = H_t。注意其后果 —— flow() 中 H1 == H_s，
+        // 于是 out == H_s，即流映射退化为「原地不动」的空操作。
+        // 原先这是静默默认，规划器看起来在运行却毫无位移；现显式告警。
         static std::vector<double> identity_predictor(const std::vector<double> &H, double)
         {
             return H;
@@ -44,10 +49,21 @@ namespace vedaros::algorithm
         explicit MeanFlowPlanner(qhal::IQuantumBackend *backend,
                                  EndpointPredictor pred = nullptr)
             : backend_(backend),
-              predictor_(pred ? std::move(pred) : identity_predictor)
+              predictor_(pred ? std::move(pred) : identity_predictor),
+              injected_(pred != nullptr)
         {
+            if (!injected_) {
+                std::cerr << "[vedaRos.mf][warn] no endpoint predictor injected — "
+                          << "falling back to the IDENTITY placeholder (H_1 = H_t). "
+                          << "This makes flow() a no-op (zero displacement); inject a real "
+                          << "predictor (e.g. QLM VectorQuantumLayer + parameter-shift, "
+                          << "outputting 6-D <Z> expectations as so(3)+R^3) for meaningful planning.\n";
+            }
             std::cout << "[vedaRos.mf] Lie-group MeanFlow planner online (SO(3)xR^3).\n";
         }
+
+        /** 是否注入了真实端点预测器；false 表示恒等占位（规划无位移）。 */
+        bool has_predictor() const { return injected_; }
 
         // 端点预测
         // Ĥ_1 = X_θ(H_t, t)

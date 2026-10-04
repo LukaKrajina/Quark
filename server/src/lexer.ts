@@ -43,6 +43,8 @@ export enum TokenType {
     NotEqual = 'NotEqual',
     Bang = 'Bang',
     Arrow = 'Arrow',
+    Dollar = 'Dollar',
+    Hash = 'Hash',
     EOF = 'EOF'
 }
 
@@ -59,9 +61,22 @@ export class Lexer {
     private line: number = 1;
     private column: number = 1;
     private input: string = '';
+    /** 预置 token 缓冲模式：morph 展开后直接喂 token，而非重新扫描源文本 */
+    private tokenBuffer: Token[] | null = null;
+    private tokenIndex: number = 0;
 
     constructor(input: string) {
         this.input = input;
+    }
+
+    /**
+     * 从已展开的 token 数组构造词法器（供 morph.ts 展开后重解析使用）。
+     * 缓冲耗尽后返回合成 EOF，不触碰源文本。
+     */
+    public static fromTokens(tokens: Token[]): Lexer {
+        const lexer = new Lexer('');
+        lexer.tokenBuffer = tokens;
+        return lexer;
     }
 
     private currentChar(): string {
@@ -94,6 +109,12 @@ export class Lexer {
     }
 
     public getNextToken(): Token {
+        if (this.tokenBuffer) {
+            if (this.tokenIndex < this.tokenBuffer.length) {
+                return this.tokenBuffer[this.tokenIndex++];
+            }
+            return { type: TokenType.EOF, value: '', line: 0, column: 0, length: 0 };
+        }
         this.skipWhitespaceAndComments();
         const startLine = this.line;
         const startCol = this.column;
@@ -128,6 +149,8 @@ export class Lexer {
         if (char === '[') { this.advance(); return { type: TokenType.OpenBracket, value: '[', line: startLine, column: startCol, length: 1 }; }
         if (char === ']') { this.advance(); return { type: TokenType.CloseBracket, value: ']', line: startLine, column: startCol, length: 1 }; }
         if (char === '@') { this.advance(); return { type: TokenType.At, value: '@', line: startLine, column: startCol, length: 1 }; }
+        if (char === '$') { this.advance(); return { type: TokenType.Dollar, value: '$', line: startLine, column: startCol, length: 1 }; }
+        if (char === '#') { this.advance(); return { type: TokenType.Hash, value: '#', line: startLine, column: startCol, length: 1 }; }
         if (char === '.') { this.advance(); return { type: TokenType.Dot, value: '.', line: startLine, column: startCol, length: 1 }; }
         if (char === ';') { this.advance(); return { type: TokenType.Semicolon, value: ';', line: startLine, column: startCol, length: 1 }; }
         if (char === ',') { this.advance(); return { type: TokenType.Comma, value: ',', line: startLine, column: startCol, length: 1 }; }
@@ -333,6 +356,8 @@ export class Lexer {
                 'fixed',
                 // 味
                 'flavor',
+                // 态射宏（全局、卫生；见 morph.ts）
+                'morph',
                 // 融合
                 'fuse',
                 // 并发与纠缠

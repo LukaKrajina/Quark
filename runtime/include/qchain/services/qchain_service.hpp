@@ -46,8 +46,15 @@ namespace qchain
         {
             bool use_real_quantum_machine = false;
             qhal::HardwareModality hardware = qhal::HardwareModality::Superconducting;
-            pqc::KemScheme kem_scheme = pqc::KemScheme::LWE_REFERENCE;
-            pqc::SigScheme sig_scheme = pqc::SigScheme::MERKLE_XMSS;
+            // KEM 默认改生产级 ML-KEM-768（FIPS 203，NIST 第 3 级）。
+            // 原默认 LWE_REFERENCE 是「演示/参考规模」的 Regev LWE，无宣称安全等级，
+            // 且该配置此前根本未被消费（见下方 kem 成员），属死配置。
+            pqc::KemScheme kem_scheme = pqc::KemScheme::ML_KEM_768;
+            // 签名默认 ML-DSA（FIPS 204）。原默认 MERKLE_XMSS 此前经工厂 default
+            // 分支静默落回 ML-DSA-65，实际行为即 ML-DSA；此处改为显式声明以保持
+            // 行为一致且消除「请求 Merkle 却得到 Dilithium」的语义不符。
+            // MERKLE_XMSS 为有状态方案，需直接使用 MerkleSignatureScheme 管理。
+            pqc::SigScheme sig_scheme = pqc::SigScheme::ML_DSA;
             size_t merkle_height = 4; // 钱包签名树的叶数 = 2^height 次签名
             consensus::ConsensusProtocol consensus = consensus::ConsensusProtocol::QuantumPoW;
             unsigned pow_difficulty = 1;
@@ -76,7 +83,9 @@ namespace qchain
 
         std::vector<ledger::SignedTransaction> mempool;
         token::QuantumToken native_token;
-        pqc::LweKem kem;
+        // KEM 按 config.kem_scheme 由工厂创建（默认 ML-KEM-768，FIPS 203）。
+        // 原为硬编码 pqc::LweKem（演示规模 Regev LWE），使 kem_scheme 配置形同虚设。
+        std::unique_ptr<pqc::IKem> kem;
         Bytes network_key;                        // 由 QKD 建立的网络共享密钥
         causality::CausalityGuard causal_guard;   // 快子场因果哨兵（防超时空）
 
@@ -94,6 +103,7 @@ namespace qchain
         explicit QChainService(const Config &cfg)
             : config(cfg), native_token({"QuantumCoin", "QKC", 0})
         {
+            kem = pqc::make_kem_scheme(config.kem_scheme);
             if (cfg.use_real_quantum_machine)
             {
                 auto qm = std::make_unique<qhal::QM>(cfg.hardware, 0);
@@ -117,6 +127,7 @@ namespace qchain
         QChainService(qhal::IQuantumBackend *external_backend, const Config &cfg)
             : config(cfg), native_token({"QuantumCoin", "QKC", 0}), backend(external_backend)
         {
+            kem = pqc::make_kem_scheme(config.kem_scheme);
             chain.init_genesis(0);
             std::cout << "[qchain] Quantum blockchain service attached to external backend.\n";
         }
